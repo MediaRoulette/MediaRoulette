@@ -124,10 +124,8 @@ public class Main {
     }
 
     private static void initializeMediaProcessing() {
-        System.out.println("Initializing media processing capabilities...");
         try {
             MediaInitializer.initialize().get();
-            System.out.println("✅ Media processing initialization complete!");
         } catch (Exception e) {
             System.err.println("⚠️ Media processing initialization failed: " + e.getMessage());
             System.err.println("   Video processing features will be unavailable, but bot will continue normally.");

@@ -17,15 +17,10 @@ public class MediaInitializer {
         if (initialized) {
             return CompletableFuture.completedFuture(null);
         }
-        
-        System.out.println("Initializing media processing capabilities...");
-        
+
         return MediaContainerManager.initializeFFmpeg()
                 .thenRun(() -> {
                     initialized = true;
-                    System.out.println("Media processing initialization complete!");
-                    
-                    // Schedule periodic cleanup of temp files
                     scheduleCleanup();
                 })
                 .exceptionally(throwable -> {

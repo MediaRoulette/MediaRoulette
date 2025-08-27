@@ -1,6 +1,7 @@
 package me.hash.mediaroulette.plugins;
 
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class Plugin {
     private PluginDescriptionFile description;
@@ -44,7 +45,7 @@ public abstract class Plugin {
 
     public final Logger getLogger() {
         if (logger == null) {
-            logger = Logger.getLogger(description.getName());
+            logger = LoggerFactory.getLogger(description.getName());
         }
         return logger;
     }
