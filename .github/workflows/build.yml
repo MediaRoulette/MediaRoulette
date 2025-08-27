@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -22,15 +24,22 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
+          build-scan-publish: true
+          build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+          build-scan-terms-of-use-agree: "yes"
           
       - name: Make gradlew executable
         run: chmod +x ./gradlew
           
       - name: Build with Gradle ShadowJar Plugin
-        run: ./gradlew shadowJar
+        run: ./gradlew shadowJar --scan
+        env:
+          GRADLE_SCAN_TOS_AGREE: "yes"
         
       - name: Run tests
-        run: ./gradlew test
+        run: ./gradlew test --scan
+        env:
+          GRADLE_SCAN_TOS_AGREE: "yes"
         
       - name: List build outputs (debug)
         run: |
@@ -52,6 +61,8 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -62,14 +73,35 @@ jobs:
           name: media-roulette-${{ github.sha }}
           path: artifacts/
           
-      - name: Prepare release
+      - name: Prepare release files
         run: |
           mkdir -p release
           find artifacts/ -name "*.jar" -exec cp {} release/ \;
+          ls -la release/
           
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="v$(date +'%Y.%m.%d')-${{ github.run_number }}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Generated tag: $TAG"
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: media-roulette-release-${{ github.sha }}
-          path: release/*
-          retention-days: 90
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Release ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## Changes
+            - Build from commit: ${{ github.sha }}
+            - Workflow run: #${{ github.run_number }}
+            
+            ## Files
+            This release contains the compiled JAR file(s) ready for deployment.
+            
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+          files: release/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
