@@ -140,4 +140,27 @@ public class PluginManager {
     public Collection<Plugin> getPlugins() {
         return Collections.unmodifiableCollection(plugins.values());
     }
+
+    public List<Plugin> getLoadedPlugins() {
+        return new ArrayList<>(plugins.values());
+    }
+
+    public void reloadPlugins() {
+        disablePlugins();
+        
+        for (PluginClassLoader classLoader : classLoaders.values()) {
+            try {
+                classLoader.close();
+            } catch (Exception e) {
+                logger.severe("Failed to close class loader: " + e.getMessage());
+            }
+        }
+        
+        plugins.clear();
+        classLoaders.clear();
+        
+        File pluginDir = new File("plugins");
+        loadPlugins(pluginDir);
+        enablePlugins();
+    }
 }

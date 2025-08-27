@@ -48,13 +48,8 @@ public class Bot {
         // Initialize configuration
         config = new Config(Main.database);
 
-        // Add a shutdown hook to properly handle termination
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutting down...");
-            if (shardManager != null) {
-                shardManager.shutdown();
-            }
-        }));
+        // Note: Shutdown hook removed to avoid conflicts with Main.shutdown()
+        // Main class handles all shutdown logic
     }
 
     /**

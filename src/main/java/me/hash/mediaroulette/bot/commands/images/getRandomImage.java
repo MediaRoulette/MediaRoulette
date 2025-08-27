@@ -87,6 +87,21 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
 
     private static final Map<Long, MessageData> ACTIVE_MESSAGES = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService CLEANUP_EXECUTOR = Executors.newSingleThreadScheduledExecutor();
+    
+    /**
+     * Shutdown the cleanup executor service
+     */
+    public static void shutdownCleanupExecutor() {
+        CLEANUP_EXECUTOR.shutdown();
+        try {
+            if (!CLEANUP_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                CLEANUP_EXECUTOR.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            CLEANUP_EXECUTOR.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
     private static final long INACTIVITY_TIMEOUT = TimeUnit.MINUTES.toMillis(3);
 
     static {
