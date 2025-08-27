@@ -4,6 +4,8 @@ import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.UrlResolver;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -12,6 +14,8 @@ import java.util.concurrent.TimeUnit;
  * Resolver for Gfycat URLs with improved error handling
  */
 public class GfycatResolver implements UrlResolver {
+    private static final Logger logger = LoggerFactory.getLogger(GfycatResolver.class);
+
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
             .followRedirects(true)
             .followSslRedirects(true)
@@ -46,12 +50,11 @@ public class GfycatResolver implements UrlResolver {
                     }
                 }
 
-                // Return first pattern as fallback
-                System.err.println("All Gfycat URL patterns failed, using fallback for: " + url);
+                logger.warn("All Gfycat URL patterns failed, using fallback for: {}", url);
                 return urlPatterns[0];
 
             } catch (Exception e) {
-                System.err.println("Failed to resolve Gfycat URL: " + url + " - " + e.getMessage());
+                logger.error("Failed to resolve Gfycat URL: {} - {}", url, e.getMessage());
                 return url; // Return original URL as last resort
             }
         });

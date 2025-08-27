@@ -3,6 +3,8 @@ package me.hash.mediaroulette.utils.media;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -12,7 +14,8 @@ import java.util.regex.Pattern;
  * Utility class for parsing M3U8 playlist files and extracting video URLs
  */
 public class M3u8Parser {
-    
+    private static final Logger logger = LoggerFactory.getLogger(M3u8Parser.class);
+
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
         .followRedirects(true)
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -40,7 +43,7 @@ public class M3u8Parser {
                 return parseM3u8Content(m3u8Content, m3u8Url);
             }
         } catch (Exception e) {
-            System.err.println("Failed to parse M3U8: " + e.getMessage());
+            logger.error("Failed to parse M3U8: {}", e.getMessage());
             return null;
         }
     }

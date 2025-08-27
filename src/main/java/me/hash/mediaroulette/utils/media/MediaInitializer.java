@@ -1,6 +1,9 @@
 package me.hash.mediaroulette.utils.media;
 
 import me.hash.mediaroulette.bot.MediaContainerManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -8,6 +11,8 @@ import java.util.concurrent.CompletableFuture;
  * This should be called during application startup.
  */
 public class MediaInitializer {
+    private static final Logger logger = LoggerFactory.getLogger(MediaInitializer.class);
+
     private static boolean initialized = false;
     
     /**
@@ -24,7 +29,7 @@ public class MediaInitializer {
                     scheduleCleanup();
                 })
                 .exceptionally(throwable -> {
-                    System.err.println("Media processing initialization failed: " + throwable.getMessage());
+                    logger.error("Media processing initialization failed: {}", throwable.getMessage(), throwable);
                     return null;
                 });
     }
@@ -46,7 +51,7 @@ public class MediaInitializer {
                     try {
                         MediaContainerManager.cleanup();
                     } catch (Exception e) {
-                        System.err.println("Error during scheduled cleanup: " + e.getMessage());
+                        logger.error("Error during scheduled cleanup: {}", e.getMessage());
                     }
                 }, 30, 30, java.util.concurrent.TimeUnit.MINUTES);
     }
@@ -57,9 +62,9 @@ public class MediaInitializer {
     public static void shutdown() {
         try {
             MediaContainerManager.cleanup();
-            System.out.println("Media processing cleanup completed.");
+            logger.info("Media processing cleanup completed.");
         } catch (Exception e) {
-            System.err.println("Error during media processing shutdown: " + e.getMessage());
+            logger.error("Error during media processing shutdown: {}", e.getMessage());
         }
     }
 }

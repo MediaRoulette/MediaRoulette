@@ -1,83 +1,96 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration debug="false">
 
-    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
 
-    <appender name="ENHANCED_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <withJansi>true</withJansi>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%cyan(%d{yyyy-MM-dd HH:mm:ss.SSS}) %blue([%15.15thread]) %highlight(%-5level){ERROR=red blink bold, WARN=yellow bold, INFO=green, DEBUG=cyan, TRACE=white} %magenta(%-25.25logger{0}) │ %highlight(%msg){ERROR=red bold, WARN=yellow, INFO=white, DEBUG=cyan, TRACE=white}%n%red(%throwable)</pattern>
-        </encoder>
+    <property name="LOG_DIR" value="logs"/>
+    <property name="MAX_FILE_SIZE" value="10MB"/>
+    <property name="MAX_HISTORY" value="30"/>
+    <property name="TOTAL_SIZE_CAP" value="1GB"/>
+    <property name="CONSOLE_LOG_LEVEL" value="INFO"/>
+    <property name="WEBHOOK_URL" value="${WEBHOOK_URL:-}"/>
 
-        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
-            <evaluator class="ch.qos.logback.classic.boolex.OnErrorEvaluator"/>
-            <onMismatch>NEUTRAL</onMismatch>
-            <onMatch>NEUTRAL</onMatch>
+    <property name="FILE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${CONSOLE_LOG_LEVEL}</level>
         </filter>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %logger{36} - %msg%n</pattern>
+        </encoder>
     </appender>
 
-    <appender name="ERROR_FILE" class="ch.qos.logback.core.FileAppender">
-        <file>logs/errors.log</file>
-        <append>true</append>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/app-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%throwable</pattern>
+            <pattern>${FILE_PATTERN}</pattern>
         </encoder>
+    </appender>
+
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/error-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <encoder>
+            <pattern>${FILE_PATTERN}%ex{full}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Fixed Discord webhook appender to use the correct property -->
+    <appender name="DISCORD_WEBHOOK" class="me.hash.mediaroulette.utils.logging.DiscordWebhookAppender">
+        <webhookUrl>${WEBHOOK_URL}</webhookUrl>
+        <username>Application Logger</username>
+        <includeStackTrace>true</includeStackTrace>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>ERROR</level>
         </filter>
     </appender>
 
-    <appender name="PRETTY_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <withJansi>true</withJansi>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%gray(%d{HH:mm:ss}) %boldWhite(▶) %highlight(%-5level){ERROR=red bold, WARN=yellow bold, INFO=green bold, DEBUG=blue, TRACE=cyan} %boldMagenta(%logger{20}) %gray(→) %highlight(%msg){ERROR=red bold, WARN=yellow, INFO=white}%n%red(%ex{full})</pattern>
-        </encoder>
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE"/>
+        <queueSize>2048</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
     </appender>
 
-    <appender name="STRUCTURED_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <withJansi>true</withJansi>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>┌─ %cyan(%d{HH:mm:ss.SSS}) ─ %blue([%thread]) ─ %highlight(%-5level){ERROR=red bold blink, WARN=yellow bold, INFO=green bold, DEBUG=blue, TRACE=cyan}%n│  %magenta(%logger{30})%n└─ %highlight(%msg){ERROR=red bold, WARN=yellow, INFO=white, DEBUG=cyan}%n%red(%throwable)%n</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/application.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/application-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>10MB</maxFileSize>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>300MB</totalSizeCap>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%throwable</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="ERROR_HIGHLIGHTED_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <withJansi>true</withJansi>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level){ERROR=red bold reverse, WARN=yellow bold, INFO=green, DEBUG=blue, TRACE=cyan} %cyan([%thread]) %magenta(%logger{25}) - %highlight(%msg){ERROR=red bold, WARN=yellow bold, INFO=normal, DEBUG=blue, TRACE=cyan}%n%red(%ex{short})%n</pattern>
-        </encoder>
-    </appender>
-
-    <logger name="com.example.security" level="WARN" additivity="false">
-        <appender-ref ref="ERROR_HIGHLIGHTED_CONSOLE"/>
+    <appender name="ASYNC_ERROR_FILE" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="ERROR_FILE"/>
-    </logger>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
 
-    <logger name="com.example.database" level="DEBUG" additivity="false">
-        <appender-ref ref="ENHANCED_CONSOLE"/>
-        <appender-ref ref="ROLLING_FILE"/>
-    </logger>
+    <appender name="ASYNC_DISCORD" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="DISCORD_WEBHOOK"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <logger name="org.mongodb" level="WARN"/>
+    <logger name="net.dv8tion.jda" level="WARN"/>
 
     <root level="INFO">
-        <appender-ref ref="ERROR_HIGHLIGHTED_CONSOLE"/>  <!-- Recommended for error visibility -->
-        <!-- <appender-ref ref="ENHANCED_CONSOLE"/> -->      <!-- Full-featured with separators -->
-        <!-- <appender-ref ref="PRETTY_CONSOLE"/> -->        <!-- Clean and minimal -->
-        <!-- <appender-ref ref="STRUCTURED_CONSOLE"/> -->    <!-- Box-drawing style -->
-
-        <appender-ref ref="ROLLING_FILE"/>
-        <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ASYNC_ERROR_FILE"/>
+        <appender-ref ref="ASYNC_DISCORD"/>
     </root>
+
+    <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook"/>
+
 </configuration>

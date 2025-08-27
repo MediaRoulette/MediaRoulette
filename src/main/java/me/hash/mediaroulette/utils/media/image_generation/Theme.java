@@ -1,8 +1,13 @@
 package me.hash.mediaroulette.utils.media.image_generation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.Color;
 
 public class Theme {
+    private static final Logger logger = LoggerFactory.getLogger(Theme.class);
+
     private String name;
     private String backgroundImage;
     private ColorPalette colorPalette;
@@ -76,7 +81,7 @@ public class Theme {
 
         private Color parseColor(String colorStr) {
             if (colorStr == null || colorStr.isEmpty()) {
-                System.err.println("Warning: Null or empty color string, using fallback");
+                logger.warn("Warning: Null or empty color string, using fallback");
                 return new Color(128, 128, 128, 255); // Gray fallback instead of black
             }
 
@@ -114,18 +119,16 @@ public class Theme {
                         int alphaInt = Integer.parseInt(alphaStr);
                         // Handle case where alpha might be given as 0-255 or 0-1 scale
                         if (alphaInt <= 1) {
-                            alpha = Math.round(alphaInt * 255);
+                            alpha = alphaInt * 255;
                         } else {
-                            alpha = Math.max(0, Math.min(255, alphaInt));
+                            alpha = Math.min(255, alphaInt);
                         }
                     }
 
                     // Ensure minimum alpha to prevent completely transparent colors
                     alpha = Math.max(alpha, 10);
-                    
-                    Color result = new Color(r, g, b, alpha);
-                    System.out.println("Parsed RGBA(" + r + "," + g + "," + b + "," + alpha + ") from: " + colorStr);
-                    return result;
+
+                    return new Color(r, g, b, alpha);
                 } else if (colorStr.startsWith("rgb(")) {
                     // Parse rgb(r,g,b) format
                     String values = colorStr.substring(4, colorStr.length() - 1);
@@ -146,9 +149,7 @@ public class Theme {
                     return new Color(color.getRed(), color.getGreen(), color.getBlue(), 255);
                 }
             } catch (Exception e) {
-                System.err.println("Failed to parse color: '" + colorStr + "' - " + e.getMessage());
-                e.printStackTrace();
-                // Return a visible fallback color instead of black
+                logger.error("Failed to parse color: '{}' - {}", colorStr, e.getMessage(), e);
                 return new Color(128, 128, 128, 200); // Semi-transparent gray
             }
         }

@@ -10,6 +10,8 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
 import java.text.NumberFormat;
@@ -19,11 +21,12 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 public class QuestNotificationManager {
-    
+    private static final Logger logger = LoggerFactory.getLogger(QuestNotificationManager.class);
+
     private static final Color QUEST_COMPLETE_COLOR = new Color(255, 215, 0); // Gold
     private static final Color SUCCESS_COLOR = new Color(87, 242, 135); // Green
     private static final NumberFormat FORMATTER = NumberFormat.getInstance(Locale.US);
-    
+
     /**
      * Handles quest completion notification and auto-claiming
      * This should be called whenever quest progress is updated
@@ -72,22 +75,21 @@ public class QuestNotificationManager {
                     privateChannel -> {
                         privateChannel.sendMessageEmbeds(embed).queue(
                             success -> {
-                                // DM sent successfully
-                                System.out.println("Quest completion DM sent to user: " + userId);
+                                // DM Sent!
                             },
                             dmError -> {
                                 // DM failed, but we can't send ephemeral here without interaction context
-                                System.out.println("Failed to send quest completion DM to user: " + userId + " - " + dmError.getMessage());
+                                logger.error("Failed to send quest completion DM to user: {} - {}", userId, dmError.getMessage());
                             }
                         );
                     },
                     channelError -> {
-                        System.out.println("Failed to open private channel for user: " + userId + " - " + channelError.getMessage());
+                        logger.error("Failed to open private channel for user: {} - {}", userId, channelError.getMessage());
                     }
                 );
             },
             userError -> {
-                System.out.println("Failed to retrieve user: " + userId + " - " + userError.getMessage());
+                logger.error("Failed to retrieve user: {} - {}", userId, userError.getMessage());
             }
         );
     }
@@ -99,8 +101,8 @@ public class QuestNotificationManager {
         MessageEmbed embed = createQuestCompletionEmbed(completedQuests, totalReward);
         
         event.getHook().sendMessageEmbeds(embed).setEphemeral(true).queue(
-            success -> System.out.println("Quest completion ephemeral message sent to user: " + event.getUser().getId()),
-            error -> System.out.println("Failed to send ephemeral quest notification: " + error.getMessage())
+            success -> {},
+            error -> logger.error("Failed to send ephemeral quest notification: " + error.getMessage())
         );
     }
     
@@ -111,8 +113,8 @@ public class QuestNotificationManager {
         MessageEmbed embed = createQuestCompletionEmbed(completedQuests, totalReward);
         
         event.getHook().sendMessageEmbeds(embed).setEphemeral(true).queue(
-            success -> System.out.println("Quest completion ephemeral message sent to user: " + event.getUser().getId()),
-            error -> System.out.println("Failed to send ephemeral quest notification: " + error.getMessage())
+            success -> {},
+            error -> logger.error("Failed to send ephemeral quest notification: " + error.getMessage())
         );
     }
     

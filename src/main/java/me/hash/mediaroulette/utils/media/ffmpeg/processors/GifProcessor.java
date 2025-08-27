@@ -3,6 +3,8 @@ package me.hash.mediaroulette.utils.media.ffmpeg.processors;
 import me.hash.mediaroulette.utils.media.ffmpeg.config.FFmpegConfig;
 import me.hash.mediaroulette.utils.media.ffmpeg.models.VideoInfo;
 import net.dv8tion.jda.api.utils.FileUpload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
  * Processor for GIF creation operations with optimized FFmpeg commands
  */
 public class GifProcessor extends BaseProcessor {
+    private static final Logger logger = LoggerFactory.getLogger(GifProcessor.class);
 
     public GifProcessor(FFmpegConfig config) {
         super(config);
@@ -155,8 +158,7 @@ public class GifProcessor extends BaseProcessor {
             long maxSize = config.getMaxDiscordFileSize(); // Use regular limit for safety
             
             if (fileSize > maxSize) {
-                // File too large, try to create a smaller version
-                System.out.println("GIF too large (" + fileSize + " bytes), creating smaller version...");
+                logger.warn("GIF too large ({} bytes), creating smaller version...", fileSize);
                 config.getFileManager().deleteIfExists(gifPath);
                 throw new RuntimeException("GIF file too large for Discord (" + fileSize + " bytes > " + maxSize + " bytes)");
             }
@@ -196,9 +198,7 @@ public class GifProcessor extends BaseProcessor {
                 try {
                     long fileSize = Files.size(gifPath);
                     long maxSize = config.getMaxDiscordFileSize(); // 25MB
-                    
-                    System.out.println("GIF created: " + fileSize + " bytes (attempt " + (attempt + 1) + ")");
-                    
+
                     if (fileSize <= maxSize) {
                         return CompletableFuture.completedFuture(gifPath);
                     }
@@ -209,8 +209,8 @@ public class GifProcessor extends BaseProcessor {
                         config.getFileManager().deleteIfExists(gifPath);
                         throw new RuntimeException("Unable to create GIF under 25MB after 5 attempts");
                     }
-                    
-                    System.out.println("GIF too large (" + fileSize + " bytes), reducing size (attempt " + (attempt + 2) + ")...");
+
+                    logger.warn("GIF too large ({} bytes), reducing size (attempt {})...", fileSize, attempt + 2);
                     config.getFileManager().deleteIfExists(gifPath);
                     
                     // Progressive reduction strategy

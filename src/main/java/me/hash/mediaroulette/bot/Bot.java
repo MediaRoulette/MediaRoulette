@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.bot;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.bot.commands.admin.AdminCommand;
@@ -25,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class Bot {
+    private static final Logger logger = LoggerFactory.getLogger(Bot.class);
     private static ShardManager shardManager = null;
     public static final long COOLDOWN_DURATION = 2500; // Cooldown duration in milliseconds
     public static final Map<Long, Long> COOLDOWNS = new HashMap<>(); // Cooldown management map
@@ -80,7 +84,7 @@ public class Bot {
             // Add autocomplete handler
             shardManager.addEventListener(new AutoCompleteHandler());
 
-            System.out.println("Registered all event listeners.");
+            logger.info("Registered all event listeners.");
         }
     }
 
@@ -110,7 +114,7 @@ public class Bot {
 
             shardManager.getShards().forEach(jda -> jda.updateCommands().addCommands(commands).queue());
 
-            System.out.println("Registered all global slash commands.");
+            logger.info("Registered all global slash commands.");
         }
     }
 

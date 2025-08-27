@@ -3,6 +3,8 @@ package me.hash.mediaroulette.utils;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvValidationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -13,13 +15,14 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
  * Utility class for analyzing CSV stats data and generating reports
  */
 public class StatsAnalyzer {
+    private static final Logger logger = LoggerFactory.getLogger(StatsAnalyzer.class);
+
     private static final String STATS_DIR = "stats";
     private static final String REPORTS_DIR = "reports";
     
@@ -127,7 +130,7 @@ public class StatsAnalyzer {
         generatePeakHoursReport(yearMonth);
         generateUserGrowthReport(yearMonth);
 
-        GlobalLogger.getLogger().log(Level.INFO,"Generated monthly report for: " + yearMonth);
+        logger.info("Generated monthly report for: {}", yearMonth);
     }
     
     /**
@@ -136,7 +139,7 @@ public class StatsAnalyzer {
     private static void generateGeneralMonthlyReport(String yearMonth) throws IOException {
         Path inputFile = Paths.get(STATS_DIR, "general_stats_" + yearMonth + ".csv");
         if (!Files.exists(inputFile)) {
-            GlobalLogger.getLogger().log(Level.WARNING,"No general stats file found for: " + yearMonth);
+            logger.warn("No general stats file found for: {}", yearMonth);
             return;
         }
         
@@ -222,7 +225,7 @@ public class StatsAnalyzer {
     private static void generateSourceUsageReport(String yearMonth) throws IOException, CsvValidationException {
         Path inputFile = Paths.get(STATS_DIR, "source_usage_" + yearMonth + ".csv");
         if (!Files.exists(inputFile)) {
-            GlobalLogger.getLogger().log(Level.WARNING,"No source usage file found for: " + yearMonth);
+            logger.warn("No source usage file found for: {}", yearMonth);
             return;
         }
         
@@ -268,7 +271,7 @@ public class StatsAnalyzer {
     private static void generateCommandUsageReport(String yearMonth) throws IOException, CsvValidationException {
         Path inputFile = Paths.get(STATS_DIR, "command_usage_" + yearMonth + ".csv");
         if (!Files.exists(inputFile)) {
-            GlobalLogger.getLogger().log(Level.WARNING,"No command usage file found for: " + yearMonth);
+            logger.warn("No command usage file found for: {}", yearMonth);
             return;
         }
         

@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -9,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class LocalConfig {
+    private static final Logger logger = LoggerFactory.getLogger(LocalConfig.class);
     private static final String CONFIG_FILE = "config.json";
     private static final ObjectMapper mapper = new ObjectMapper();
     private static LocalConfig instance;
@@ -38,7 +42,7 @@ public class LocalConfig {
                 config = mapper.readValue(configFile,
                         mapper.getTypeFactory().constructMapType(HashMap.class, String.class, Object.class));
             } catch (IOException e) {
-                System.err.println("Failed to load config file, creating new one: " + e.getMessage());
+                logger.warn("Failed to load config file, creating new one: {}", e.getMessage());
                 config = createDefaultConfig();
                 saveConfig();
             }
@@ -86,7 +90,7 @@ public class LocalConfig {
         try {
             mapper.writeValue(new File(CONFIG_FILE), config);
         } catch (IOException e) {
-            System.err.println("Failed to save config file: " + e.getMessage());
+            logger.error("Failed to save config file: {}", e.getMessage());
         }
     }
 

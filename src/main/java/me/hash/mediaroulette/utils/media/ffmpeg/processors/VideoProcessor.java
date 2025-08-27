@@ -2,6 +2,8 @@ package me.hash.mediaroulette.utils.media.ffmpeg.processors;
 
 import me.hash.mediaroulette.utils.media.ffmpeg.config.FFmpegConfig;
 import me.hash.mediaroulette.utils.media.ffmpeg.models.VideoInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
  * Processor for video information operations using FFprobe
  */
 public class VideoProcessor extends BaseProcessor {
+    private static final Logger logger = LoggerFactory.getLogger(VideoProcessor.class);
 
     public VideoProcessor(FFmpegConfig config) {
         super(config);
@@ -101,8 +104,7 @@ public class VideoProcessor extends BaseProcessor {
             }
 
         } catch (Exception e) {
-            System.err.println("Failed to parse video info: " + e.getMessage());
-            // Return partial info rather than failing completely
+            logger.error("Failed to parse video info: {}", e.getMessage(), e);
         }
 
         return info;

@@ -2,22 +2,18 @@ package me.hash.mediaroulette.content.reddit;
 
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.content.MediaSource;
-import me.hash.mediaroulette.utils.GlobalLogger;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class RedditPostProcessor {
-    private final Logger logger = GlobalLogger.getLogger();
+    private static final Logger logger = LoggerFactory.getLogger(RedditPostProcessor.class);
     private final OkHttpClient httpClient = new OkHttpClient();
 
     // RedGifs API patterns
@@ -40,15 +36,13 @@ public class RedditPostProcessor {
                 List<MediaResult> postResults = processPost(postData);
                 results.addAll(postResults);
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Error processing post: {0}", e.getMessage());
+                logger.error("Error processing post: {0}", e.getMessage());
             }
         }
         return results;
     }
 
     public List<MediaResult> processPost(JSONObject postData) {
-        logger.log(Level.FINE, "Processing post data: {0}", postData.optString("id"));
-
         List<MediaResult> results = new ArrayList<>();
         String title = postData.optString("title", "Reddit Post");
         String description = buildDescription(postData);
@@ -72,13 +66,12 @@ public class RedditPostProcessor {
         JSONObject mediaMetadata = postData.optJSONObject("media_metadata");
 
         if (galleryData == null || mediaMetadata == null) {
-            logger.log(Level.WARNING, "Gallery post missing required data");
             return results;
         }
 
         JSONArray items = galleryData.optJSONArray("items");
         if (items == null || items.isEmpty()) {
-            logger.log(Level.WARNING, "Gallery post has no items");
+            logger.warn("Gallery post has no items");
             return results;
         }
 
@@ -99,7 +92,7 @@ public class RedditPostProcessor {
                     results.add(new MediaResult(imageUrl, galleryTitle, description, MediaSource.REDDIT, null, null));
                 }
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Error processing gallery item {0}: {1}", new Object[]{i, e.getMessage()});
+                logger.error("Error processing gallery item {0}: {1}", new Object[]{i, e.getMessage()});
             }
         }
 
@@ -176,8 +169,6 @@ public class RedditPostProcessor {
         String url = postData.optString("url", "");
         if (!url.isEmpty()) {
             String resolvedUrl = resolveExternalMediaUrl(url);
-            if (resolvedUrl == null)
-                System.out.println("URL> " + url);
             if (!resolvedUrl.equals(url)) {
                 return resolvedUrl; // External URL was resolved
             }
@@ -292,7 +283,7 @@ public class RedditPostProcessor {
                     }
                 }
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Error processing preview image: {0}", e.getMessage());
+                logger.error("Error processing preview image: {0}", e.getMessage());
             }
         }
 
@@ -325,7 +316,7 @@ public class RedditPostProcessor {
             }
 
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Error resolving external URL {0}: {1}", new Object[]{url, e.getMessage()});
+            logger.error("Error resolving external URL {0}: {1}", url, e.getMessage());
         }
 
         return url;

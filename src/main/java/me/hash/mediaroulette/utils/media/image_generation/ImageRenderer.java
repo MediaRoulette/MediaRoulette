@@ -5,6 +5,8 @@ import me.hash.mediaroulette.utils.media.image_generation.components.TextWrapper
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -15,10 +17,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class ImageRenderer {
-    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .build();
+    private static final Logger logger = LoggerFactory.getLogger(ImageRenderer.class);
 
     private final Theme theme;
     private final int width;
@@ -75,16 +74,15 @@ public class ImageRenderer {
 
                         g2d.drawImage(scaledBg, 0, 0, null);
                         backgroundLoaded = true;
-                        System.out.println("Successfully loaded background image: " + bgPath);
                     }
                 } else {
-                    System.out.println("Background image not found: " + bgPath + ", using gradient fallback");
+                    logger.error("Background image not found: {}, using gradient fallback", bgPath);
                 }
             } catch (IOException e) {
-                System.err.println("Error loading background image '" + bgPath + "': " + e.getMessage());
+                logger.error("Error loading background image '{}': {}", bgPath, e.getMessage());
             }
         } else {
-            System.out.println("No background image specified, using gradient background");
+            logger.error("No background image specified, using gradient background");
         }
 
         // Always render gradient background if image loading failed or no image specified
@@ -96,12 +94,6 @@ public class ImageRenderer {
     private void renderGradientBackground(Graphics2D g2d) {
         Color primaryColor = theme.getColorPalette().getPrimaryColor();
         Color secondaryColor = theme.getColorPalette().getSecondaryColor();
-        
-        System.out.println("Rendering gradient background:");
-        System.out.println("  Primary: RGBA(" + primaryColor.getRed() + "," + primaryColor.getGreen() + 
-                          "," + primaryColor.getBlue() + "," + primaryColor.getAlpha() + ")");
-        System.out.println("  Secondary: RGBA(" + secondaryColor.getRed() + "," + secondaryColor.getGreen() + 
-                          "," + secondaryColor.getBlue() + "," + secondaryColor.getAlpha() + ")");
 
         // Create gradient with proper alpha handling
         GradientPaint gradient = new GradientPaint(
@@ -210,9 +202,7 @@ public class ImageRenderer {
         List<String> lines = wrappedText.getLines();
         int lineHeight = fm.getHeight();
         int startY = boxDims.y + boxDims.paddingY + fm.getAscent();
-        
-        System.out.println("Rendering " + lines.size() + " lines with font scale: " + wrappedText.getFontScale());
-        
+
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             if (line.trim().isEmpty()) {
@@ -228,8 +218,6 @@ public class ImageRenderer {
             
             // Render the line
             g2d.drawString(line, startX, currentY);
-            
-            System.out.println("Line " + (i + 1) + ": '" + line + "' at (" + startX + ", " + currentY + ")");
         }
     }
 
@@ -247,7 +235,7 @@ public class ImageRenderer {
                 return baseFont.deriveFont(style, (float) fontSize);
             }
         } catch (Exception e) {
-            System.err.println("Failed to load custom font, using system font: " + e.getMessage());
+            logger.error("Failed to load custom font, using system font: {}", e.getMessage());
         }
 
         // Fallback to system fonts
@@ -302,13 +290,6 @@ public class ImageRenderer {
     private void renderBox(Graphics2D g2d, BoxDimensions boxDims) {
         int cornerRadius = (int) (theme.getBoxStyle().getCornerRadius() * scaleFactor);
         Color primaryColor = theme.getColorPalette().getPrimaryColor();
-
-        // Debug output to help troubleshoot
-        System.out.println("Rendering box with color RGBA: " +
-                primaryColor.getRed() + ", " +
-                primaryColor.getGreen() + ", " +
-                primaryColor.getBlue() + ", " +
-                primaryColor.getAlpha());
 
         // Ensure we're using the correct composite mode for alpha blending
         Composite originalComposite = g2d.getComposite();

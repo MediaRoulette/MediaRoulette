@@ -5,17 +5,17 @@ import me.hash.mediaroulette.model.content.MediaSource;
 import me.hash.mediaroulette.content.provider.MediaProvider;
 import me.hash.mediaroulette.content.http.HttpClientWrapper;
 import me.hash.mediaroulette.utils.ErrorReporter;
-import me.hash.mediaroulette.utils.GlobalLogger;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class FourChanProvider implements MediaProvider {
+    private static final Logger logger = LoggerFactory.getLogger(FourChanProvider.class);
     private static final List<String> BOARDS = Arrays.asList("a", "c", "w", "m", "cgl", "cm", "n", "jp", "vp", "v", "vg",
             "vr", "co", "g", "tv", "k", "o", "an", "tg", "sp", "asp", "sci", "int", "out", "toy", "biz", "i", "po", "p", "ck", "ic",
             "wg", "mu", "fa", "3", "gd", "diy", "wsg", "s", "hc", "hm", "h", "e", "u", "d", "y", "t", "hr", "gif",
@@ -27,7 +27,6 @@ public class FourChanProvider implements MediaProvider {
     private final Map<String, Queue<MediaResult>> imageCache = new ConcurrentHashMap<>();
     private final HttpClientWrapper httpClient;
     private final Random random = new Random();
-    private final Logger logger = GlobalLogger.getLogger();
 
     public FourChanProvider(HttpClientWrapper httpClient) {
         this.httpClient = httpClient;
@@ -52,7 +51,7 @@ public class FourChanProvider implements MediaProvider {
         MediaResult result = cache.poll();
         if (result == null) {
             String errorMsg = "No images available for board: " + board;
-            logger.log(Level.WARNING, errorMsg);
+            logger.warn(errorMsg);
             ErrorReporter.reportFailed4ChanBoard(board, errorMsg, userId);
             throw new IOException(errorMsg + ". Please use /support for help.");
         }
@@ -78,18 +77,16 @@ public class FourChanProvider implements MediaProvider {
             
             try {
                 if (validateBoardExists(board)) {
-                    logger.log(Level.INFO, "Using validated random 4chan board: {0}", board);
                     return board;
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Board validation failed for {0}: {1}", new Object[]{board, e.getMessage()});
-                continue;
+                logger.warn("Board validation failed for {}: {}", board, e.getMessage(), e);
             }
         }
         
         // If no valid board found, report error and throw exception
         String errorMsg = "No valid 4chan boards found after " + attempts + " attempts";
-        logger.log(Level.SEVERE, errorMsg);
+        logger.error(errorMsg);
         ErrorReporter.reportProviderError("4chan", "board validation", errorMsg, userId);
         throw new IOException(errorMsg + ". Please use /support for help.");
     }
@@ -132,7 +129,7 @@ public class FourChanProvider implements MediaProvider {
             List<Integer> threadNumbers = fetchThreadNumbers(board);
             if (threadNumbers.isEmpty()) {
                 String errorMsg = "No threads found for board: " + board;
-                logger.log(Level.WARNING, errorMsg);
+                logger.warn(errorMsg);
                 ErrorReporter.reportFailed4ChanBoard(board, errorMsg, userId);
                 return;
             }
@@ -142,12 +139,9 @@ public class FourChanProvider implements MediaProvider {
 
             Queue<MediaResult> cache = imageCache.get(board);
             cache.addAll(images);
-            
-            logger.log(Level.INFO, "Populated cache for board {0} with {1} images", 
-                new Object[]{board, images.size()});
         } catch (IOException | HttpClientWrapper.RateLimitException | InterruptedException e) {
             String errorMsg = "Failed to populate cache for board " + board + ": " + e.getMessage();
-            logger.log(Level.SEVERE, errorMsg);
+            logger.error(errorMsg);
             ErrorReporter.reportFailed4ChanBoard(board, errorMsg, userId);
             throw e;
         }
@@ -204,7 +198,7 @@ public class FourChanProvider implements MediaProvider {
         try {
             return validateBoardExists(board);
         } catch (IOException e) {
-            logger.log(Level.WARNING, "Failed to validate board {0}: {1}", new Object[]{board, e.getMessage()});
+            logger.error("Failed to validate board {}: {}", board, e.getMessage());
             return false;
         }
     }

@@ -2,19 +2,19 @@ package me.hash.mediaroulette.utils.media.image_generation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 
 public class ThemeManager {
-    private static final Logger LOGGER = Logger.getLogger(ThemeManager.class.getName());
-    private static ThemeManager instance;
-    private Map<String, Theme> themes;
-    private ObjectMapper objectMapper;
+    private static final Logger logger = LoggerFactory.getLogger(ThemeManager.class);
+    private final Map<String, Theme> themes;
+    private final ObjectMapper objectMapper;
 
     private ThemeManager() {
         this.objectMapper = new ObjectMapper();
@@ -22,15 +22,12 @@ public class ThemeManager {
         loadThemes();
     }
 
+    private static final class InstanceHolder {
+        private static final ThemeManager instance = new ThemeManager();
+    }
+
     public static ThemeManager getInstance() {
-        if (instance == null) {
-            synchronized (ThemeManager.class) {
-                if (instance == null) {
-                    instance = new ThemeManager();
-                }
-            }
-        }
-        return instance;
+        return InstanceHolder.instance;
     }
 
     private void loadThemes() {
@@ -38,7 +35,7 @@ public class ThemeManager {
                 .getResourceAsStream("config/themes.json")) {
 
             if (inputStream == null) {
-                LOGGER.severe("themes.json not found in resources/config/");
+                logger.error("themes.json not found in resources/config/");
                 throw new IOException("themes.json not found in resources/config/");
             }
 
@@ -51,16 +48,15 @@ public class ThemeManager {
             for (Theme theme : themeList) {
                 if (theme.getName() != null && !theme.getName().trim().isEmpty()) {
                     themes.put(theme.getName(), theme);
-                    LOGGER.info("Loaded theme: " + theme.getName());
                 } else {
-                    LOGGER.warning("Skipped theme with null or empty name");
+                    logger.warn("Skipped theme with null or empty name");
                 }
             }
 
-            LOGGER.info("Successfully loaded " + themes.size() + " themes from config");
+            logger.info("Successfully loaded {} themes from config", themes.size());
 
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to load themes from config file", e);
+            logger.error("Failed to load themes from config file", e);
             // If config loading fails, we'll have an empty themes map
             // The getTheme method will handle this gracefully
         }
@@ -72,13 +68,13 @@ public class ThemeManager {
      */
     public Theme getTheme(String themeName) {
         if (themeName == null || themeName.trim().isEmpty()) {
-            LOGGER.warning("Attempted to get theme with null or empty name");
+            logger.warn("Attempted to get theme with null or empty name");
             return getDefaultTheme();
         }
 
         Theme theme = themes.get(themeName);
         if (theme == null) {
-            LOGGER.warning("Theme '" + themeName + "' not found, returning default theme");
+            logger.warn("Theme '{}' not found, returning default theme", themeName);
             return getDefaultTheme();
         }
 
@@ -90,7 +86,7 @@ public class ThemeManager {
      */
     private Theme getDefaultTheme() {
         if (themes.isEmpty()) {
-            LOGGER.severe("No themes available! Please check your themes.json configuration.");
+            logger.error("No themes available! Please check your themes.json configuration.");
             return null;
         }
 
@@ -130,7 +126,7 @@ public class ThemeManager {
      * Reloads themes from the config file
      */
     public void reloadThemes() {
-        LOGGER.info("Reloading themes from config file");
+        logger.info("Reloading themes from config file");
         loadThemes();
     }
 }

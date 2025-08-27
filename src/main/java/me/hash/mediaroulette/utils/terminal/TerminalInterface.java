@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.utils.terminal;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.utils.terminal.commands.*;
 
 import java.io.BufferedReader;
@@ -8,6 +11,7 @@ import java.io.InputStreamReader;
 import java.util.List;
 
 public class TerminalInterface {
+    private static final Logger logger = LoggerFactory.getLogger(TerminalInterface.class);
     private final CommandSystem commandSystem;
     private final BufferedReader reader;
     private volatile boolean running = true;
@@ -30,13 +34,12 @@ public class TerminalInterface {
     }
 
     public void start() {
-        System.out.println("=== Media Roulette Terminal ===");
-        System.out.println("Type 'help' for available commands or 'exit' to quit.");
-        System.out.println();
+        logger.info("=== Media Roulette Terminal ===");
+        logger.info("Type 'help' for available commands or 'exit' to quit.");
 
         while (running) {
             try {
-                System.out.print("mediaroulette> ");
+                System.out.print("mediaroulette> "); // Keep this as console prompt
                 String input = reader.readLine();
 
                 if (input == null || !running) {
@@ -58,22 +61,19 @@ public class TerminalInterface {
 
                 if (result.isSuccess()) {
                     if (!result.getMessage().isEmpty()) {
-                        System.out.println(result.getMessage());
+                        logger.info(result.getMessage());
                     }
                 } else {
-                    System.err.println("Error: " + result.getMessage());
+                    logger.error("Error: {}", result.getMessage());
                 }
-
-                System.out.println();
 
             } catch (IOException e) {
                 if (running) {
-                    System.err.println("Error reading input: " + e.getMessage());
+                    logger.error("Error reading input: {}", e.getMessage());
                 }
                 break;
             } catch (Exception e) {
-                System.err.println("Unexpected error: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("Unexpected error: {}", e.getMessage(), e);
             }
         }
         
@@ -88,12 +88,12 @@ public class TerminalInterface {
     private void showCompletions(String input) {
         List<String> completions = commandSystem.getCompletions(input);
         if (!completions.isEmpty()) {
-            System.out.println("Available completions:");
+            logger.info("Available completions:");
             for (String completion : completions) {
-                System.out.println("  " + completion);
+                logger.info("  {}", completion);
             }
         } else {
-            System.out.println("No completions available.");
+            logger.info("No completions available.");
         }
     }
 

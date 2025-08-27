@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.model.BotInventoryItem;
 import com.mongodb.client.MongoCollection;
@@ -15,6 +18,7 @@ import java.util.Optional;
  * Service for managing bot inventory items
  */
 public class BotInventoryService {
+    private static final Logger logger = LoggerFactory.getLogger(BotInventoryService.class);
     private final MongoCollection<Document> collection;
 
     public BotInventoryService() {
@@ -182,7 +186,7 @@ public class BotInventoryService {
 
             return item;
         } catch (Exception e) {
-            System.err.println("Error parsing bot inventory item: " + e.getMessage());
+            logger.error("Error parsing bot inventory item: {}", e.getMessage());
             return null;
         }
     }

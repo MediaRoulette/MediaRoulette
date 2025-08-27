@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.utils.media.ffmpeg.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +12,8 @@ import java.nio.file.Paths;
  * Utility class for file operations
  */
 public class FileManager {
+    private static final Logger logger = LoggerFactory.getLogger(FileManager.class);
+
     private final String tempDirectory;
 
     public FileManager(String tempDirectory) {
@@ -45,7 +50,7 @@ public class FileManager {
         try {
             Files.deleteIfExists(path);
         } catch (IOException e) {
-            System.err.println("Failed to delete file: " + path + " - " + e.getMessage());
+            logger.error("Failed to delete file: {} - {}", path, e.getMessage(), e);
         }
     }
 
@@ -64,7 +69,7 @@ public class FileManager {
                     .filter(this::isOldFile)
                     .forEach(this::deleteIfExists);
         } catch (IOException e) {
-            System.err.println("Failed to cleanup temp files: " + e.getMessage());
+            logger.error("Failed to cleanup temp files: {}", e.getMessage(), e);
         }
     }
 

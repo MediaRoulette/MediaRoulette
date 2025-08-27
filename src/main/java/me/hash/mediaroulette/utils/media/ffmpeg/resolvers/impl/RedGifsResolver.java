@@ -4,6 +4,8 @@ import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.UrlResolver;
 import me.hash.mediaroulette.utils.browser.PlaywrightBrowser;
 import me.hash.mediaroulette.utils.media.M3u8Parser;
 import com.microsoft.playwright.Page;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -11,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
  * Concise RedGifs resolver using Playwright and M3U8 parsing
  */
 public class RedGifsResolver implements UrlResolver {
+    private static final Logger logger = LoggerFactory.getLogger(RedGifsResolver.class);
 
     @Override
     public boolean canResolve(String url) {
@@ -76,14 +79,14 @@ public class RedGifsResolver implements UrlResolver {
                         }
                         
                     } catch (Exception e) {
-                        System.err.println("Browser scraping error: " + e.getMessage());
+                        logger.error("Browser scraping error: {}", e.getMessage());
                     }
                     
                     return url;
                 });
                 
             } catch (Exception e) {
-                System.err.println("Failed to resolve RedGifs URL: " + e.getMessage());
+                logger.error("Failed to resolve RedGifs URL: {}", e.getMessage());
                 return url;
             }
         });
@@ -135,34 +138,33 @@ public class RedGifsResolver implements UrlResolver {
             String m3u8Url = M3u8Parser.buildRedGifsM3u8Url(gifId);
             String videoUrl = M3u8Parser.extractVideoUrl(m3u8Url);
             if (videoUrl != null) {
-                System.out.println("M3U8 URL found: " + videoUrl);
                 return videoUrl;
             }
             
             // Fallback to browser scraping with visible browser
             return PlaywrightBrowser.executeWithVisiblePage(url, page -> {
-                System.out.println("Inspecting page: " + url);
-                
+                logger.info("Inspecting page: {}", url);
+
                 String videoSrc = (String) page.evaluate(
                     "() => document.querySelector('.Player-Video video')?.src"
                 );
-                System.out.println("Video src: " + videoSrc);
+                logger.info("Video src: {}", videoSrc);
                 
                 if (videoSrc != null && videoSrc.startsWith("blob:")) {
                     String posterSrc = (String) page.evaluate(
                         "() => document.querySelector('.Player-Poster')?.src"
                     );
-                    System.out.println("Poster src: " + posterSrc);
+                    logger.info("Poster src: {}", posterSrc);
                     
                     if (posterSrc != null && posterSrc.endsWith(".jpg")) {
                         String mp4Url = posterSrc.replace(".jpg", ".mp4");
-                        System.out.println("Converted to MP4: " + mp4Url);
+                        logger.info("Converted to MP4: {}", mp4Url);
                         return mp4Url;
                     }
                 }
                 
                 if (videoSrc != null && !videoSrc.startsWith("blob:") && videoSrc.contains(".mp4")) {
-                    System.out.println("Direct video URL: " + videoSrc);
+                    logger.info("Direct video URL: {}", videoSrc);
                     return videoSrc;
                 }
                 
@@ -170,7 +172,7 @@ public class RedGifsResolver implements UrlResolver {
             });
             
         } catch (Exception e) {
-            System.err.println("Failed to resolve RedGifs URL: " + e.getMessage());
+            logger.error("Failed to resolve RedGifs URL: {}", e.getMessage());
             return url;
         }
     }

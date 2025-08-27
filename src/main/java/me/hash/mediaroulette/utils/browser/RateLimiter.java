@@ -1,19 +1,18 @@
 package me.hash.mediaroulette.utils.browser;
 
 import me.hash.mediaroulette.utils.ErrorReporter;
-import me.hash.mediaroulette.utils.GlobalLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 
 /**
  * Global rate limiter for all API sources
  */
 public class RateLimiter {
-    private static final Logger logger = GlobalLogger.getLogger();
-    
+    private static final Logger logger = LoggerFactory.getLogger(RateLimiter.class);
+
     // Rate limit tracking per source
     private static final ConcurrentHashMap<String, SourceRateLimit> rateLimits = new ConcurrentHashMap<>();
     
@@ -47,9 +46,6 @@ public class RateLimiter {
         boolean allowed = rateLimit.tryRequest();
         
         if (!allowed) {
-            logger.log(Level.WARNING, "Rate limit exceeded for source: {0}, user: {1}", 
-                new Object[]{source, userId});
-            
             // Report rate limit hit to monitoring
             ErrorReporter.reportProviderError(source, "rate limit", 
                 "Rate limit exceeded", userId);
@@ -102,9 +98,10 @@ public class RateLimiter {
         SourceRateLimit rateLimit = rateLimits.computeIfAbsent(source, 
             k -> new SourceRateLimit(defaultLimits.getOrDefault(k, 60)));
         rateLimit.triggerManualLimit(durationSeconds);
-        
-        logger.log(Level.WARNING, "Manual rate limit triggered for source: {0}, duration: {1}s", 
-            new Object[]{source, durationSeconds});
+
+        ErrorReporter.reportWarning("Manual rate limit",
+                "Manual rate limit triggered for source: " + source + ", duration: " + durationSeconds +"s",
+                "", source, "global");
     }
     
     /**
@@ -113,8 +110,9 @@ public class RateLimiter {
      */
     public static void resetRateLimit(String source) {
         rateLimits.remove(source);
-        logger.log(Level.INFO, "Rate limit reset for source: {0}", source);
-    }
+        ErrorReporter.reportInfo("Manual rate removed",
+                "Manual rate limit removed for source: " + source + ".",
+                "", source, "global");    }
     
     /**
      * Get rate limit status for all sources

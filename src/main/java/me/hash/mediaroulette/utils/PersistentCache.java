@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -14,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Persistent cache utility that saves data to JSON files
  */
 public class PersistentCache<T> {
+    private static final Logger logger = LoggerFactory.getLogger(PersistentCache.class);
     private static final ObjectMapper mapper = new ObjectMapper();
     private final String cacheFile;
     private final Map<String, T> cache;
@@ -43,9 +47,9 @@ public class PersistentCache<T> {
             try {
                 Map<String, T> loadedCache = mapper.readValue(file, typeRef);
                 cache.putAll(loadedCache);
-                System.out.println("Loaded " + cache.size() + " items from cache: " + cacheFile);
+                logger.info("Loaded {} items from cache: {}", cache.size(), cacheFile);
             } catch (IOException e) {
-                System.err.println("Failed to load cache from " + cacheFile + ": " + e.getMessage());
+                logger.error("Failed to load cache from {}: {}", cacheFile, e.getMessage());
             }
         }
     }
@@ -54,7 +58,7 @@ public class PersistentCache<T> {
         try {
             mapper.writeValue(new File(cacheFile), cache);
         } catch (IOException e) {
-            System.err.println("Failed to save cache to " + cacheFile + ": " + e.getMessage());
+            logger.error("Failed to save cache to {}: {}", cacheFile, e.getMessage());
         }
     }
     

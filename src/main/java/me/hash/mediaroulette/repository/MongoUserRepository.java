@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.repository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Accumulators;
@@ -16,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public class MongoUserRepository implements UserRepository {
+    private static final Logger logger = LoggerFactory.getLogger(MongoUserRepository.class);
     private final MongoCollection<Document> userCollection;
 
     public MongoUserRepository(MongoCollection<Document> userCollection) {
@@ -328,7 +332,7 @@ public class MongoUserRepository implements UserRepository {
             }
             return 0L;
         } catch (Exception e) {
-            System.err.println("Error calculating total images generated: " + e.getMessage());
+            logger.error("Error calculating total images generated: {}", e.getMessage());
             return 0L;
         }
     }

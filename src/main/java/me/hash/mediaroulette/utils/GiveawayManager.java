@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.service.GiveawayService;
 import me.hash.mediaroulette.model.Giveaway;
 
@@ -9,6 +12,7 @@ import java.util.List;
  * Manages giveaway lifecycle and startup recovery
  */
 public class GiveawayManager {
+    private static final Logger logger = LoggerFactory.getLogger(GiveawayManager.class);
     private static GiveawayService giveawayService;
     
     public static void initialize() {
@@ -28,18 +32,18 @@ public class GiveawayManager {
             int endedCount = 0;
             for (Giveaway giveaway : activeGiveaways) {
                 if (giveaway.isExpired() && !giveaway.isCompleted()) {
-                    System.out.println("Ending giveaway that expired while offline: " + giveaway.getId());
+                    logger.info("Ending giveaway that expired while offline: {}", giveaway.getId());
                     giveawayService.endGiveaway(giveaway);
                     endedCount++;
                 }
             }
             
             if (endedCount > 0) {
-                System.out.println("Resumed and ended " + endedCount + " expired giveaways");
+                logger.info("Resumed and ended {} expired giveaways", endedCount);
             }
             
         } catch (Exception e) {
-            System.err.println("Error resuming giveaways: " + e.getMessage());
+            logger.error("Error resuming giveaways: {}", e.getMessage());
         }
     }
     

@@ -7,21 +7,22 @@ import me.hash.mediaroulette.utils.DictionaryIntegration;
 import me.hash.mediaroulette.content.reddit.RedditClient;
 import me.hash.mediaroulette.content.reddit.SubredditManager;
 import me.hash.mediaroulette.content.reddit.RedditPostProcessor;
-import me.hash.mediaroulette.utils.GlobalLogger;
 import me.hash.mediaroulette.utils.ErrorReporter;
 import me.hash.mediaroulette.utils.PersistentCache;
 import okhttp3.Response;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class RedditProvider implements MediaProvider {
+    private static final Logger logger = LoggerFactory.getLogger(RedditProvider.class);
+
     private static final long CACHE_EXPIRATION_TIME = 10 * 60 * 1000; // 10 minutes
     private static final int POST_LIMIT = 50;
     private static final int MAX_RESULTS_PER_SUBREDDIT = 200;
@@ -39,7 +40,6 @@ public class RedditProvider implements MediaProvider {
         new PersistentCache<>("reddit_timestamps.json", new TypeReference<Map<String, Long>>() {});
     
     private final ExecutorService executorService = Executors.newFixedThreadPool(6);
-    private final Logger logger = GlobalLogger.getLogger();
 
     private final RedditClient redditClient;
     private final SubredditManager subredditManager;
@@ -70,8 +70,6 @@ public class RedditProvider implements MediaProvider {
     }
     
     public MediaResult getRandomReddit(String subreddit, String userId) throws IOException, ExecutionException, InterruptedException {
-        logger.log(Level.INFO, "Fetching random Reddit image from subreddit: {0}", subreddit);
-
         // Always try dictionary first if userId is provided and no specific subreddit requested
         if (subreddit == null && userId != null) {
             System.out.println("RedditProvider: Trying to get dictionary subreddit for user: " + userId);
@@ -80,7 +78,7 @@ public class RedditProvider implements MediaProvider {
             if (dictSubreddit != null && subredditManager.doesSubredditExist(dictSubreddit)) {
                 subreddit = dictSubreddit;
                 System.out.println("RedditProvider: Using dictionary subreddit: " + subreddit);
-                logger.log(Level.INFO, "Using dictionary subreddit: {0}", subreddit);
+                logger.info("Using dictionary subreddit: {}", subreddit);
             } else {
                 System.out.println("RedditProvider: Dictionary subreddit invalid or null");
             }
@@ -90,9 +88,8 @@ public class RedditProvider implements MediaProvider {
         if (subreddit == null || !subredditManager.doesSubredditExist(subreddit)) {
             try {
                 subreddit = subredditManager.getRandomSubreddit();
-                logger.log(Level.WARNING, "Using fallback random subreddit: {0}", subreddit);
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Failed to get random subreddit: {0}", e.getMessage());
+                logger.error("Failed to get random subreddit: {}", e.getMessage());
                 ErrorReporter.reportProviderError("reddit", "random subreddit selection", e.getMessage(), userId);
                 throw new IOException("Unable to find a valid subreddit. " + e.getMessage());
             }
@@ -105,15 +102,13 @@ public class RedditProvider implements MediaProvider {
         MediaResult result = queue.poll();
 
         if (result == null) {
-            logger.log(Level.WARNING, "No images available for subreddit {0} after updating.", subreddit);
+            logger.warn("No images available for subreddit {} after updating.", subreddit);
             throw new IOException("No images available for subreddit: " + subreddit);
         }
 
         // Update persistent cache to reflect the consumed item
         saveToPersistentCache(subreddit, queue);
 
-        logger.log(Level.INFO, "Successfully retrieved media from subreddit {0}. Queue size: {1}",
-                new Object[]{subreddit, queue.size()});
         return result;
     }
 
@@ -138,11 +133,6 @@ public class RedditProvider implements MediaProvider {
                         loadedCount++;
                     }
                 }
-                
-                if (loadedCount > 0) {
-                    logger.log(Level.INFO, "Loaded {0} cached media results for subreddit: {1}", 
-                        new Object[]{loadedCount, subreddit});
-                }
             }
         } else {
             lastUpdated.put(subreddit, 0L);
@@ -156,8 +146,6 @@ public class RedditProvider implements MediaProvider {
                 System.currentTimeMillis() - lastUpdateTime > CACHE_EXPIRATION_TIME;
 
         if (needsRefresh) {
-            logger.log(Level.INFO, "Updating image queue for subreddit: {0} (current size: {1})",
-                    new Object[]{subreddit, imageQueue.size()});
             updateImageQueue(subreddit);
             long currentTime = System.currentTimeMillis();
             lastUpdated.put(subreddit, currentTime);
@@ -174,8 +162,8 @@ public class RedditProvider implements MediaProvider {
                 try {
                     return fetchImagesFromSubreddit(subreddit, sortMethod);
                 } catch (IOException | InterruptedException | ExecutionException e) {
-                    logger.log(Level.SEVERE, "Error fetching images for subreddit {0} with sort {1}: {2}",
-                            new Object[]{subreddit, sortMethod, e.getMessage()});
+                    logger.error( "Error fetching images for subreddit {} with sort {}: {}",
+                            subreddit, sortMethod, e.getMessage());
                     Thread.currentThread().interrupt();
                     return Collections.emptyList();
                 }
@@ -214,11 +202,8 @@ public class RedditProvider implements MediaProvider {
 
             // Save to persistent cache
             saveToPersistentCache(subreddit, queue);
-            
-            logger.log(Level.INFO, "Added {0} new media items to queue for subreddit {1}. Total queue size: {2}",
-                    new Object[]{addedCount, subreddit, queue.size()});
         } else {
-            logger.log(Level.WARNING, "No valid images found for subreddit: {0}", subreddit);
+            logger.warn("No valid images found for subreddit: {}", subreddit);
         }
 
         // Clean up old processed IDs if the set gets too large
@@ -236,8 +221,8 @@ public class RedditProvider implements MediaProvider {
 
         Response response = redditClient.sendGetRequestAsync(url, accessToken).get();
         if (!response.isSuccessful()) {
-            logger.log(Level.SEVERE, "Failed to fetch posts for subreddit: {0} with sort: {1}",
-                    new Object[]{subreddit, sortMethod});
+            logger.error("Failed to fetch posts for subreddit: {} with sort: {}",
+                    subreddit, sortMethod);
             return Collections.emptyList();
         }
 
@@ -248,14 +233,10 @@ public class RedditProvider implements MediaProvider {
             JSONObject json = new JSONObject(responseBody);
             JSONArray posts = json.getJSONObject("data").getJSONArray("children");
 
-            List<MediaResult> results = postProcessor.processPosts(posts);
-            logger.log(Level.INFO, "Processed {0} posts from {1}/{2}, got {3} media results",
-                    new Object[]{posts.length(), subreddit, sortMethod, results.size()});
-
-            return results;
+            return postProcessor.processPosts(posts);
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error parsing Reddit response for {0}/{1}: {2}",
-                    new Object[]{subreddit, sortMethod, e.getMessage()});
+            logger.error("Error parsing Reddit response for {}/{}: {}",
+                    subreddit, sortMethod, e.getMessage());
             return Collections.emptyList();
         }
     }
@@ -283,11 +264,9 @@ public class RedditProvider implements MediaProvider {
                 cachedResults.add(new CachedMediaResult(result));
             }
             persistentCache.put(subreddit, cachedResults);
-            logger.log(Level.FINE, "Saved {0} media results to persistent cache for subreddit: {1}", 
-                new Object[]{cachedResults.size(), subreddit});
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to save cache for subreddit {0}: {1}", 
-                new Object[]{subreddit, e.getMessage()});
+            logger.warn("Failed to save cache for subreddit {}: {}",
+                    subreddit, e.getMessage());
         }
     }
 

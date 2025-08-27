@@ -2,6 +2,8 @@ package me.hash.mediaroulette.utils.browser;
 
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.WaitUntilState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
 
@@ -9,7 +11,8 @@ import java.util.function.Function;
  * Utility class for Playwright browser automation with stealth features
  */
 public class PlaywrightBrowser {
-    
+    private static final Logger logger = LoggerFactory.getLogger(PlaywrightBrowser.class);
+
     /**
      * Execute a function with a stealth browser page
      */
@@ -40,40 +43,36 @@ public class PlaywrightBrowser {
                     "Connection", "keep-alive",
                     "Upgrade-Insecure-Requests", "1"
                 )))) {
-                
-                Page page = context.newPage();
-                
-                try {
+
+                try (Page page = context.newPage()) {
                     // Remove webdriver detection
                     page.addInitScript("() => {" +
-                        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});" +
-                        "window.chrome = {runtime: {}};" +
-                        "Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});" +
-                        "Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});" +
-                        "}");
-                    
+                            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});" +
+                            "window.chrome = {runtime: {}};" +
+                            "Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});" +
+                            "Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});" +
+                            "}");
+
                     // Navigate with timeout and proper error handling
                     page.navigate(url, new Page.NavigateOptions()
-                        .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
-                        .setTimeout(15000));
-                    
+                            .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                            .setTimeout(15000));
+
                     // Wait for page to be ready
-                    page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE, 
-                        new Page.WaitForLoadStateOptions().setTimeout(10000));
-                    
+                    page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE,
+                            new Page.WaitForLoadStateOptions().setTimeout(10000));
+
                     return pageFunction.apply(page);
-                    
-                } finally {
-                    try {
-                        page.close();
-                    } catch (Exception ignored) {}
+
+                } catch (Exception ignored) {
                 }
             }
             
         } catch (Exception e) {
-            System.err.println("Browser execution failed for URL: " + url + " - " + e.getMessage());
+            logger.error("Browser execution failed for URL: {} - {}", url, e.getMessage());
             throw new RuntimeException("Browser execution failed: " + e.getMessage(), e);
         }
+        return null;
     }
     
     /**

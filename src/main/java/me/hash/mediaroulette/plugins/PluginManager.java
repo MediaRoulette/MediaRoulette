@@ -1,23 +1,24 @@
 package me.hash.mediaroulette.plugins;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Logger;
 
 public class PluginManager {
     private final Map<String, Plugin> plugins = new ConcurrentHashMap<>();
     private final Map<String, PluginClassLoader> classLoaders = new ConcurrentHashMap<>();
-    private final Logger logger = Logger.getLogger(PluginManager.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(PluginManager.class);
 
     public void loadPlugins(File pluginDirectory) {
         if (!pluginDirectory.exists() || !pluginDirectory.isDirectory()) {
-            logger.warning("Plugin directory does not exist: " + pluginDirectory);
+            logger.warn("Plugin directory does not exist: {}", pluginDirectory);
             return;
         }
 
@@ -34,7 +35,7 @@ public class PluginManager {
                 descriptions.put(desc.getName(), desc);
                 pluginFiles.put(desc.getName(), file);
             } catch (Exception e) {
-                logger.severe("Failed to load plugin description from " + file.getName() + ": " + e.getMessage());
+                logger.error("Failed to load plugin description from {}: {}", file.getName(), e.getMessage(), e);
             }
         }
 
@@ -66,14 +67,14 @@ public class PluginManager {
                         loaded.add(name);
                         progress = true;
                     } catch (Exception e) {
-                        logger.severe("Failed to load plugin " + name + ": " + e.getMessage());
+                        logger.error("Failed to load plugin {}: {}", name, e.getMessage());
                         loaded.add(name); // Mark as processed to avoid infinite loop
                     }
                 }
             }
 
             if (!progress) {
-                logger.severe("Circular dependency detected or missing dependencies!");
+                logger.error("Circular dependency detected or missing dependencies!");
                 break;
             }
         }
@@ -108,16 +109,16 @@ public class PluginManager {
         classLoaders.put(description.getName(), classLoader);
 
         plugin.onLoad();
-        logger.info("Loaded plugin: " + description.getName() + " v" + description.getVersion());
+        logger.info("Loaded plugin: {} v{}", description.getName(), description.getVersion());
     }
 
     public void enablePlugins() {
         for (Plugin plugin : plugins.values()) {
             try {
                 plugin.setEnabled(true);
-                logger.info("Enabled plugin: " + plugin.getName());
+                logger.info("Enabled plugin: {}", plugin.getName());
             } catch (Exception e) {
-                logger.severe("Failed to enable plugin " + plugin.getName() + ": " + e.getMessage());
+                logger.error("Failed to enable plugin {}: {}", plugin.getName(), e.getMessage(), e);
             }
         }
     }
@@ -126,9 +127,9 @@ public class PluginManager {
         for (Plugin plugin : plugins.values()) {
             try {
                 plugin.setEnabled(false);
-                logger.info("Disabled plugin: " + plugin.getName());
+                logger.info("Disabled plugin: {}", plugin.getName());
             } catch (Exception e) {
-                logger.severe("Failed to disable plugin " + plugin.getName() + ": " + e.getMessage());
+                logger.error("Failed to disable plugin {}: {}", plugin.getName(), e.getMessage());
             }
         }
     }
@@ -152,7 +153,7 @@ public class PluginManager {
             try {
                 classLoader.close();
             } catch (Exception e) {
-                logger.severe("Failed to close class loader: " + e.getMessage());
+                logger.error("Failed to close class loader: {}", e.getMessage());
             }
         }
         

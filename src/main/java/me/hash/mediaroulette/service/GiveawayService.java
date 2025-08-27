@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.model.BotInventoryItem;
@@ -20,6 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class GiveawayService {
+    private static final Logger logger = LoggerFactory.getLogger(GiveawayService.class);
     private final MongoCollection<Document> collection;
     private final BotInventoryService botInventoryService;
     private final ScheduledExecutorService scheduler;
@@ -165,7 +169,7 @@ public class GiveawayService {
             
             return 0;
         } catch (Exception e) {
-            System.err.println("Error cleaning up old giveaways: " + e.getMessage());
+            logger.error("Error cleaning up old giveaways: {}", e.getMessage());
             return 0;
         }
     }

@@ -1,9 +1,9 @@
 package me.hash.mediaroulette.service;
 
 import com.opencsv.CSVWriter;
-import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.repository.UserRepository;
-import me.hash.mediaroulette.utils.GlobalLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -18,13 +18,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
 
 /**
  * Service for tracking and logging bot statistics to CSV files for analysis.
  * Tracks hourly data for images generated, user activity, source usage, etc.
  */
 public class StatsTrackingService {
+    private static final Logger logger = LoggerFactory.getLogger(StatsTrackingService.class);
+
     private static final String STATS_DIR = "stats";
     private static final DateTimeFormatter HOUR_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
     private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
@@ -69,7 +70,7 @@ public class StatsTrackingService {
         try {
             Files.createDirectories(Paths.get(STATS_DIR));
         } catch (IOException e) {
-            GlobalLogger.getLogger().log(Level.SEVERE, "Failed to create stats directory", e);
+            logger.error("Failed to create stats directory", e);
         }
         
         // Schedule hourly stats logging
@@ -220,10 +221,10 @@ public class StatsTrackingService {
             // Reset hourly counters
             resetHourlyCounters();
 
-            GlobalLogger.getLogger().log(Level.INFO,"Logged hourly stats for: " + hourKey);
+            logger.info("Logged hourly stats for: {}", hourKey);
             
         } catch (Exception e) {
-            GlobalLogger.getLogger().log(Level.SEVERE,"Failed to log hourly stats", e);
+            logger.error("Failed to log hourly stats", e);
         }
     }
     
@@ -387,10 +388,10 @@ public class StatsTrackingService {
             generateSourcePopularitySummary(dateKey);
             generateCommandPopularitySummary(dateKey);
 
-            GlobalLogger.getLogger().log(Level.INFO,"Generated daily summary for: " + dateKey);
+            logger.info("Generated daily summary for: {}", dateKey);
             
         } catch (Exception e) {
-            GlobalLogger.getLogger().log(Level.SEVERE,"Failed to generate daily summary", e);
+            logger.error("Failed to generate daily summary", e);
         }
     }
     
@@ -436,7 +437,7 @@ public class StatsTrackingService {
     private void generateSourcePopularitySummary(String dateKey) throws IOException {
         // This would aggregate hourly source usage data for the day
         // Implementation would read from hourly CSV files and summarize
-        GlobalLogger.getLogger().log(Level.INFO,"Source popularity summary generation not yet implemented");
+        logger.info("Source popularity summary generation not yet implemented");
     }
     
     /**
@@ -445,7 +446,7 @@ public class StatsTrackingService {
     private void generateCommandPopularitySummary(String dateKey) throws IOException {
         // This would aggregate hourly command usage data for the day
         // Implementation would read from hourly CSV files and summarize
-        GlobalLogger.getLogger().log(Level.INFO,"Command popularity summary generation not yet implemented");
+        logger.info("Command popularity summary generation not yet implemented");
     }
     
     /**

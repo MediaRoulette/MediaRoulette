@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.RandomDictionaryLineFetcher;
 
@@ -7,24 +10,25 @@ import me.hash.mediaroulette.RandomDictionaryLineFetcher;
  * Utility class to integrate dictionary system with existing providers
  */
 public class DictionaryIntegration {
+    private static final Logger logger = LoggerFactory.getLogger(DictionaryIntegration.class);
     
     /**
      * Get a random word for a specific source and user
      * Falls back to existing system if no dictionary is assigned
      */
     public static String getRandomWordForSource(String userId, String source) {
-        System.out.println("DictionaryIntegration: Getting word for user " + userId + " and source " + source);
+        logger.debug("Getting word for user {} and source {}", userId, source);
         if (Main.dictionaryService != null) {
             String word = Main.dictionaryService.getRandomWordForSource(userId, source);
-            System.out.println("DictionaryIntegration: Dictionary service returned: " + word);
+            logger.debug("Dictionary service returned: {}", word);
             if (word != null && !word.equals("random")) {
-                System.out.println("DictionaryIntegration: Using dictionary word: " + word);
+                logger.debug("Using dictionary word: {}", word);
                 return word;
             }
         }
         
         // Fallback to existing system
-        System.out.println("DictionaryIntegration: Using fallback word");
+        logger.debug("Using fallback word");
         return getDefaultRandomWord();
     }
     

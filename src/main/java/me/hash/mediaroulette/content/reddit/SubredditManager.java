@@ -5,6 +5,8 @@ import org.json.JSONObject;
 import me.hash.mediaroulette.utils.ErrorReporter;
 import me.hash.mediaroulette.utils.PersistentCache;
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -12,9 +14,9 @@ import java.io.InputStreamReader;
 import java.util.*;
 
 public class SubredditManager {
+    private static final Logger logger = LoggerFactory.getLogger(SubredditManager.class);
 
-    // Persistent cache to avoid repeatedly checking for subreddit existence
-    private static final PersistentCache<Boolean> SUBREDDIT_EXISTS_CACHE = 
+    private static final PersistentCache<Boolean> SUBREDDIT_EXISTS_CACHE =
         new PersistentCache<>("subreddit_exists.json", new TypeReference<Map<String, Boolean>>() {});
     private final RedditClient redditClient;
 
@@ -33,13 +35,13 @@ public class SubredditManager {
         response.close();
 
         JSONObject json = new JSONObject(responseBody);
+
         // If an error key exists, then the subreddit likely does not exist.
         boolean exists = !json.has("error");
         SUBREDDIT_EXISTS_CACHE.put(subreddit, exists);
 
-        // Simple cache eviction policy - clear old entries if cache gets too large
         if (SUBREDDIT_EXISTS_CACHE.size() > 1000) {
-            System.out.println("Subreddit cache size exceeded 1000, clearing cache");
+            logger.warn("Subreddit cache size exceeded 1000, clearing cache");
             SUBREDDIT_EXISTS_CACHE.clear();
         }
         return exists;

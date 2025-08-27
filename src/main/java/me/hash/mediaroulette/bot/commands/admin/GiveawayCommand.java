@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.bot.commands.admin;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class GiveawayCommand extends ListenerAdapter implements CommandHandler {
+    private static final Logger logger = LoggerFactory.getLogger(GiveawayCommand.class);
 
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
     private static final Color SUCCESS_COLOR = new Color(87, 242, 135);
@@ -396,7 +400,7 @@ public class GiveawayCommand extends ListenerAdapter implements CommandHandler {
                 }
             });
         } catch (Exception e) {
-            System.err.println("Failed to update giveaway message: " + e.getMessage());
+            logger.error("Failed to update giveaway message: {}", e.getMessage());
         }
     }
 
@@ -466,21 +470,21 @@ public class GiveawayCommand extends ListenerAdapter implements CommandHandler {
                         
                         embed.addField("💰 Coins Added", String.format("%,d coins have been added to your account!", coinAmount), false);
                     } catch (NumberFormatException e) {
-                        System.err.println("Invalid coin amount in giveaway prize: " + giveaway.getPrize().getValue());
+                        logger.error("Invalid coin amount in giveaway prize: {}", giveaway.getPrize().getValue());
                     }
                 }
             }
 
             channel.sendMessageEmbeds(embed.build()).queue();
         } catch (Exception e) {
-            System.err.println("Failed to send winner notification: " + e.getMessage());
+            logger.error("Failed to send winner notification: {}", e.getMessage());
         }
     }
 
     private void scheduleGiveawayEnd(Giveaway giveaway) {
         // Note: Giveaway ending is handled by the GiveawayService scheduler
         // which checks for expired giveaways every minute automatically
-        System.out.println("Giveaway " + giveaway.getId() + " scheduled to end at " + giveaway.getEndTime());
+        logger.info("Giveaway {} scheduled to end at {}", giveaway.getId(), giveaway.getEndTime());
     }
 
     private void sendError(SlashCommandInteractionEvent event, String message) {

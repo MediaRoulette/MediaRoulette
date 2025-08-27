@@ -1,9 +1,14 @@
 package me.hash.mediaroulette.utils.media;
 
 import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.net.URI;
 import java.nio.file.*;
+import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -13,6 +18,8 @@ import java.util.zip.ZipInputStream;
  * Automatically detects the system architecture and downloads the appropriate FFmpeg version.
  */
 public class FFmpegDownloader {
+    private static final Logger logger = LoggerFactory.getLogger(FFmpegDownloader.class);
+
     private static final String FFMPEG_DIR = getJarDirectory() + File.separator + "ffmpeg";
     private static final String FFMPEG_EXECUTABLE_NAME = getExecutableName();
     private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
@@ -73,32 +80,32 @@ public class FFmpegDownloader {
     public static CompletableFuture<Path> downloadFFmpeg() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("Detecting system information...");
+                logger.info("Detecting system information...");
                 SystemInfo systemInfo = detectSystem();
-                System.out.println("Detected system: " + systemInfo.os + " " + systemInfo.arch);
+                logger.info("Detected system: {} {}", systemInfo.os, systemInfo.arch);
                 
                 // Create ffmpeg directory if it doesn't exist
                 Path ffmpegDir = Paths.get(FFMPEG_DIR);
                 Files.createDirectories(ffmpegDir);
-                System.out.println("FFmpeg directory: " + ffmpegDir.toAbsolutePath());
+                logger.info("FFmpeg directory: {}", ffmpegDir.toAbsolutePath());
                 
                 // Check if FFmpeg already exists
                 Path existingPath = findExistingFFmpeg(ffmpegDir);
                 if (existingPath != null) {
-                    System.out.println("FFmpeg already exists at: " + existingPath);
+                    logger.info("FFmpeg already exists at: {}", existingPath);
                     return existingPath;
                 }
                 
                 String downloadUrl = getDownloadUrl(systemInfo);
-                System.out.println("Downloading FFmpeg from: " + downloadUrl);
+                logger.info("Downloading FFmpeg from: {}", downloadUrl);
                 
                 // Download the archive
                 Path downloadedFile = downloadFile(downloadUrl, ffmpegDir);
-                System.out.println("Downloaded to: " + downloadedFile);
+                logger.info("Downloaded to: {}", downloadedFile);
                 
                 // Extract the archive
-                Path extractedPath = extractArchive(downloadedFile, ffmpegDir, systemInfo);
-                System.out.println("Extracted FFmpeg to: " + extractedPath);
+                Path extractedPath = extractArchive(downloadedFile, ffmpegDir);
+                logger.info("Extracted FFmpeg to: {}", extractedPath);
                 
                 // Clean up downloaded archive
                 Files.deleteIfExists(downloadedFile);
@@ -116,11 +123,10 @@ public class FFmpegDownloader {
                 
                 return extractedPath;
                 
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to download FFmpeg: " + e.getMessage(), e);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to download FFmpeg: " + e.getMessage(), e);
+                logger.error("Failed to download FFmpeg: {}", e.getMessage(), e);
             }
+            return null;
         });
     }
     
@@ -163,18 +169,15 @@ public class FFmpegDownloader {
                 File jarFile = new File(jarUri);
                 String parentDir = jarFile.getParent();
                 if (parentDir != null) {
-                    System.out.println("JAR directory detected: " + parentDir);
                     return parentDir;
                 }
             }
         } catch (Exception e) {
-            System.err.println("Could not determine JAR directory: " + e.getMessage());
+            logger.error("Could not determine JAR directory: {}", e.getMessage());
         }
         
         // Fallback to current working directory
-        String currentDir = System.getProperty("user.dir");
-        System.out.println("Using current directory: " + currentDir);
-        return currentDir;
+        return System.getProperty("user.dir");
     }
     
     /**
@@ -206,7 +209,7 @@ public class FFmpegDownloader {
         } else if (osArch.contains("arm")) {
             arch = Architecture.ARM64; // Assume ARM64 for ARM variants
         } else {
-            System.out.println("Unknown architecture: " + osArch + ", defaulting to x64");
+            logger.warn("Unknown architecture: {}, defaulting to x64", osArch);
             arch = Architecture.X64;
         }
         
@@ -235,14 +238,14 @@ public class FFmpegDownloader {
         
         String fileName = getFileNameFromUrl(url);
         Path targetFile = targetDir.resolve(fileName);
-        
-        System.out.println("Requesting: " + url);
+
+        logger.info("Requesting: {}", url);
         try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            System.out.println("Response: HTTP " + response.code() + " " + response.message());
+            logger.info("Response: HTTP {} {}", response.code(), response.message());
             if (response.request().url().toString().equals(url)) {
-                System.out.println("Direct download (no redirect)");
+                logger.info("Direct download (no redirect)");
             } else {
-                System.out.println("Redirected to: " + response.request().url());
+                logger.info("Redirected to: {}", response.request().url());
             }
             
             if (!response.isSuccessful()) {
@@ -264,8 +267,8 @@ public class FFmpegDownloader {
                 long totalBytes = 0;
                 int bytesRead;
                 long lastProgressUpdate = 0;
-                
-                System.out.println("Downloading FFmpeg... (Size: " + formatBytes(contentLength) + ")");
+
+                logger.info("Downloading FFmpeg... (Size: {})", formatBytes(contentLength));
                 printProgressBar(0, contentLength);
                 
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -278,8 +281,8 @@ public class FFmpegDownloader {
                         lastProgressUpdate = totalBytes;
                     }
                 }
-                
-                System.out.println("\n✅ Download complete: " + formatBytes(totalBytes));
+
+                logger.info("\n✅ Download complete: {}", formatBytes(totalBytes));
             }
         }
         
@@ -313,28 +316,27 @@ public class FFmpegDownloader {
         bar.append("] ");
         bar.append(String.format("%.1f%%", progress * 100));
         bar.append(" (").append(formatBytes(downloaded));
-        if (total > 0) {
-            bar.append("/").append(formatBytes(total));
-        }
+        bar.append("/").append(formatBytes(total));
         bar.append(")");
         
-        System.out.print(bar.toString());
+        System.out.print(bar);
     }
     
     /**
      * Formats bytes into human-readable format
      */
-    private static String formatBytes(long bytes) {
+    @NotNull
+    public static String formatBytes(long bytes) {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
         return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
-    
+
     /**
      * Extracts the downloaded archive and finds the FFmpeg executable
      */
-    private static Path extractArchive(Path archiveFile, Path targetDir, SystemInfo systemInfo) throws IOException {
+    private static Path extractArchive(Path archiveFile, Path targetDir) throws IOException {
         String fileName = archiveFile.getFileName().toString().toLowerCase();
         
         if (fileName.endsWith(".zip")) {
@@ -350,7 +352,7 @@ public class FFmpegDownloader {
      * Extracts a ZIP archive and finds the FFmpeg executable
      */
     private static Path extractZip(Path zipFile, Path targetDir) throws IOException {
-        System.out.println("Extracting ZIP archive: " + zipFile.getFileName());
+        logger.info("Extracting ZIP archive: {}", zipFile.getFileName());
         
         try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile))) {
             ZipEntry entry;
@@ -371,27 +373,27 @@ public class FFmpegDownloader {
                     ffmpegPath = targetDir.resolve(FFMPEG_EXECUTABLE_NAME);
                     extractFile(zis, ffmpegPath);
                     extractedFiles++;
-                    System.out.println("✅ Extracted: " + fileName);
                 }
                 // Also extract ffprobe if available
                 else if (fileName.equals(getProbeExecutableName())) {
                     Path ffprobePath = targetDir.resolve(getProbeExecutableName());
                     extractFile(zis, ffprobePath);
                     extractedFiles++;
-                    System.out.println("✅ Extracted: " + fileName);
                 }
                 // Extract any DLL files on Windows
                 else if (fileName.endsWith(".dll") && System.getProperty("os.name").toLowerCase().contains("windows")) {
                     Path dllPath = targetDir.resolve(fileName);
                     extractFile(zis, dllPath);
                     extractedFiles++;
-                    System.out.println("✅ Extracted: " + fileName);
+
                 }
-                
+
+                logger.info("✅ Extracted: {}", fileName);
+
                 zis.closeEntry();
             }
-            
-            System.out.println("Extracted " + extractedFiles + " files from ZIP archive");
+
+            logger.info("Extracted {} files from ZIP archive", extractedFiles);
             
             if (ffmpegPath == null) {
                 throw new IOException("FFmpeg executable not found in ZIP archive");
@@ -427,14 +429,14 @@ public class FFmpegDownloader {
      * Extracts a TAR.XZ archive (Linux) - Enhanced version
      */
     private static Path extractTarXz(Path tarXzFile, Path targetDir) throws IOException {
-        System.out.println("Extracting TAR.XZ archive: " + tarXzFile.getFileName());
+        logger.info("Extracting TAR.XZ archive: {}", tarXzFile.getFileName());
         
         // Try multiple extraction methods
-        Path ffmpegPath = null;
+        Path ffmpegPath;
         
         // Method 1: Try system tar command
         try {
-            System.out.println("Attempting extraction with system tar command...");
+            logger.info("Attempting extraction with system tar command...");
             ProcessBuilder pb = new ProcessBuilder("tar", "-xf", tarXzFile.toString(), "-C", targetDir.toString());
             Process process = pb.start();
             
@@ -442,29 +444,29 @@ public class FFmpegDownloader {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    System.out.println("tar: " + line);
+                    logger.info("tar: {}", line);
                 }
             }
             
             int exitCode = process.waitFor();
             
             if (exitCode == 0) {
-                System.out.println("✅ TAR extraction successful");
+                logger.info("✅ TAR extraction successful");
                 ffmpegPath = findFFmpegInDirectory(targetDir);
                 if (ffmpegPath != null) {
-                    System.out.println("✅ Found FFmpeg at: " + ffmpegPath);
+                    logger.info("✅ Found FFmpeg at: {}", ffmpegPath);
                     return ffmpegPath;
                 }
             } else {
-                System.err.println("tar command failed with exit code: " + exitCode);
+                logger.error("tar command failed with exit code: {}", exitCode);
             }
         } catch (Exception e) {
-            System.err.println("System tar extraction failed: " + e.getMessage());
+            logger.error("System tar extraction failed: {}", e.getMessage());
         }
         
         // Method 2: Try with different tar options
         try {
-            System.out.println("Attempting extraction with alternative tar options...");
+            logger.info("Attempting extraction with alternative tar options...");
             ProcessBuilder pb = new ProcessBuilder("tar", "-xJf", tarXzFile.toString(), "-C", targetDir.toString());
             Process process = pb.start();
             int exitCode = process.waitFor();
@@ -476,14 +478,14 @@ public class FFmpegDownloader {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Alternative tar extraction failed: " + e.getMessage());
+            logger.error("Alternative tar extraction failed: {}", e.getMessage());
         }
         
         // Method 3: Manual extraction instructions
-        System.err.println("Automatic extraction failed. Manual extraction required:");
-        System.err.println("1. Extract " + tarXzFile + " to " + targetDir);
-        System.err.println("2. Ensure ffmpeg executable is in " + targetDir);
-        System.err.println("3. Make sure ffmpeg has execute permissions (chmod +x ffmpeg)");
+        logger.warn("Automatic extraction failed. Manual extraction required:");
+        logger.warn("1. Extract {} to {}", tarXzFile, targetDir);
+        logger.warn("2. Ensure ffmpeg executable is in {}", targetDir);
+        logger.warn("3. Make sure ffmpeg has execute permissions (chmod +x ffmpeg)");
         
         throw new IOException("Failed to extract TAR.XZ archive automatically. " +
                             "Please extract manually or install tar/xz-utils.");
@@ -518,14 +520,14 @@ public class FFmpegDownloader {
     /**
      * Makes a file executable on Unix systems
      */
-    private static void makeExecutable(Path file) throws IOException {
+    private static void makeExecutable(Path file) {
         if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
             try {
                 ProcessBuilder pb = new ProcessBuilder("chmod", "+x", file.toString());
                 Process process = pb.start();
                 process.waitFor();
             } catch (Exception e) {
-                System.err.println("Failed to make FFmpeg executable: " + e.getMessage());
+                logger.error("Failed to make FFmpeg executable: {}", e.getMessage());
             }
         }
     }
@@ -562,19 +564,13 @@ public class FFmpegDownloader {
     private enum Architecture {
         X64, ARM64
     }
-    
+
     /**
      * System information container
      */
-    private static class SystemInfo {
-        final OperatingSystem os;
-        final Architecture arch;
-        
-        SystemInfo(OperatingSystem os, Architecture arch) {
-            this.os = os;
-            this.arch = arch;
-        }
-        
+    private record SystemInfo(OperatingSystem os, Architecture arch) {
+
+        @NotNull
         @Override
         public String toString() {
             return os + "_" + arch;
@@ -585,25 +581,23 @@ public class FFmpegDownloader {
      * Gets the version of the downloaded/available FFmpeg
      */
     public static CompletableFuture<String> getFFmpegVersion() {
-        return getFFmpegPath().thenCompose(path -> {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    ProcessBuilder pb = new ProcessBuilder(path.toString(), "-version");
-                    Process process = pb.start();
-                    
-                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                        String firstLine = reader.readLine();
-                        if (firstLine != null && firstLine.contains("ffmpeg version")) {
-                            return firstLine;
-                        }
+        return getFFmpegPath().thenCompose(path -> CompletableFuture.supplyAsync(() -> {
+            try {
+                ProcessBuilder pb = new ProcessBuilder(path.toString(), "-version");
+                Process process = pb.start();
+
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String firstLine = reader.readLine();
+                    if (firstLine != null && firstLine.contains("ffmpeg version")) {
+                        return firstLine;
                     }
-                    
-                    return "Unknown version";
-                } catch (Exception e) {
-                    return "Error getting version: " + e.getMessage();
                 }
-            });
-        });
+
+                return "Unknown version";
+            } catch (Exception e) {
+                return "Error getting version: " + e.getMessage();
+            }
+        }));
     }
     
     /**
@@ -613,23 +607,23 @@ public class FFmpegDownloader {
         try {
             Path ffmpegDir = Paths.get(FFMPEG_DIR);
             if (Files.exists(ffmpegDir)) {
-                System.out.println("Cleaning up FFmpeg directory: " + ffmpegDir);
+                logger.info("Cleaning up FFmpeg directory: {}", ffmpegDir);
                 Files.walk(ffmpegDir)
-                        .sorted((a, b) -> b.compareTo(a)) // Delete files before directories
+                        .sorted(Comparator.reverseOrder()) // Delete files before directories
                         .forEach(path -> {
                             try {
                                 Files.delete(path);
-                                System.out.println("Deleted: " + path.getFileName());
+                                logger.info("Deleted: {}", path.getFileName());
                             } catch (IOException e) {
-                                System.err.println("Failed to delete: " + path + " - " + e.getMessage());
+                                logger.error("Failed to delete: {} - {}", path, e.getMessage());
                             }
                         });
-                System.out.println("✅ FFmpeg cleanup complete");
+                logger.info("✅ FFmpeg cleanup complete");
             }
             isDownloaded = false;
             ffmpegPath = null;
         } catch (IOException e) {
-            System.err.println("Failed to cleanup FFmpeg directory: " + e.getMessage());
+            logger.error("Failed to cleanup FFmpeg directory: {}", e.getMessage());
         }
     }
     
@@ -637,21 +631,21 @@ public class FFmpegDownloader {
      * Gets information about the current FFmpeg installation
      */
     public static void printInstallationInfo() {
-        System.out.println("=== FFmpeg Installation Info ===");
-        System.out.println("FFmpeg Directory: " + FFMPEG_DIR);
-        System.out.println("Executable Name: " + FFMPEG_EXECUTABLE_NAME);
-        System.out.println("Is Downloaded: " + isDownloaded);
-        System.out.println("Is Available: " + isFFmpegAvailable());
+        logger.info("=== FFmpeg Installation Info ===");
+        logger.info("FFmpeg Directory: {}", FFMPEG_DIR);
+        logger.info("Executable Name: {}", FFMPEG_EXECUTABLE_NAME);
+        logger.info("Is Downloaded: {}", isDownloaded);
+        logger.info("Is Available: {}", isFFmpegAvailable());
         
         if (ffmpegPath != null) {
-            System.out.println("FFmpeg Path: " + ffmpegPath);
-            System.out.println("File Exists: " + Files.exists(ffmpegPath));
+            logger.info("FFmpeg Path: {}", ffmpegPath);
+            logger.info("File Exists: {}", Files.exists(ffmpegPath));
             if (Files.exists(ffmpegPath)) {
                 try {
-                    System.out.println("File Size: " + formatBytes(Files.size(ffmpegPath)));
-                    System.out.println("Is Executable: " + Files.isExecutable(ffmpegPath));
+                    logger.info("File Size: {}", formatBytes(Files.size(ffmpegPath)));
+                    logger.info("Is Executable: {}", Files.isExecutable(ffmpegPath));
                 } catch (IOException e) {
-                    System.err.println("Error reading file info: " + e.getMessage());
+                    logger.error("Error reading file info: {}", e.getMessage());
                 }
             }
         }
@@ -659,16 +653,16 @@ public class FFmpegDownloader {
         // Check for ffprobe
         Path ffprobeDir = Paths.get(FFMPEG_DIR);
         Path ffprobePath = ffprobeDir.resolve(getProbeExecutableName());
-        System.out.println("FFprobe Available: " + Files.exists(ffprobePath));
+        logger.info("FFprobe Available: {}", Files.exists(ffprobePath));
         if (Files.exists(ffprobePath)) {
             try {
-                System.out.println("FFprobe Size: " + formatBytes(Files.size(ffprobePath)));
-                System.out.println("FFprobe Executable: " + Files.isExecutable(ffprobePath));
+                logger.info("FFprobe Size: {}", formatBytes(Files.size(ffprobePath)));
+                logger.info("FFprobe Executable: {}", Files.isExecutable(ffprobePath));
             } catch (IOException e) {
-                System.err.println("Error reading FFprobe info: " + e.getMessage());
+                logger.error("Error reading FFprobe info: {}", e.getMessage());
             }
         }
-        
-        System.out.println("================================");
+
+        logger.info("================================");
     }
 }

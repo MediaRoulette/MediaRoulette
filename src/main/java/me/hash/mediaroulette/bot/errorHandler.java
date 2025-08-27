@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.bot;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.github.cdimascio.dotenv.DotenvEntry;
 import me.hash.mediaroulette.Main;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -15,6 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class errorHandler {
+    private static final Logger logger = LoggerFactory.getLogger(errorHandler.class);
 
     /**
      * Sends an error embed when an exception occurs.
@@ -42,7 +46,7 @@ public class errorHandler {
                     .sendMessageEmbeds(errorEmbed.build())
                     .setEphemeral(true)
                     .queue();
-            case null, default -> System.err.println("Unsupported interaction type for error embedding.");
+            case null, default -> logger.error("Unsupported interaction type for error embedding.");
         }
     }
 
@@ -89,7 +93,7 @@ public class errorHandler {
         String censoredStackTrace = getCensoredStackTrace(ex);
 
         // Log the censored stack trace for debugging.
-        System.err.println(censoredStackTrace);
+        logger.error("Exception occurred: {}", censoredStackTrace);
 
         // Build the error message and send it to the user via embed.
         sendErrorEmbed(event, title, buildErrorDescription(message, ex));

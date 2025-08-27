@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import me.hash.mediaroulette.model.Dictionary;
 import me.hash.mediaroulette.model.DictionaryAssignment;
 import me.hash.mediaroulette.repository.DictionaryRepository;
@@ -8,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class DictionaryService {
+    private static final Logger logger = LoggerFactory.getLogger(DictionaryService.class);
     private final DictionaryRepository repository;
     
     public DictionaryService(DictionaryRepository repository) {
@@ -68,21 +72,21 @@ public class DictionaryService {
     }
 
     public String getRandomWordForSource(String userId, String source) {
-        System.out.println("DictionaryService: Getting word for user " + userId + " and source " + source);
+        logger.debug("Getting word for user {} and source {}", userId, source);
         Optional<String> dictionaryId = getAssignedDictionary(userId, source);
-        System.out.println("DictionaryService: Found dictionary assignment: " + dictionaryId.orElse("none"));
+        logger.debug("Found dictionary assignment: {}", dictionaryId.orElse("none"));
         if (dictionaryId.isPresent()) {
             Optional<Dictionary> dict = repository.findById(dictionaryId.get());
-            System.out.println("DictionaryService: Dictionary found: " + dict.isPresent());
+            logger.debug("Dictionary found: {}", dict.isPresent());
             if (dict.isPresent()) {
                 String word = dict.get().getRandomWord();
-                System.out.println("DictionaryService: Random word from dictionary: " + word);
+                logger.debug("Random word from dictionary: {}", word);
                 repository.incrementDictionaryUsage(dictionaryId.get());
                 return word;
             }
         }
         String defaultWord = getDefaultWord();
-        System.out.println("DictionaryService: Using default word: " + defaultWord);
+        logger.debug("Using default word: {}", defaultWord);
         return defaultWord;
     }
     
