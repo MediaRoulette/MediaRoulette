@@ -1,0 +1,130 @@
+name: 🐛 Bug Report / 💡 Feature Request
+description: Report a bug or request a new feature
+title: "[TYPE] Brief description of issue"
+labels: ["needs-review", "auto-assigned"]
+assignees:
+  - Zotixlx
+  - Hashyies
+  - yemss
+
+body:
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What type of issue is this?
+      options:
+        - Bug Report 🐛
+        - Feature Request 💡
+        - Documentation 📚
+        - Enhancement ⚡
+        - Question ❓
+        - Other 🔧
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the issue or feature request
+      placeholder: Describe what happened or what you'd like to see...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce (for bugs)
+      description: If this is a bug, provide steps to reproduce the issue
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+      value: |
+        1. 
+        2. 
+        3.
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: A clear description of what you expected to happen
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? (for bugs)
+      placeholder: A clear description of what actually happened
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this issue?
+      options:
+        - Low 🟢
+        - Medium 🟡
+        - High 🟠
+        - Critical 🔴
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide details about your environment
+      placeholder: |
+        - OS: [e.g., Windows 10, macOS 12.0, Ubuntu 20.04]
+        - Browser: [e.g., Chrome 96, Firefox 95, Safari 15]
+        - Version: [e.g., v1.0.0]
+      value: |
+        - OS: 
+        - Browser: 
+        - Version:
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots/Logs
+      description: If applicable, add screenshots or error logs
+      placeholder: Paste screenshots or logs here...
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, links, or information about the issue
+      placeholder: Any additional information that might be helpful...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to make sure this isn't a duplicate
+          required: true
+        - label: I have provided enough information for the team to understand the issue
+          required: true
+        - label: I am willing to help test potential solutions
+          required: false
