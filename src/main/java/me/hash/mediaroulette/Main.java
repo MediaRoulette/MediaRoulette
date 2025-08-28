@@ -86,8 +86,6 @@ public class Main {
 
         // Start terminal interface
         startTerminalInterface();
-
-        logger.info("MediaRoulette started successfully! Press Ctrl+C to stop.");
     }
 
     private static void initializeServices() {
@@ -130,17 +128,6 @@ public class Main {
         Thread terminalThread = new Thread(terminal::start, "Terminal-Interface");
         terminalThread.setDaemon(true);
         terminalThread.start();
-    }
-
-    private static void checkCredentials(Set<DotenvEntry> entries, String configKey, String... keys) {
-        boolean allKeysPresent = checkCredentialsBoolean(entries, configKey, keys);
-        if (allKeysPresent) {
-            logger.info("{} Loaded!", configKey);
-            Bot.config.set(configKey, Bot.config.getOrDefault(configKey, true, Boolean.class));
-        } else {
-            logger.warn("{} credentials are not set in .env", configKey);
-            Bot.config.set(configKey, false);
-        }
     }
 
     public static boolean checkCredentialsBoolean(Set<DotenvEntry> entries, String configKey, String... keys) {

@@ -1,0 +1,69 @@
+name: Auto Assign Issues and PRs
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+jobs:
+  auto-assign:
+    name: Auto-assign to team members
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: 'Auto-assign issue or PR'
+        uses: pozil/auto-assign-issue@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          assignees: Zotixlx,Hashyies,yemss
+          numOfAssignee: 3
+
+      - name: 'Add labels to issues'
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['auto-assigned', 'needs-review', 'new-issue']
+            });
+
+      - name: 'Add labels to pull requests'
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['auto-assigned', 'needs-review', 'new-pr']
+            });
+
+      - name: 'Add comment with team mention'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const itemType = context.eventName === 'issues' ? 'issue' : 'pull request';
+            const itemNumber = context.eventName === 'issues' ? context.issue.number : context.payload.pull_request.number;
+            
+            const comment = `👋 This ${itemType} has been automatically assigned to our team members: @Zotixlx @Hashyies @yemss
+            
+            Please review when you have a chance! 🚀`;
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: itemNumber,
+              body: comment
+            });
