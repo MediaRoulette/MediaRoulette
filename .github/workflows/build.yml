@@ -13,13 +13,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '22'
-          
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -27,27 +27,27 @@ jobs:
           build-scan-publish: true
           build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
           build-scan-terms-of-use-agree: "yes"
-          
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
-          
+
       - name: Build with Gradle ShadowJar Plugin
         run: ./gradlew shadowJar --scan
         env:
           GRADLE_SCAN_TOS_AGREE: "yes"
-        
+
       - name: Run tests
         run: ./gradlew test --scan
         env:
           GRADLE_SCAN_TOS_AGREE: "yes"
-        
+
       - name: List build outputs (debug)
         run: |
           echo "Looking for JAR files..."
           find . -name "*.jar" -type f
           echo "Build directory contents:"
           ls -la */build/libs/ 2>/dev/null || echo "No build/libs directories found"
-          
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -66,27 +66,38 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: media-roulette-${{ github.sha }}
           path: artifacts/
-          
+
       - name: Prepare release files
         run: |
           mkdir -p release
           find artifacts/ -name "*.jar" -exec cp {} release/ \;
           ls -la release/
-          
+
       - name: Generate release tag
         id: tag
         run: |
-          TAG="v$(date +'%Y.%m.%d')-${{ github.run_number }}"
+          # Create a semantic version-like tag
+          TAG="v1.0.${{ github.run_number }}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Generated tag: $TAG"
-          
-      - name: Create GitHub Release
+
+      - name: Delete existing latest tag and release
+        run: |
+          # Delete the tag locally and remotely (ignore errors if it doesn't exist)
+          git tag -d latest || true
+          git push origin :refs/tags/latest || true
+          # Delete the latest release (ignore errors if it doesn't exist)
+          gh release delete latest --yes || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release with version tag
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -96,8 +107,18 @@ jobs:
             - Build from commit: ${{ github.sha }}
             - Workflow run: #${{ github.run_number }}
             
-            ## Files
-            This release contains the compiled JAR file(s) ready for deployment.
+            ## JitPack Usage
+            ```gradle
+            repositories {
+                maven { url 'https://jitpack.io' }
+            }
+            
+            dependencies {
+                implementation 'com.github.MediaRoulette:MediaRoulette:${{ steps.tag.outputs.tag }}'
+                // Or use latest:
+                implementation 'com.github.MediaRoulette:MediaRoulette:latest'
+            }
+            ```
             
             **Commit:** ${{ github.sha }}
             **Branch:** ${{ github.ref_name }}
@@ -105,3 +126,32 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+
+      - name: Create/Update latest tag and release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Release"
+          body: |
+            ## Latest Build
+            This is always the most recent successful build from the main branch.
+            
+            - **Version:** ${{ steps.tag.outputs.tag }}
+            - **Commit:** ${{ github.sha }}
+            - **Build:** #${{ github.run_number }}
+            
+            ## JitPack Usage
+            ```gradle
+            repositories {
+                maven { url 'https://jitpack.io' }
+            }
+            
+            dependencies {
+                implementation 'com.github.MediaRoulette:MediaRoulette:latest'
+            }
+            ```
+            
+            For a specific version, use: `${{ steps.tag.outputs.tag }}`
+          files: release/*
+          draft: false
+          prerelease: false
