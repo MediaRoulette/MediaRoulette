@@ -7,6 +7,7 @@ import me.hash.mediaroulette.content.RandomText;
 import me.hash.mediaroulette.content.factory.MediaServiceFactory;
 import me.hash.mediaroulette.content.provider.impl.images.FourChanProvider;
 import me.hash.mediaroulette.content.provider.impl.images.RedditProvider;
+import me.hash.mediaroulette.exceptions.NoEnabledOptionsException;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.content.reddit.RedditClient;
 import me.hash.mediaroulette.content.reddit.SubredditManager;
@@ -17,6 +18,7 @@ import net.dv8tion.jda.api.interactions.Interaction;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Collection;
 
 public enum ImageSource {
     REDDIT("REDDIT"),
@@ -203,6 +205,58 @@ public enum ImageSource {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Get the configuration key for this source
+     * @return The configuration key used in LocalConfig
+     */
+    public String getConfigKey() {
+        return mapSourceToConfigKey(this);
+    }
+
+    /**
+     * Get all available image sources (both built-in and plugin-provided)
+     * @return Collection of all available image source providers
+     */
+    public static Collection<ImageSourceProvider> getAllAvailableSources() {
+        return ImageSourceRegistry.getInstance().getAllProviders();
+    }
+
+    /**
+     * Get all enabled image sources (both built-in and plugin-provided)
+     * @return Collection of all enabled image source providers
+     */
+    public static Collection<ImageSourceProvider> getAllEnabledSources() {
+        return ImageSourceRegistry.getInstance().getEnabledProviders();
+    }
+
+    /**
+     * Find an image source provider by name (supports both built-in and plugin sources)
+     * @param name The name of the source to find
+     * @return Optional containing the provider if found
+     */
+    public static Optional<ImageSourceProvider> findSourceProvider(String name) {
+        return ImageSourceRegistry.getInstance().findProvider(name);
+    }
+
+    /**
+     * Get a random image from any available source (replacement for ALL)
+     * @param interaction The Discord interaction
+     * @param user The user requesting the image
+     * @return Map<String, String> containing the image data
+     */
+    public static Map<String, String> getRandomImageFromAnySource(Interaction interaction, User user) throws Exception {
+        Collection<ImageSourceProvider> enabledSources = getAllEnabledSources();
+        if (enabledSources.isEmpty()) {
+            throw new Exception("No image sources are currently enabled");
+        }
+
+        // Convert to array for random selection
+        ImageSourceProvider[] sources = enabledSources.toArray(new ImageSourceProvider[0]);
+        ImageSourceProvider randomSource = sources[(int) (Math.random() * sources.length)];
+        
+        return randomSource.getRandomImage(interaction, user, null);
     }
 
 }

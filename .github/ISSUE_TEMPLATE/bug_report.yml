@@ -88,13 +88,9 @@ body:
       label: Environment
       description: Provide details about your environment
       placeholder: |
-        - OS: [e.g., Windows 10, macOS 12.0, Ubuntu 20.04]
-        - Browser: [e.g., Chrome 96, Firefox 95, Safari 15]
-        - Version: [e.g., v1.0.0]
+        - User ID [Copy your discord user ID and paste it here, if comfortable)
       value: |
-        - OS: 
-        - Browser: 
-        - Version:
+        - UserID:
     validations:
       required: false
 

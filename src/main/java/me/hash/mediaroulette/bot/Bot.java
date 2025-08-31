@@ -30,30 +30,22 @@ import java.util.concurrent.*;
 public class Bot {
     private static final Logger logger = LoggerFactory.getLogger(Bot.class);
     private static ShardManager shardManager = null;
-    public static final long COOLDOWN_DURATION = 2500; // Cooldown duration in milliseconds
-    public static final Map<Long, Long> COOLDOWNS = new HashMap<>(); // Cooldown management map
+    public static final long COOLDOWN_DURATION = 2500;
+    public static final Map<Long, Long> COOLDOWNS = new HashMap<>();
     public static Config config = null;
-    public static final ExecutorService executor = Executors.newCachedThreadPool(); // Executor for async tasks
+    public static final ExecutorService executor = Executors.newCachedThreadPool();
 
     public Bot(String token) {
-        // Initialize ShardManager
         shardManager = DefaultShardManagerBuilder.createDefault(token)
-                .setActivity(Activity.playing("Use /support for help! | Alpha :3")) // Set activity to all shards
-                .setStatus(OnlineStatus.ONLINE) // Default status
-                .setShardsTotal(-1) // Auto-detect number of shards
+                .setActivity(Activity.playing("Use /support for help! | Alpha :3"))
+                .setStatus(OnlineStatus.ONLINE)
+                .setShardsTotal(-1)
                 .build();
 
-        // Register global event listeners and command handlers
         registerEventListeners();
-
-        // Create and register global commands across all shards
         registerGlobalCommands();
 
-        // Initialize configuration
         config = new Config(Main.database);
-
-        // Note: Shutdown hook removed to avoid conflicts with Main.shutdown()
-        // Main class handles all shutdown logic
     }
 
     /**

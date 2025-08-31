@@ -1,5 +1,7 @@
 package me.hash.mediaroulette.plugins;
 
+import me.hash.mediaroulette.bot.commands.images.ImageSourceProvider;
+import me.hash.mediaroulette.bot.commands.images.ImageSourceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,12 +16,33 @@ import java.util.jar.JarFile;
 public class PluginManager {
     private final Map<String, Plugin> plugins = new ConcurrentHashMap<>();
     private final Map<String, PluginClassLoader> classLoaders = new ConcurrentHashMap<>();
+    private final File pluginDirectory;
+    private final File dataDirectory;
     private static final Logger logger = LoggerFactory.getLogger(PluginManager.class);
+
+    public PluginManager() {
+        this.pluginDirectory = new File("plugins");
+        this.dataDirectory = new File("plugins");
+    }
+
+    public PluginManager(File pluginDirectory, File dataDirectory) {
+        this.pluginDirectory = pluginDirectory;
+        this.dataDirectory = dataDirectory;
+    }
+
+    public void loadPlugins() {
+        loadPlugins(this.pluginDirectory);
+    }
 
     public void loadPlugins(File pluginDirectory) {
         if (!pluginDirectory.exists() || !pluginDirectory.isDirectory()) {
             logger.warn("Plugin directory does not exist: {}", pluginDirectory);
             return;
+        }
+
+        // Ensure data directory exists
+        if (!dataDirectory.exists()) {
+            dataDirectory.mkdirs();
         }
 
         File[] files = pluginDirectory.listFiles((dir, name) -> name.endsWith(".jar"));
@@ -94,6 +117,13 @@ public class PluginManager {
     }
 
     private void loadPlugin(File file, PluginDescriptionFile description) throws Exception {
+        // Create plugin data folder
+        File pluginDataFolder = new File(dataDirectory, description.getName());
+        if (!pluginDataFolder.exists()) {
+            pluginDataFolder.mkdirs();
+            logger.debug("Created data folder for plugin: {}", description.getName());
+        }
+
         PluginClassLoader classLoader = new PluginClassLoader(
                 new URL[]{file.toURI().toURL()},
                 this.getClass().getClassLoader()
@@ -104,6 +134,7 @@ public class PluginManager {
 
         plugin.setDescription(description);
         plugin.setClassLoader(classLoader);
+        plugin.setDataFolder(pluginDataFolder);
 
         plugins.put(description.getName(), plugin);
         classLoaders.put(description.getName(), classLoader);
@@ -116,6 +147,12 @@ public class PluginManager {
         for (Plugin plugin : plugins.values()) {
             try {
                 plugin.setEnabled(true);
+                
+                // Register image sources if the plugin implements ImageSourcePlugin
+                if (plugin instanceof ImageSourcePlugin imageSourcePlugin) {
+                    registerImageSources(imageSourcePlugin);
+                }
+                
                 logger.info("Enabled plugin: {}", plugin.getName());
             } catch (Exception e) {
                 logger.error("Failed to enable plugin {}: {}", plugin.getName(), e.getMessage(), e);
@@ -126,6 +163,11 @@ public class PluginManager {
     public void disablePlugins() {
         for (Plugin plugin : plugins.values()) {
             try {
+                // Unregister image sources if the plugin implements ImageSourcePlugin
+                if (plugin instanceof ImageSourcePlugin imageSourcePlugin) {
+                    unregisterImageSources(imageSourcePlugin);
+                }
+                
                 plugin.setEnabled(false);
                 logger.info("Disabled plugin: {}", plugin.getName());
             } catch (Exception e) {
@@ -148,7 +190,10 @@ public class PluginManager {
 
     public void reloadPlugins() {
         disablePlugins();
-        
+
+        // Clear all plugin-provided image sources
+        ImageSourceRegistry.getInstance().clearPluginProviders();
+
         for (PluginClassLoader classLoader : classLoaders.values()) {
             try {
                 classLoader.close();
@@ -156,12 +201,77 @@ public class PluginManager {
                 logger.error("Failed to close class loader: {}", e.getMessage());
             }
         }
-        
+
         plugins.clear();
         classLoaders.clear();
-        
-        File pluginDir = new File("plugins");
-        loadPlugins(pluginDir);
+
+        loadPlugins(pluginDirectory);
         enablePlugins();
+    }
+
+    public File getPluginDirectory() {
+        return pluginDirectory;
+    }
+
+    public File getDataDirectory() {
+        return dataDirectory;
+    }
+
+    /**
+     * Register image sources from a plugin that implements ImageSourcePlugin
+     * @param plugin The plugin to register image sources from
+     */
+    private void registerImageSources(ImageSourcePlugin plugin) {
+        try {
+            List<ImageSourceProvider> providers = plugin.getImageSourceProviders();
+            if (providers != null && !providers.isEmpty()) {
+                ImageSourceRegistry registry = ImageSourceRegistry.getInstance();
+                int registered = 0;
+                
+                for (ImageSourceProvider provider : providers) {
+                    if (registry.registerProvider(provider)) {
+                        registered++;
+                    }
+                }
+                
+                if (registered > 0) {
+                    plugin.onImageSourcesRegistered();
+                    logger.info("Registered {} image source(s) from plugin: {}", registered, 
+                              ((Plugin) plugin).getName());
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to register image sources from plugin {}: {}", 
+                        ((Plugin) plugin).getName(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Unregister image sources from a plugin that implements ImageSourcePlugin
+     * @param plugin The plugin to unregister image sources from
+     */
+    private void unregisterImageSources(ImageSourcePlugin plugin) {
+        try {
+            List<ImageSourceProvider> providers = plugin.getImageSourceProviders();
+            if (providers != null && !providers.isEmpty()) {
+                ImageSourceRegistry registry = ImageSourceRegistry.getInstance();
+                int unregistered = 0;
+                
+                for (ImageSourceProvider provider : providers) {
+                    if (registry.unregisterProvider(provider.getName())) {
+                        unregistered++;
+                    }
+                }
+                
+                if (unregistered > 0) {
+                    plugin.onImageSourcesUnregistered();
+                    logger.info("Unregistered {} image source(s) from plugin: {}", unregistered, 
+                              ((Plugin) plugin).getName());
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to unregister image sources from plugin {}: {}", 
+                        ((Plugin) plugin).getName(), e.getMessage(), e);
+        }
     }
 }
