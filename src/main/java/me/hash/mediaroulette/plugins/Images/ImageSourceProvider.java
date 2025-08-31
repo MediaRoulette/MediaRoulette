@@ -1,6 +1,7 @@
-package me.hash.mediaroulette.bot.commands.images;
+package me.hash.mediaroulette.plugins.Images;
 
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.model.content.MediaResult;
 import net.dv8tion.jda.api.interactions.Interaction;
 
 import java.util.Map;
@@ -40,10 +41,23 @@ public interface ImageSourceProvider {
      * @param interaction The Discord interaction context
      * @param user The user requesting the image
      * @param query Optional search query/filter
-     * @return Map<String, String> containing the image data (same format as ImageSource.handle())
+     * @return MediaResult containing the image data and metadata
      * @throws Exception if there's an error fetching the image
      */
-    Map<String, String> getRandomImage(Interaction interaction, User user, String query) throws Exception;
+    MediaResult getRandomImage(Interaction interaction, User user, String query) throws Exception;
+    
+    /**
+     * Get a random image from this source (backward compatibility method)
+     * @param interaction The Discord interaction context
+     * @param user The user requesting the image
+     * @param query Optional search query/filter
+     * @return Map<String, String> containing the image data for backward compatibility
+     * @throws Exception if there's an error fetching the image
+     */
+    default Map<String, String> getRandomImageAsMap(Interaction interaction, User user, String query) throws Exception {
+        MediaResult result = getRandomImage(interaction, user, query);
+        return result != null ? result.toMap() : null;
+    }
     
     /**
      * Get the configuration key used in LocalConfig for this source

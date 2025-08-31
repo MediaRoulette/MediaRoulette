@@ -1,6 +1,10 @@
 package me.hash.mediaroulette.bot.commands.images;
 
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.model.content.MediaResult;
+import me.hash.mediaroulette.model.content.MediaSource;
+import me.hash.mediaroulette.plugins.Images.ImageSource;
+import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
 import net.dv8tion.jda.api.interactions.Interaction;
 
 import java.util.Map;
@@ -55,8 +59,47 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     }
     
     @Override
-    public Map<String, String> getRandomImage(Interaction interaction, User user, String query) throws Exception {
-        return source.handle(interaction, query);
+    public MediaResult getRandomImage(Interaction interaction, User user, String query) throws Exception {
+        Map<String, String> result = source.handle(interaction, query);
+        return convertMapToMediaResult(result);
+    }
+    
+    /**
+     * Convert the legacy Map format to MediaResult
+     */
+    private MediaResult convertMapToMediaResult(Map<String, String> map) {
+        if (map == null) {
+            return null;
+        }
+        
+        String imageUrl = map.get("image");
+        String title = map.get("title");
+        String description = map.get("description");
+        String imageType = map.get("image_type");
+        String imageContent = map.get("image_content");
+        
+        // Map ImageSource to MediaSource
+        MediaSource mediaSource = mapImageSourceToMediaSource(source);
+        
+        return new MediaResult(imageUrl, title, description, mediaSource, imageType, imageContent);
+    }
+    
+    /**
+     * Map ImageSource enum to MediaSource enum
+     */
+    private MediaSource mapImageSourceToMediaSource(ImageSource imageSource) {
+        return switch (imageSource) {
+            case _4CHAN -> MediaSource.CHAN_4;
+            case PICSUM -> MediaSource.PICSUM;
+            case IMGUR -> MediaSource.IMGUR;
+            case RULE34XXX -> MediaSource.RULE34;
+            case GOOGLE -> MediaSource.GOOGLE;
+            case TENOR -> MediaSource.TENOR;
+            case REDDIT -> MediaSource.REDDIT;
+            case MOVIE, TVSHOW -> MediaSource.TMDB;
+            case YOUTUBE, SHORT -> MediaSource.YOUTUBE;
+            default -> MediaSource.REDDIT; // Default fallback
+        };
     }
     
     @Override

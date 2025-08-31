@@ -1,7 +1,8 @@
 package me.hash.mediaroulette.plugins;
 
-import me.hash.mediaroulette.bot.commands.images.ImageSourceProvider;
-import me.hash.mediaroulette.bot.commands.images.ImageSourceRegistry;
+import me.hash.mediaroulette.plugins.Images.ImageSourcePlugin;
+import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
+import me.hash.mediaroulette.plugins.Images.ImageSourceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

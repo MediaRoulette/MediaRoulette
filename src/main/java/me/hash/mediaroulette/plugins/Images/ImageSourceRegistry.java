@@ -1,6 +1,6 @@
-package me.hash.mediaroulette.bot.commands.images;
+package me.hash.mediaroulette.plugins.Images;
 
-import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.bot.commands.images.BuiltInImageSourceProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

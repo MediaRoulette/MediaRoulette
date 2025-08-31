@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.bot.commands.images;
+package me.hash.mediaroulette.plugins.Images;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
@@ -7,7 +7,6 @@ import me.hash.mediaroulette.content.RandomText;
 import me.hash.mediaroulette.content.factory.MediaServiceFactory;
 import me.hash.mediaroulette.content.provider.impl.images.FourChanProvider;
 import me.hash.mediaroulette.content.provider.impl.images.RedditProvider;
-import me.hash.mediaroulette.exceptions.NoEnabledOptionsException;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.content.reddit.RedditClient;
 import me.hash.mediaroulette.content.reddit.SubredditManager;
@@ -256,7 +255,8 @@ public enum ImageSource {
         ImageSourceProvider[] sources = enabledSources.toArray(new ImageSourceProvider[0]);
         ImageSourceProvider randomSource = sources[(int) (Math.random() * sources.length)];
         
-        return randomSource.getRandomImage(interaction, user, null);
+        MediaResult result = randomSource.getRandomImage(interaction, user, null);
+        return result != null ? result.toMap() : null;
     }
 
 }

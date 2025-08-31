@@ -1,6 +1,4 @@
-package me.hash.mediaroulette.plugins;
-
-import me.hash.mediaroulette.bot.commands.images.ImageSourceProvider;
+package me.hash.mediaroulette.plugins.Images;
 
 import java.util.List;
 

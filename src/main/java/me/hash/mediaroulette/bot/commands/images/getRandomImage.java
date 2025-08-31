@@ -2,11 +2,13 @@ package me.hash.mediaroulette.bot.commands.images;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
-import me.hash.mediaroulette.bot.Emoji;
 import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.errorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.model.content.MediaResult;
+import me.hash.mediaroulette.plugins.Images.ImageSource;
+import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
 import me.hash.mediaroulette.utils.Locale;
 import me.hash.mediaroulette.utils.MaintenanceChecker;
 import me.hash.mediaroulette.utils.QuestGenerator;
@@ -156,7 +158,8 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             if (providerOpt.isPresent()) {
                 ImageSourceProvider provider = providerOpt.get();
                 try {
-                    Map<String, String> image = provider.getRandomImage(event, user, query);
+                    MediaResult result = provider.getRandomImage(event, user, query);
+                    Map<String, String> image = result != null ? result.toMap() : null;
                     if (image == null || image.get("image") == null) {
                         errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
                         return;
@@ -280,7 +283,8 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     if (providerOpt.isPresent()) {
                         ImageSourceProvider provider = providerOpt.get();
                         try {
-                            Map<String, String> image = provider.getRandomImage(event, user, data.getQuery());
+                            MediaResult result = provider.getRandomImage(event, user, data.getQuery());
+                            Map<String, String> image = result != null ? result.toMap() : null;
                             if (image == null || image.get("image") == null) {
                                 showErrorContainer(event, new Locale(user.getLocale()).get("error.no_more_images_title"),
                                         new Locale(user.getLocale()).get("error.no_more_images_description"));
