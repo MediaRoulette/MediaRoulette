@@ -8,9 +8,10 @@ public enum MediaSource {
     RULE34("Rule34"),
     GOOGLE("Google"),
     TENOR("Tenor"),
-    REDDIT("Reddit"),
     TMDB("TMDB"),
-    YOUTUBE("Youtube");
+    YOUTUBE("Youtube"),
+    UNKNOWN("All"),
+    URBAN_DICTIONARY("UrbanDictionary");
 
     private final String displayName;
 

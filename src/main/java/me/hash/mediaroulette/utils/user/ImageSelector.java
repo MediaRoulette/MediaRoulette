@@ -101,14 +101,6 @@ public class ImageSelector {
             case "4chan" -> new MediaServiceFactory().createFourChanProvider().getRandomMedia(null).toMap();
             case "picsum" -> new MediaServiceFactory().createPicsumProvider().getRandomMedia(null).toMap();
             case "imgur" -> new MediaServiceFactory().createImgurProvider().getRandomMedia(null).toMap();
-            case "reddit" -> {
-                var provider = new MediaServiceFactory().createRedditProvider();
-                if (provider instanceof me.hash.mediaroulette.content.provider.impl.images.RedditProvider redditProvider && userId != null) {
-                    yield redditProvider.getRandomMedia(null, userId).toMap();
-                } else {
-                    yield provider.getRandomMedia(null).toMap();
-                }
-            }
             case "rule34xxx" -> new MediaServiceFactory().createRule34Provider().getRandomMedia(null).toMap();
             case "tenor" -> {
                 var provider = new MediaServiceFactory().createTenorProvider();

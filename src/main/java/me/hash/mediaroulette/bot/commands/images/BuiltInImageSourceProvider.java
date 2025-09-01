@@ -95,10 +95,10 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
             case RULE34XXX -> MediaSource.RULE34;
             case GOOGLE -> MediaSource.GOOGLE;
             case TENOR -> MediaSource.TENOR;
-            case REDDIT -> MediaSource.REDDIT;
             case MOVIE, TVSHOW -> MediaSource.TMDB;
             case YOUTUBE, SHORT -> MediaSource.YOUTUBE;
-            default -> MediaSource.REDDIT; // Default fallback
+            case URBAN -> MediaSource.URBAN_DICTIONARY;
+            default -> MediaSource.UNKNOWN; // Default fallback
         };
     }
     
@@ -111,7 +111,7 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     public boolean supportsSearch() {
         // Most built-in sources support some form of search/filtering
         return switch (source) {
-            case REDDIT, GOOGLE, IMGUR, YOUTUBE, SHORT -> true;
+            case GOOGLE, IMGUR, YOUTUBE, SHORT -> true;
             default -> false;
         };
     }
@@ -120,7 +120,6 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     public int getPriority() {
         // Assign priorities to built-in sources
         return switch (source) {
-            case REDDIT -> 90;
             case GOOGLE -> 85;
             case IMGUR -> 80;
             case YOUTUBE -> 75;
@@ -149,7 +148,6 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
      */
     private String getDescriptionForSource(ImageSource source) {
         return switch (source) {
-            case REDDIT -> "Random images from Reddit subreddits";
             case TENOR -> "GIFs and animated images from Tenor";
             case _4CHAN -> "Images from 4chan boards";
             case GOOGLE -> "Images from Google Image Search";

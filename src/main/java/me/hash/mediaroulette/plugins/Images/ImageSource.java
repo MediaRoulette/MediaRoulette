@@ -6,10 +6,7 @@ import me.hash.mediaroulette.bot.errorHandler;
 import me.hash.mediaroulette.content.RandomText;
 import me.hash.mediaroulette.content.factory.MediaServiceFactory;
 import me.hash.mediaroulette.content.provider.impl.images.FourChanProvider;
-import me.hash.mediaroulette.content.provider.impl.images.RedditProvider;
 import me.hash.mediaroulette.model.content.MediaResult;
-import me.hash.mediaroulette.content.reddit.RedditClient;
-import me.hash.mediaroulette.content.reddit.SubredditManager;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.utils.Locale;
 import me.hash.mediaroulette.utils.LocalConfig;
@@ -20,7 +17,6 @@ import java.util.Optional;
 import java.util.Collection;
 
 public enum ImageSource {
-    REDDIT("REDDIT"),
     TENOR("TENOR"),
     _4CHAN("4CHAN"),
     GOOGLE("GOOGLE"),
@@ -36,8 +32,6 @@ public enum ImageSource {
 
     private final String name;
 
-    public static final RedditClient redditClient = new RedditClient();
-    public static final SubredditManager subredditManager = new SubredditManager(redditClient);
 
     ImageSource(String name) {
         this.name = name;
@@ -57,7 +51,6 @@ public enum ImageSource {
         }
 
         return switch (this) {
-            case REDDIT -> handleReddit(event, option);
             case TENOR -> {
                 var provider = new MediaServiceFactory().createTenorProvider();
                 if (provider instanceof me.hash.mediaroulette.content.provider.impl.gifs.TenorProvider tenorProvider) {
@@ -88,44 +81,6 @@ public enum ImageSource {
         };
     }
 
-    private Map<String, String> handleReddit(Interaction event, String option) throws Exception {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
-
-        // Only use the option if explicitly provided, otherwise let RedditProvider handle dictionary logic
-        String subreddit = option; // Don't set random subreddit here!
-
-        // Only validate if a specific subreddit was requested
-        if (subreddit != null && !subredditManager.doesSubredditExist(subreddit)) {
-            String errorMessage = new Locale(user.getLocale()).get("error.invalid_subreddit_description").replace("{0}", subreddit);
-            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.invalid_subreddit_title"), errorMessage);
-            throw new Exception("Subreddit doesn't exist: " + subreddit);
-        }
-
-        RedditProvider reddit = (RedditProvider) new MediaServiceFactory().createRedditProvider();
-
-        MediaResult redditPost;
-        try {
-            redditPost = reddit.getRandomReddit(subreddit, event.getUser().getId());
-        } catch (Exception e) {
-            // Check if it's a subreddit validation error
-            if (e.getMessage().contains("No valid subreddits found") || e.getMessage().contains("Unable to find a valid subreddit")) {
-                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), new Locale(user.getLocale()).get("error.reddit_no_valid_subreddit"));
-                throw new Exception("No valid subreddits available");
-            } else {
-                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), new Locale(user.getLocale()).get("error.reddit_fetch"));
-                throw new Exception("Error fetching Reddit data: " + e.getMessage());
-            }
-        }
-
-        if (redditPost == null) {
-            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), new Locale(user.getLocale()).get("error.reddit_fetch"));
-            throw new Exception("Error fetching Reddit data");
-        }
-
-        System.out.println(redditPost.toMap().toString());
-
-        return redditPost.toMap();
-    }
 
     private Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
@@ -181,7 +136,6 @@ public enum ImageSource {
      */
     private String mapSourceToConfigKey(ImageSource source) {
         return switch (source) {
-            case REDDIT -> "reddit";
             case TENOR -> "tenor";
             case _4CHAN -> "4chan";
             case GOOGLE -> "google";

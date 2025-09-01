@@ -9,18 +9,11 @@ import me.hash.mediaroulette.content.provider.impl.videos.TMDBMovieProvider;
 import me.hash.mediaroulette.content.provider.impl.videos.TMDBTvProvider;
 import me.hash.mediaroulette.content.provider.impl.videos.YouTubeProvider;
 import me.hash.mediaroulette.content.provider.impl.videos.YouTubeShortsProvider;
-import me.hash.mediaroulette.content.reddit.RedditClient;
-import me.hash.mediaroulette.content.reddit.SubredditManager;
 
 public class MediaServiceFactory {
     private final HttpClientWrapper httpClient;
-    private final RedditClient redditClient;
-    private final SubredditManager subredditManager;
-
     public MediaServiceFactory() {
         this.httpClient = new HttpClientWrapper();
-        this.redditClient = new RedditClient();
-        this.subredditManager = new SubredditManager(redditClient);
     }
 
     public MediaProvider createFourChanProvider() {
@@ -43,9 +36,6 @@ public class MediaServiceFactory {
         return new TenorProvider(httpClient, Main.getEnv("TENOR_API"));
     }
 
-    public MediaProvider createRedditProvider() {
-        return new RedditProvider(redditClient, subredditManager);
-    }
 
     public MediaProvider createRule34Provider() {
         return new Rule34Provider(httpClient);
