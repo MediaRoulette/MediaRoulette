@@ -9,6 +9,7 @@ import java.io.*;
 import java.net.URI;
 import java.nio.file.*;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -49,6 +50,14 @@ public class FFmpegDownloader {
             return CompletableFuture.completedFuture(ffmpegPath);
         }
         
+        // Prefer system-installed ffmpeg if available
+        Path systemFfmpeg = findFFmpegInSystemPath();
+        if (systemFfmpeg != null) {
+            ffmpegPath = systemFfmpeg;
+            isDownloaded = false;
+            return CompletableFuture.completedFuture(systemFfmpeg);
+        }
+        
         return downloadFFmpeg().thenApply(path -> {
             ffmpegPath = path;
             isDownloaded = true;
@@ -61,9 +70,15 @@ public class FFmpegDownloader {
      */
     public static CompletableFuture<Path> getFFprobePath() {
         return getFFmpegPath().thenApply(ffmpegPath -> {
-            Path ffmpegDir = ffmpegPath.getParent();
             String ffprobeExecutable = System.getProperty("os.name").toLowerCase().contains("windows") ? "ffprobe.exe" : "ffprobe";
-            return ffmpegDir.resolve(ffprobeExecutable);
+            Path ffmpegDir = ffmpegPath != null ? ffmpegPath.getParent() : Paths.get(FFMPEG_DIR);
+            Path candidate = ffmpegDir != null ? ffmpegDir.resolve(ffprobeExecutable) : Paths.get(ffprobeExecutable);
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+            // Fallback to PATH search
+            Path systemProbe = findInSystemPath(ffprobeExecutable);
+            return Objects.requireNonNullElseGet(systemProbe, () -> Paths.get(FFMPEG_DIR).resolve(ffprobeExecutable));
         });
     }
     
@@ -140,14 +155,8 @@ public class FFmpegDownloader {
         }
         
         // Check if FFmpeg is in system PATH
-        try {
-            ProcessBuilder pb = new ProcessBuilder(FFMPEG_EXECUTABLE_NAME, "-version");
-            Process process = pb.start();
-            int exitCode = process.waitFor();
-            return exitCode == 0;
-        } catch (Exception e) {
-            return false;
-        }
+        Path systemFfmpeg = findFFmpegInSystemPath();
+        return systemFfmpeg != null && Files.isExecutable(systemFfmpeg);
     }
     
     /**
@@ -430,65 +439,107 @@ public class FFmpegDownloader {
      */
     private static Path extractTarXz(Path tarXzFile, Path targetDir) throws IOException {
         logger.info("Extracting TAR.XZ archive: {}", tarXzFile.getFileName());
-        
+
         // Try multiple extraction methods
-        Path ffmpegPath;
-        
+        Path foundFfmpeg = null;
+
         // Method 1: Try system tar command
         try {
             logger.info("Attempting extraction with system tar command...");
             ProcessBuilder pb = new ProcessBuilder("tar", "-xf", tarXzFile.toString(), "-C", targetDir.toString());
             Process process = pb.start();
-            
-            // Capture output for debugging
+
+            // Capture stderr for debugging
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    logger.info("tar: {}", line);
+                    logger.debug("tar: {}", line);
                 }
             }
-            
+
             int exitCode = process.waitFor();
-            
             if (exitCode == 0) {
                 logger.info("✅ TAR extraction successful");
-                ffmpegPath = findFFmpegInDirectory(targetDir);
-                if (ffmpegPath != null) {
-                    logger.info("✅ Found FFmpeg at: {}", ffmpegPath);
-                    return ffmpegPath;
-                }
+                foundFfmpeg = findFFmpegInDirectory(targetDir);
             } else {
                 logger.error("tar command failed with exit code: {}", exitCode);
             }
         } catch (Exception e) {
             logger.error("System tar extraction failed: {}", e.getMessage());
         }
-        
-        // Method 2: Try with different tar options
-        try {
-            logger.info("Attempting extraction with alternative tar options...");
-            ProcessBuilder pb = new ProcessBuilder("tar", "-xJf", tarXzFile.toString(), "-C", targetDir.toString());
-            Process process = pb.start();
-            int exitCode = process.waitFor();
-            
-            if (exitCode == 0) {
-                ffmpegPath = findFFmpegInDirectory(targetDir);
-                if (ffmpegPath != null) {
-                    return ffmpegPath;
+
+        // Method 2: Try with different tar options if not found yet
+        if (foundFfmpeg == null) {
+            try {
+                logger.info("Attempting extraction with alternative tar options...");
+                ProcessBuilder pb = new ProcessBuilder("tar", "-xJf", tarXzFile.toString(), "-C", targetDir.toString());
+                Process process = pb.start();
+                int exitCode = process.waitFor();
+                if (exitCode == 0) {
+                    foundFfmpeg = findFFmpegInDirectory(targetDir);
+                }
+            } catch (Exception e) {
+                logger.error("Alternative tar extraction failed: {}", e.getMessage());
+            }
+        }
+
+        if (foundFfmpeg != null) {
+            // Place binaries in root targetDir and cleanup extracted directories
+            Path destFfmpeg = targetDir.resolve(FFMPEG_EXECUTABLE_NAME);
+            try {
+                if (!Files.exists(destFfmpeg) || !Files.isSameFile(foundFfmpeg, destFfmpeg)) {
+                    Files.copy(foundFfmpeg, destFfmpeg, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException copyEx) {
+                logger.error("Failed to copy ffmpeg binary: {}", copyEx.getMessage());
+                throw copyEx;
+            }
+
+            // Try to copy ffprobe alongside if present next to ffmpeg
+            Path probeSrc = foundFfmpeg.getParent().resolve(getProbeExecutableName());
+            Path destProbe = targetDir.resolve(getProbeExecutableName());
+            if (Files.exists(probeSrc) && Files.isRegularFile(probeSrc)) {
+                try {
+                    Files.copy(probeSrc, destProbe, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException copyEx) {
+                    logger.warn("Failed to copy ffprobe binary: {}", copyEx.getMessage());
                 }
             }
-        } catch (Exception e) {
-            logger.error("Alternative tar extraction failed: {}", e.getMessage());
+
+            // Ensure executables are marked executable on Unix
+            makeExecutable(destFfmpeg);
+            if (Files.exists(destProbe)) {
+                makeExecutable(destProbe);
+            }
+
+            // Cleanup: remove extracted directories, keep only binaries in target root
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(targetDir)) {
+                for (Path p : stream) {
+                    String name = p.getFileName().toString();
+                    if (name.equals(FFMPEG_EXECUTABLE_NAME) || name.equals(getProbeExecutableName())) {
+                        continue;
+                    }
+                    // Don't touch the original tar file here; it's deleted by caller
+                    if (Files.isDirectory(p)) {
+                        deleteRecursively(p);
+                    }
+                }
+            } catch (IOException cleanupEx) {
+                logger.warn("Cleanup after extraction encountered issues: {}", cleanupEx.getMessage());
+            }
+
+            logger.info("✅ Found FFmpeg at: {}", destFfmpeg);
+            return destFfmpeg;
         }
-        
+
         // Method 3: Manual extraction instructions
         logger.warn("Automatic extraction failed. Manual extraction required:");
         logger.warn("1. Extract {} to {}", tarXzFile, targetDir);
         logger.warn("2. Ensure ffmpeg executable is in {}", targetDir);
         logger.warn("3. Make sure ffmpeg has execute permissions (chmod +x ffmpeg)");
-        
+
         throw new IOException("Failed to extract TAR.XZ archive automatically. " +
-                            "Please extract manually or install tar/xz-utils.");
+                "Please extract manually or install tar/xz-utils.");
     }
     
     /**
@@ -496,7 +547,7 @@ public class FFmpegDownloader {
      */
     private static Path findExistingFFmpeg(Path directory) {
         Path directPath = directory.resolve(FFMPEG_EXECUTABLE_NAME);
-        if (Files.exists(directPath)) {
+        if (Files.exists(directPath) && Files.isRegularFile(directPath)) {
             return directPath;
         }
         
@@ -509,6 +560,7 @@ public class FFmpegDownloader {
     private static Path findFFmpegInDirectory(Path directory) {
         try {
             return Files.walk(directory)
+                    .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().equals(FFMPEG_EXECUTABLE_NAME))
                     .findFirst()
                     .orElse(null);
@@ -521,14 +573,35 @@ public class FFmpegDownloader {
      * Makes a file executable on Unix systems
      */
     private static void makeExecutable(Path file) {
-        if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
+        if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+            return; // No chmod needed on Windows
+        }
+        try {
+            // Try to set POSIX permissions first
             try {
-                ProcessBuilder pb = new ProcessBuilder("chmod", "+x", file.toString());
-                Process process = pb.start();
-                process.waitFor();
-            } catch (Exception e) {
-                logger.error("Failed to make FFmpeg executable: {}", e.getMessage());
+                java.nio.file.attribute.PosixFileAttributeView view = java.nio.file.Files.getFileAttributeView(file, java.nio.file.attribute.PosixFileAttributeView.class);
+                if (view != null) {
+                    java.util.Set<java.nio.file.attribute.PosixFilePermission> perms = new java.util.HashSet<>();
+                    perms.add(java.nio.file.attribute.PosixFilePermission.OWNER_READ);
+                    perms.add(java.nio.file.attribute.PosixFilePermission.OWNER_WRITE);
+                    perms.add(java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE);
+                    perms.add(java.nio.file.attribute.PosixFilePermission.GROUP_READ);
+                    perms.add(java.nio.file.attribute.PosixFilePermission.GROUP_EXECUTE);
+                    perms.add(java.nio.file.attribute.PosixFilePermission.OTHERS_READ);
+                    perms.add(java.nio.file.attribute.PosixFilePermission.OTHERS_EXECUTE);
+                    java.nio.file.Files.setPosixFilePermissions(file, perms);
+                    return;
+                }
+            } catch (Throwable ignored) {
+                // Fall back to chmod below
             }
+
+            // Fallback: use chmod command
+            ProcessBuilder pb = new ProcessBuilder("chmod", "+x", file.toString());
+            Process process = pb.start();
+            process.waitFor();
+        } catch (Exception e) {
+            logger.error("Failed to make file executable: {}", e.getMessage());
         }
     }
     
@@ -554,6 +627,42 @@ public class FFmpegDownloader {
     /**
      * Operating system enumeration
      */
+    // Locate an executable in the system PATH in a cross-platform way
+    private static Path findInSystemPath(String executableName) {
+        // Try OS-native commands first
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
+        String[] command = isWindows ? new String[]{"where", executableName} : new String[]{"which", executableName};
+        try {
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line = r.readLine();
+                if (line != null && !line.isBlank()) {
+                    Path p = Paths.get(line.trim());
+                    if (Files.exists(p) && Files.isRegularFile(p)) {
+                        return p;
+                    }
+                }
+            }
+        } catch (Exception ignored) { }
+
+        // Fallback: manually walk PATH
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv != null) {
+            String[] dirs = pathEnv.split(File.pathSeparator);
+            for (String dir : dirs) {
+                Path candidate = Paths.get(dir).resolve(executableName);
+                if (Files.exists(candidate) && Files.isRegularFile(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Path findFFmpegInSystemPath() {
+        return findInSystemPath(FFMPEG_EXECUTABLE_NAME);
+    }
+
     private enum OperatingSystem {
         WINDOWS, LINUX, MACOS
     }
@@ -626,6 +735,17 @@ public class FFmpegDownloader {
             logger.error("Failed to cleanup FFmpeg directory: {}", e.getMessage());
         }
     }
+
+   private static void deleteRecursively(Path dir) throws IOException {
+       if (!Files.exists(dir)) return;
+       Files.walk(dir)
+               .sorted(Comparator.reverseOrder())
+               .forEach(p -> {
+                   try {
+                       Files.deleteIfExists(p);
+                   } catch (IOException ignored) {}
+               });
+   }
     
     /**
      * Gets information about the current FFmpeg installation

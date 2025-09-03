@@ -8,6 +8,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +20,7 @@ import java.util.jar.JarFile;
 public class PluginManager {
     private final Map<String, Plugin> plugins = new ConcurrentHashMap<>();
     private final Map<String, PluginClassLoader> classLoaders = new ConcurrentHashMap<>();
+    private final Map<String, File> pluginJars = new ConcurrentHashMap<>();
     private final File pluginDirectory;
     private final File dataDirectory;
     private static final Logger logger = LoggerFactory.getLogger(PluginManager.class);
@@ -58,6 +62,7 @@ public class PluginManager {
                 PluginDescriptionFile desc = getPluginDescription(file);
                 descriptions.put(desc.getName(), desc);
                 pluginFiles.put(desc.getName(), file);
+                pluginJars.put(desc.getName(), file);
             } catch (Exception e) {
                 logger.error("Failed to load plugin description from {}: {}", file.getName(), e.getMessage(), e);
             }
@@ -114,6 +119,32 @@ public class PluginManager {
             try (InputStream stream = jar.getInputStream(entry)) {
                 return new PluginDescriptionFile(stream);
             }
+        }
+    }
+
+    public void addOrUpdatePluginJar(File jarFile, boolean enableAfterLoad) throws Exception {
+        // Load description
+        PluginDescriptionFile desc = getPluginDescription(jarFile);
+        String name = desc.getName();
+
+        // If plugin exists, unload it first
+        if (plugins.containsKey(name)) {
+            logger.info("Updating plugin {}...", name);
+            disablePlugin(name);
+            PluginClassLoader oldCl = classLoaders.remove(name);
+            plugins.remove(name);
+            if (oldCl != null) {
+                try { oldCl.close(); } catch (Exception ignored) {}
+            }
+        } else {
+            logger.info("Adding new plugin {}...", name);
+        }
+
+        // Load new jar
+        loadPlugin(jarFile, desc);
+        pluginJars.put(name, jarFile);
+        if (enableAfterLoad) {
+            enablePlugin(name);
         }
     }
 
@@ -177,8 +208,48 @@ public class PluginManager {
         }
     }
 
+    public boolean enablePlugin(String name) {
+        Plugin plugin = findPlugin(name);
+        if (plugin == null) return false;
+        if (plugin.isEnabled()) return true; // already enabled
+        try {
+            plugin.setEnabled(true);
+            if (plugin instanceof ImageSourcePlugin imageSourcePlugin) {
+                registerImageSources(imageSourcePlugin);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to enable plugin {}: {}", plugin.getName(), e.getMessage(), e);
+            return false;
+        }
+    }
+
+    public boolean disablePlugin(String name) {
+        Plugin plugin = findPlugin(name);
+        if (plugin == null) return false;
+        if (!plugin.isEnabled()) return true; // already disabled
+        try {
+            if (plugin instanceof ImageSourcePlugin imageSourcePlugin) {
+                unregisterImageSources(imageSourcePlugin);
+            }
+            plugin.setEnabled(false);
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to disable plugin {}: {}", plugin.getName(), e.getMessage(), e);
+            return false;
+        }
+    }
+
     public Plugin getPlugin(String name) {
         return plugins.get(name);
+    }
+
+    public Plugin findPlugin(String name) {
+        if (name == null) return null;
+        for (Plugin p : plugins.values()) {
+            if (p.getName().equalsIgnoreCase(name)) return p;
+        }
+        return null;
     }
 
     public Collection<Plugin> getPlugins() {
@@ -189,7 +260,15 @@ public class PluginManager {
         return new ArrayList<>(plugins.values());
     }
 
+    public List<String> getPluginNames() {
+        return plugins.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
     public void reloadPlugins() {
+        reloadPlugins(false);
+    }
+
+    public void reloadPlugins(boolean preserveDisabled) {
         disablePlugins();
 
         // Clear all plugin-provided image sources
@@ -203,11 +282,28 @@ public class PluginManager {
             }
         }
 
+        // Snapshot disabled set if requested
+        Set<String> disabled = new HashSet<>();
+        if (preserveDisabled) {
+            for (Plugin p : plugins.values()) {
+                if (!p.isEnabled()) disabled.add(p.getName());
+            }
+        }
+
         plugins.clear();
         classLoaders.clear();
 
         loadPlugins(pluginDirectory);
-        enablePlugins();
+        
+        if (preserveDisabled && !disabled.isEmpty()) {
+            // Enable all then disable preserved ones to avoid dependency mismatches during registration
+            enablePlugins();
+            for (String name : disabled) {
+                disablePlugin(name);
+            }
+        } else {
+            enablePlugins();
+        }
     }
 
     public File getPluginDirectory() {

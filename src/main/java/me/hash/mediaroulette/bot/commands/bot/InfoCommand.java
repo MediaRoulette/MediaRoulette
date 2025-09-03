@@ -5,6 +5,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.OperatingSystemMXBean;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import me.hash.mediaroulette.Main;
@@ -250,7 +251,7 @@ public class InfoCommand extends ListenerAdapter implements CommandHandler {
                 TextDisplay.of(formatBotStats(totalImages, totalUsers, uptimeMillis, shard, metrics, memoryProgress)),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 ActionRow.of(createBotDetailsSelect()),
-                ActionRow.of(createBotActionButtons())
+                ActionRow.of(Arrays.asList(createBotActionButtons()))
         ).withAccentColor(PRIMARY_COLOR);
     }
 
@@ -284,7 +285,7 @@ public class InfoCommand extends ListenerAdapter implements CommandHandler {
                 TextDisplay.of(formatUserStats(user.getImagesGenerated(), usageLevel, statusText, favoritesUsed, favoritesLimit, favoritesBar, tips)),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 ActionRow.of(createUserActionsSelect()),
-                ActionRow.of(createUserActionButtons())
+                ActionRow.of(Arrays.asList(createUserActionButtons()))
         ).withAccentColor(userColor);
     }
 

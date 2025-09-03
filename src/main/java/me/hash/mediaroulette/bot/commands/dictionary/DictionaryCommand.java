@@ -8,6 +8,7 @@ import me.hash.mediaroulette.service.DictionaryService;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -18,7 +19,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.interactions.modals.Modal;
+import net.dv8tion.jda.api.modals.Modal;
 
 import java.awt.Color;
 import java.util.Arrays;
@@ -302,7 +303,7 @@ public class DictionaryCommand extends ListenerAdapter implements CommandHandler
         Dictionary dict = dictOpt.get();
         String currentWords = String.join(", ", dict.getWords());
         
-        TextInput.Builder wordsInputBuilder = TextInput.create("words", "Words (comma-separated)", TextInputStyle.PARAGRAPH)
+        TextInput.Builder wordsInputBuilder = TextInput.create("words", TextInputStyle.PARAGRAPH)
             .setPlaceholder("word1, word2, word3...")
             .setRequiredRange(0, 2000);
         
@@ -318,7 +319,7 @@ public class DictionaryCommand extends ListenerAdapter implements CommandHandler
         TextInput wordsInput = wordsInputBuilder.build();
             
         Modal modal = Modal.create("dict_words_edit:" + dictId, "Edit Dictionary Words")
-            .addComponents(ActionRow.of(wordsInput))
+            .addComponents(Label.of("Words (comma-separated)", wordsInput))
             .build();
             
         event.replyModal(modal).queue();
@@ -331,13 +332,13 @@ public class DictionaryCommand extends ListenerAdapter implements CommandHandler
             name = "Unnamed Dictionary";
         }
         
-        TextInput nameInput = TextInput.create("name", "Dictionary Name", TextInputStyle.SHORT)
+        TextInput nameInput = TextInput.create("name", TextInputStyle.SHORT)
             .setPlaceholder("Enter dictionary name...")
             .setValue(name)
             .setRequiredRange(1, 100)
             .build();
             
-        TextInput.Builder descInputBuilder = TextInput.create("description", "Description", TextInputStyle.PARAGRAPH)
+        TextInput.Builder descInputBuilder = TextInput.create("description", TextInputStyle.PARAGRAPH)
             .setPlaceholder("Enter description...")
             .setRequiredRange(0, 500);
             
@@ -350,7 +351,7 @@ public class DictionaryCommand extends ListenerAdapter implements CommandHandler
         TextInput descInput = descInputBuilder.build();
             
         Modal modal = Modal.create("dict_info_edit:" + dictId, "Edit Dictionary Info")
-            .addComponents(ActionRow.of(nameInput), ActionRow.of(descInput))
+            .addComponents(Label.of("Dictionary Name", nameInput), Label.of("Description", descInput))
             .build();
             
         event.replyModal(modal).queue();

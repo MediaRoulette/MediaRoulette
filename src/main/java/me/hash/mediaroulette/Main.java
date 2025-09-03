@@ -130,15 +130,6 @@ public class Main {
         terminalThread.start();
     }
 
-    public static boolean checkCredentialsBoolean(Set<DotenvEntry> entries, String configKey, String... keys) {
-        for (String key : keys) {
-            if (!containsKey(entries, key)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     public static boolean containsKey(Set<DotenvEntry> entries, String key) {
         return entries.stream().anyMatch(entry -> entry.getKey().equals(key));
     }

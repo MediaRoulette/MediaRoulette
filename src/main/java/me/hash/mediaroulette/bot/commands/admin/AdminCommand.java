@@ -12,6 +12,7 @@ import me.hash.mediaroulette.service.GiveawayService;
 import me.hash.mediaroulette.utils.Locale;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
@@ -23,9 +24,9 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.interactions.modals.Modal;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.modals.Modal;
 
 import java.awt.Color;
 import java.time.Instant;
@@ -140,14 +141,14 @@ public class AdminCommand extends ListenerAdapter implements CommandHandler {
         if ("discord_nitro".equals(type)) {
             String modalId = "admin:addnitro:" + System.currentTimeMillis();
             
-            TextInput linkInput = TextInput.create("nitro_link", "Discord Nitro Gift Link", TextInputStyle.SHORT)
+            TextInput linkInput = TextInput.create("nitro_link", TextInputStyle.SHORT)
                     .setPlaceholder("https://discord.gift/...")
                     .setRequired(true)
                     .setMaxLength(200)
                     .build();
 
             Modal modal = Modal.create(modalId, "Add Discord Nitro Gift")
-                    .addComponents(ActionRow.of(linkInput))
+                    .addComponents(Label.of("Discord Nitro Gift Link", linkInput))
                     .build();
 
             // Store item data in temporary storage for retrieval

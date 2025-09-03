@@ -9,6 +9,7 @@ import me.hash.mediaroulette.model.User;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
@@ -21,7 +22,7 @@ import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
-import net.dv8tion.jda.api.interactions.modals.Modal;
+import net.dv8tion.jda.api.modals.Modal;
 
 import java.awt.Color;
 import java.time.Instant;
@@ -372,23 +373,23 @@ public class ChancesCommand extends ListenerAdapter implements CommandHandler {
         ImageOptions option = session.getImageOption(imageType);
         if (option == null) return;
 
-        TextInput enabledInput = TextInput.create("enabled_input", "Enabled (true/false)", TextInputStyle.SHORT)
+        TextInput enabledInput = TextInput.create("enabled_input", TextInputStyle.SHORT)
                 .setPlaceholder("true or false")
                 .setValue(String.valueOf(option.isEnabled()))
                 .setRequiredRange(4, 5)
                 .build();
 
-        TextInput chanceInput = TextInput.create("chance_input", "Chance Percentage (0-100)", TextInputStyle.SHORT)
+        TextInput chanceInput = TextInput.create("chance_input", TextInputStyle.SHORT)
                 .setPlaceholder("Enter chance percentage")
                 .setValue(String.valueOf(option.getChance()))
                 .setRequiredRange(1, 10)
                 .build();
 
-        Modal modal = Modal.create("chances:edit:" + imageType, 
+        Modal modal = Modal.create("chances:edit:" + imageType,
                         "✏️ Edit: " + formatSourceName(imageType))
                 .addComponents(
-                    ActionRow.of(enabledInput),
-                    ActionRow.of(chanceInput)
+                        Label.of("Discord Nitro Gift Link", enabledInput),
+                        Label.of("Chance Percentage (0-100)", chanceInput)
                 )
                 .build();
 
