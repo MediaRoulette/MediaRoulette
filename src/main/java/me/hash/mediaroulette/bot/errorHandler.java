@@ -14,8 +14,6 @@ import net.dv8tion.jda.api.interactions.components.selections.StringSelectIntera
 import java.awt.Color;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.Map;
 
 public class errorHandler {
     private static final Logger logger = LoggerFactory.getLogger(errorHandler.class);
@@ -48,35 +46,6 @@ public class errorHandler {
                     .queue();
             case null, default -> logger.error("Unsupported interaction type for error embedding.");
         }
-    }
-
-    /**
-     * Safely censors sensitive environment variables by masking their values, showing only
-     * the first 3 characters followed by asterisks (***). If the value has fewer than 3 characters,
-     * the entire value is replaced with asterisks.
-     *
-     * @return A map of environment variables with censored values.
-     */
-    public static Map<String, String> getCensoredEnvVariables() {
-        Map<String, String> censoredEnv = new HashMap<>();
-
-        for (DotenvEntry entry : Main.env.entries()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-
-            String censoredValue;
-            if (value == null || value.isEmpty()) {
-                censoredValue = "***";
-            } else if (value.length() > 3) {
-                censoredValue = value.substring(0, 3) + "***";
-            } else {
-                censoredValue = "***";
-            }
-
-            censoredEnv.put(key, censoredValue);
-        }
-
-        return censoredEnv;
     }
 
     /**
@@ -137,7 +106,7 @@ public class errorHandler {
                 stackTrace = stackTrace.replace(key, "[ENV_KEY_***]");
             }
 
-            if (value != null && !value.isEmpty() && value.length() > 3) {
+            if (value != null && value.length() > 3) {
                 // Replace environment variable values (only if they're longer than 3 chars to avoid false positives)
                 stackTrace = stackTrace.replace(value, "[ENV_VALUE_" + value.substring(0, 3) + "***]");
             }

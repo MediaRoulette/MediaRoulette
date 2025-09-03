@@ -84,8 +84,7 @@ public class AdminCommand extends ListenerAdapter implements CommandHandler {
                                 .addOption(OptionType.STRING, "source", "Source to toggle", true, true)
                                 .addOption(OptionType.BOOLEAN, "enabled", "Enable or disable the source", true),
                         new SubcommandData("listsources", "List all sources and their status")
-                ).setIntegrationTypes(IntegrationType.ALL)
-                .setContexts(InteractionContextType.ALL);
+                ).setIntegrationTypes(IntegrationType.GUILD_INSTALL);
     }
 
     @Override

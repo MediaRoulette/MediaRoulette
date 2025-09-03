@@ -153,59 +153,27 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
         try {
             boolean shouldContinue = event.getOption("shouldcontinue") != null && event.getOption("shouldcontinue").getAsBoolean();
 
-            // Try to find provider first (supports both built-in and plugin sources)
-            Optional<ImageSourceProvider> providerOpt = ImageSource.findSourceProvider(subcommand.toUpperCase());
-            if (providerOpt.isPresent()) {
-                ImageSourceProvider provider = providerOpt.get();
-                try {
-                    MediaResult result = provider.getRandomImage(event, user, query);
-                    Map<String, String> image = result != null ? result.toMap() : null;
-                    if (image == null || image.get("image") == null) {
-                        errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
-                        return;
-                    }
-
-                    trackStats(user.getUserId(), subcommand, user);
-
-                    MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
-                            .thenAccept(msg -> {
-                                ACTIVE_MESSAGES.put(msg.getIdLong(), new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
-                                QuestGenerator.onImageGenerated(user, subcommand);
-                                Main.userService.updateUser(user);
-                            })
-                            .exceptionally(ex -> {
-                                errorHandler.handleException(event, new Locale(user.getLocale()).get("error.unexpected_error"), new Locale(user.getLocale()).get("error.failed_to_send_image"), ex);
-                                return null;
-                            });
-                } catch (Exception e) {
-                    errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.generic_title"), e.getMessage());
+            try {
+                Map<String, String> image = ImageSource.handle(subcommand.toUpperCase(), event, query);
+                if (image == null || image.get("image") == null) {
+                    errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
+                    return;
                 }
-            } else {
-                // Fallback to original enum-based approach for backward compatibility
-                ImageSource.fromName(subcommand.toUpperCase()).ifPresentOrElse(source -> {
-                    try {
-                        Map<String, String> image = source.handle(event, query);
-                        if (image == null || image.get("image") == null) {
-                            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
-                            return;
-                        }
 
-                        trackStats(user.getUserId(), subcommand, user);
+                trackStats(user.getUserId(), subcommand, user);
 
-                        MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
-                                .thenAccept(msg -> {
-                                    ACTIVE_MESSAGES.put(msg.getIdLong(), new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
-                                    QuestGenerator.onImageGenerated(user, subcommand);
-                                    Main.userService.updateUser(user);
-                                })
-                                .exceptionally(ex -> {
-                                    errorHandler.handleException(event, new Locale(user.getLocale()).get("error.unexpected_error"), new Locale(user.getLocale()).get("error.failed_to_send_image"), ex);
-                                    return null;
-                                });
-                    } catch (Exception e) {
-                        errorHandler.handleException(event, new Locale(user.getLocale()).get("error.source_error_title"), new Locale(user.getLocale()).get("error.source_error_description"), e);
-                    }
-                }, () -> errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.unknown_subcommand_title"), new Locale(user.getLocale()).get("error.unknown_subcommand_description")));
+                MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
+                        .thenAccept(msg -> {
+                            ACTIVE_MESSAGES.put(msg.getIdLong(), new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
+                            QuestGenerator.onImageGenerated(user, subcommand);
+                            Main.userService.updateUser(user);
+                        })
+                        .exceptionally(ex -> {
+                            errorHandler.handleException(event, new Locale(user.getLocale()).get("error.unexpected_error"), new Locale(user.getLocale()).get("error.failed_to_send_image"), ex);
+                            return null;
+                        });
+            } catch (Exception e) {
+                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.generic_title"), e.getMessage());
             }
             user.incrementImagesGenerated();
             Main.userService.updateUser(user);
@@ -278,42 +246,21 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
         event.getHook().editOriginalComponents(createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
                 .useComponentsV2()
                 .queue(success -> {
-                    // Try to find provider first (supports both built-in and plugin sources)
-                    Optional<ImageSourceProvider> providerOpt = ImageSource.findSourceProvider(data.getSubcommand().toUpperCase());
-                    if (providerOpt.isPresent()) {
-                        ImageSourceProvider provider = providerOpt.get();
-                        try {
-                            MediaResult result = provider.getRandomImage(event, user, data.getQuery());
-                            Map<String, String> image = result != null ? result.toMap() : null;
-                            if (image == null || image.get("image") == null) {
-                                showErrorContainer(event, new Locale(user.getLocale()).get("error.no_more_images_title"),
-                                        new Locale(user.getLocale()).get("error.no_more_images_description"));
-                                return;
-                            }
-                            showImageContainer(event, image, data.getQuery(), data.getSubcommand(), user);
-                        } catch (Exception e) {
-                            showErrorContainer(event, new Locale(user.getLocale()).get("error.generic_title"), e.getMessage());
+                    // Use the new unified ImageSource.handle method
+                    try {
+                        Map<String, String> image = ImageSource.handle(data.getSubcommand().toUpperCase(), event, data.getQuery());
+                        if (image == null || image.get("image") == null) {
+                            showErrorContainer(event, new Locale(user.getLocale()).get("error.no_more_images_title"),
+                                    new Locale(user.getLocale()).get("error.no_more_images_description"));
+                            return;
                         }
-                    } else {
-                        // Fallback to original enum-based approach
-                        ImageSource.fromName(data.getSubcommand().toUpperCase()).ifPresentOrElse(source -> {
-                            try {
-                                Map<String, String> image = source.handle(event, data.getQuery());
-                                if (image == null || image.get("image") == null) {
-                                    showErrorContainer(event, new Locale(user.getLocale()).get("error.no_more_images_title"),
-                                            new Locale(user.getLocale()).get("error.no_more_images_description"));
-                                    return;
-                                }
-                                MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
-                            } catch (Exception e) {
-                                showErrorContainer(event, new Locale(user.getLocale()).get("error.title"), e.getMessage());
-                            }
-                        }, () -> showErrorContainer(event, new Locale(user.getLocale()).get("error.title"),
-                                new Locale(user.getLocale()).get("error.invalid_subcommand_description")));
-
+                        MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
+                        
                         user.incrementImagesGenerated();
                         QuestGenerator.onImageGenerated(user, data.getSubcommand());
                         Main.userService.updateUser(user);
+                    } catch (Exception e) {
+                        showErrorContainer(event, new Locale(user.getLocale()).get("error.title"), e.getMessage());
                     }
                 });
     }
@@ -392,8 +339,11 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                 MessageComponentTree components = message.getComponentTree();
                 ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> true, Button::asDisabled);
                 MessageComponentTree updated = components.replace(replacer);
-                message.editMessageComponents(updated).queue();
-            });
+                message.editMessageComponents(updated).useComponentsV2().queue(
+                    success -> {}, // Success callback - do nothing
+                    failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
+                );
+            }, failure -> {}); // Failure callback for retrieveMessageById - silently ignore if message doesn't exist
         }
     }
 
@@ -410,9 +360,12 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             MessageComponentTree components = event.getMessage().getComponentTree();
             ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> buttonId.equals(button.getId()), Button::asDisabled);
             MessageComponentTree updated = components.replace(replacer);
-            event.getHook().editOriginalComponents(updated).useComponentsV2().queue();
+            event.getHook().editOriginalComponents(updated).useComponentsV2().queue(
+                success -> {}, // Success callback - do nothing
+                failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
+            );
         } catch (Exception e) {
-            System.err.println("Error updating button in container: " + e.getMessage());
+            // Silently ignore any exceptions during button updates
         }
     }
 
@@ -421,9 +374,12 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             MessageComponentTree components = event.getMessage().getComponentTree();
             ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> true, Button::asDisabled);
             MessageComponentTree updated = components.replace(replacer);
-            event.getHook().editOriginalComponents(updated).useComponentsV2().queue();
+            event.getHook().editOriginalComponents(updated).useComponentsV2().queue(
+                success -> {}, // Success callback - do nothing
+                failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
+            );
         } catch (Exception e) {
-            System.err.println("Error updating all buttons in container: " + e.getMessage());
+            // Silently ignore any exceptions during button updates
         }
     }
 
@@ -437,9 +393,12 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                             net.dv8tion.jda.api.components.textdisplay.TextDisplay.of("*Please try again*")
                     )
             ).withAccentColor(Color.RED);
-            event.getHook().editOriginalComponents(errorContainer).useComponentsV2().queue();
+            event.getHook().editOriginalComponents(errorContainer).useComponentsV2().queue(
+                success -> {}, // Success callback - do nothing
+                failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
+            );
         } catch (Exception e) {
-            System.err.println("Error creating error container: " + e.getMessage());
+            // Silently ignore any exceptions during error container creation
         }
     }
 

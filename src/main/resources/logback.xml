@@ -10,14 +10,16 @@
     <property name="CONSOLE_LOG_LEVEL" value="INFO"/>
     <property name="WEBHOOK_URL" value="${WEBHOOK_URL:-}"/>
 
-    <property name="FILE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    <!-- Simple and reliable pattern with line numbers -->
+    <property name="FILE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36}:%L - %msg%n"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>${CONSOLE_LOG_LEVEL}</level>
         </filter>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %logger{36} - %msg%n</pattern>
+            <!-- Simple console pattern with line numbers -->
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %logger{36}:%L - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -46,11 +48,11 @@
             <level>ERROR</level>
         </filter>
         <encoder>
+            <!-- Enhanced error pattern with full stack trace -->
             <pattern>${FILE_PATTERN}%ex{full}</pattern>
         </encoder>
     </appender>
 
-    <!-- Fixed Discord webhook appender to use the correct property -->
     <appender name="DISCORD_WEBHOOK" class="me.hash.mediaroulette.utils.logging.DiscordWebhookAppender">
         <webhookUrl>${WEBHOOK_URL}</webhookUrl>
         <username>Application Logger</username>
@@ -60,25 +62,26 @@
         </filter>
     </appender>
 
+    <!-- IMPORTANT: Set includeCallerData to true for async appenders to get line numbers -->
     <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="FILE"/>
         <queueSize>2048</queueSize>
         <discardingThreshold>0</discardingThreshold>
-        <includeCallerData>false</includeCallerData>
+        <includeCallerData>true</includeCallerData>
     </appender>
 
     <appender name="ASYNC_ERROR_FILE" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="ERROR_FILE"/>
         <queueSize>512</queueSize>
         <discardingThreshold>0</discardingThreshold>
-        <includeCallerData>false</includeCallerData>
+        <includeCallerData>true</includeCallerData>
     </appender>
 
     <appender name="ASYNC_DISCORD" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="DISCORD_WEBHOOK"/>
         <queueSize>512</queueSize>
         <discardingThreshold>0</discardingThreshold>
-        <includeCallerData>false</includeCallerData>
+        <includeCallerData>true</includeCallerData>
     </appender>
 
     <logger name="org.mongodb" level="WARN"/>

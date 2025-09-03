@@ -16,41 +16,73 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Collection;
 
-public enum ImageSource {
-    TENOR("TENOR"),
-    _4CHAN("4CHAN"),
-    GOOGLE("GOOGLE"),
-    IMGUR("IMGUR"),
-    PICSUM("PICSUM"),
-    RULE34XXX("RULEE34XXX"),
-    MOVIE("MOVIE"),
-    TVSHOW("TVSHOW"),
-    URBAN("URBAN"),
-    YOUTUBE("YOUTUBE"),
-    SHORT("SHORT"),
-    ALL("ALL");
+public class ImageSource {
+    
+    // Static constants for built-in sources
+    public static final String TENOR = "TENOR";
+    public static final String _4CHAN = "4CHAN";
+    public static final String GOOGLE = "GOOGLE";
+    public static final String IMGUR = "IMGUR";
+    public static final String PICSUM = "PICSUM";
+    public static final String RULE34XXX = "RULEE34XXX";
+    public static final String MOVIE = "MOVIE";
+    public static final String TVSHOW = "TVSHOW";
+    public static final String URBAN = "URBAN";
+    public static final String YOUTUBE = "YOUTUBE";
+    public static final String SHORT = "SHORT";
+    public static final String ALL = "ALL";
+    
+    // Private constructor to prevent instantiation
+    private ImageSource() {}
 
-    private final String name;
-
-
-    ImageSource(String name) {
-        this.name = name;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public Map<String, String> handle(Interaction event, String option) throws Exception {
+    /**
+     * Handle image request for any source (built-in or plugin-provided)
+     * @param sourceName The name of the image source
+     * @param event The Discord interaction
+     * @param option Optional query/filter parameter
+     * @return Map containing image data
+     * @throws Exception if source is disabled or error occurs
+     */
+    public static Map<String, String> handle(String sourceName, Interaction event, String option) throws Exception {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
 
+        // Check if it's the special "ALL" case
+        if (ALL.equals(sourceName)) {
+            return user.getImage();
+        }
+
+        // Try to get provider from registry first (supports both built-in and plugin sources)
+        ImageSourceProvider provider = ImageSourceRegistry.getInstance().getProvider(sourceName);
+        if (provider != null) {
+            // Check if provider is enabled
+            if (!provider.isEnabled()) {
+                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
+                throw new Exception("Source disabled: " + sourceName);
+            }
+            
+            try {
+                MediaResult result = provider.getRandomImage(event, user, option);
+                return result != null ? result.toMap() : null;
+            } catch (Exception e) {
+                throw new RuntimeException("Error getting image from provider " + sourceName + ": " + e.getMessage(), e);
+            }
+        }
+
+        // Fallback for built-in sources that might not be in registry yet
+        return handleBuiltInSource(sourceName, event, option, user);
+    }
+    
+    /**
+     * Fallback handler for built-in sources
+     */
+    private static Map<String, String> handleBuiltInSource(String sourceName, Interaction event, String option, User user) throws Exception {
         // Check both old config system and new LocalConfig system
-        if (isOptionDisabled(this.name) || !isSourceEnabledInLocalConfig(this)) {
+        if (isOptionDisabled(sourceName) || !isSourceEnabledInLocalConfig(sourceName)) {
             errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
             throw new Exception("Command Disabled");
         }
 
-        return switch (this) {
+        return switch (sourceName) {
             case TENOR -> {
                 var provider = new MediaServiceFactory().createTenorProvider();
                 if (provider instanceof me.hash.mediaroulette.content.provider.impl.gifs.TenorProvider tenorProvider) {
@@ -76,13 +108,12 @@ public enum ImageSource {
             case URBAN -> handleUrban(event, option);
             case YOUTUBE -> new MediaServiceFactory().createYouTubeProvider().getRandomMedia(null).toMap();
             case SHORT -> new MediaServiceFactory().createYouTubeShortsProvider().getRandomMedia(null).toMap();
-            case ALL -> user.getImage();
-
+            default -> throw new RuntimeException("Unknown image source: " + sourceName);
         };
     }
 
 
-    private Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
+    private static Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
 
         FourChanProvider provider = (FourChanProvider) new MediaServiceFactory().createFourChanProvider();
@@ -107,7 +138,7 @@ public enum ImageSource {
         }
     }
 
-    private Map<String, String> handleUrban(Interaction event, String option) throws Exception {
+    private static Map<String, String> handleUrban(Interaction event, String option) throws Exception {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
         Map<String, String> map = RandomText.getRandomUrbanWord(option);
         if (map.containsKey("error")) {
@@ -125,17 +156,17 @@ public enum ImageSource {
     /**
      * Check if this source is enabled in LocalConfig (admin toggle system)
      */
-    private boolean isSourceEnabledInLocalConfig(ImageSource source) {
+    private static boolean isSourceEnabledInLocalConfig(String sourceName) {
         LocalConfig config = LocalConfig.getInstance();
-        String configKey = mapSourceToConfigKey(source);
+        String configKey = mapSourceToConfigKey(sourceName);
         return config.isSourceEnabled(configKey);
     }
     
     /**
-     * Map ImageSource enum values to their corresponding LocalConfig keys
+     * Map source names to their corresponding LocalConfig keys
      */
-    private String mapSourceToConfigKey(ImageSource source) {
-        return switch (source) {
+    private static String mapSourceToConfigKey(String sourceName) {
+        return switch (sourceName) {
             case TENOR -> "tenor";
             case _4CHAN -> "4chan";
             case GOOGLE -> "google";
@@ -148,24 +179,30 @@ public enum ImageSource {
             case YOUTUBE -> "youtube";
             case SHORT -> "youtube_shorts";
             case ALL -> "all"; // Special case - "all" should always be enabled if any sources are enabled
+            default -> sourceName.toLowerCase(); // For plugin sources, use lowercase name as config key
         };
     }
 
-    public static Optional<ImageSource> fromName(String name) {
-        for (ImageSource source : values()) {
-            if (source.getName().equalsIgnoreCase(name)) {
-                return Optional.of(source);
-            }
-        }
-        return Optional.empty();
+    /**
+     * Check if a source name corresponds to a built-in source
+     * @param name The source name to check
+     * @return true if it's a built-in source
+     */
+    public static boolean isBuiltInSource(String name) {
+        return switch (name.toUpperCase()) {
+            case TENOR, _4CHAN, GOOGLE, IMGUR, PICSUM, RULE34XXX, 
+                 MOVIE, TVSHOW, URBAN, YOUTUBE, SHORT, ALL -> true;
+            default -> false;
+        };
     }
 
     /**
-     * Get the configuration key for this source
+     * Get the configuration key for a source
+     * @param sourceName The source name
      * @return The configuration key used in LocalConfig
      */
-    public String getConfigKey() {
-        return mapSourceToConfigKey(this);
+    public static String getConfigKey(String sourceName) {
+        return mapSourceToConfigKey(sourceName);
     }
 
     /**

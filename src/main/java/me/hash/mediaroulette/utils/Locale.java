@@ -5,7 +5,7 @@ import org.json.JSONTokener;
 import java.io.InputStream;
 
 public class Locale {
-    private final JSONObject translations;
+    private JSONObject translations;
 
     /**
      * Loads the JSON locale file from resources/locales.
@@ -16,9 +16,40 @@ public class Locale {
         String path = "/locales/" + localeName + ".json";
         InputStream in = getClass().getResourceAsStream(path);
         if (in == null) {
-            throw new RuntimeException("Locale file not found: " + path);
+            // Fallback to en_US if requested locale not found
+            path = "/locales/en_US.json";
+            in = getClass().getResourceAsStream(path);
+            if (in == null) {
+                throw new RuntimeException("Default locale file not found: " + path);
+            }
         }
-        translations = new JSONObject(new JSONTokener(in));
+        
+        try {
+            translations = new JSONObject(new JSONTokener(in));
+        } catch (Exception e) {
+            // Handle corrupted JSON/ZIP files
+            System.err.println("Error loading locale file " + path + ": " + e.getMessage());
+            // Create a minimal fallback translations object
+            translations = new JSONObject();
+            translations.put("error.title", "Error");
+            translations.put("error.generic_title", "An error occurred");
+            translations.put("error.no_images_title", "No Images Available");
+            translations.put("error.no_images_description", "No images could be found for this request.");
+            translations.put("error.unexpected_error", "Unexpected Error");
+            translations.put("error.failed_to_send_image", "Failed to send image");
+            translations.put("error.unknown_button_title", "Unknown Button");
+            translations.put("error.unknown_button_description", "This button action is not recognized.");
+            translations.put("error.no_more_images_title", "No More Images");
+            translations.put("error.no_more_images_description", "No more images available from this source.");
+            translations.put("error.4chan_invalid_board_title", "Invalid Board");
+            translations.put("error.4chan_invalid_board_description", "The board '{0}' is not valid.");
+        } finally {
+            try {
+                in.close();
+            } catch (Exception e) {
+                // Ignore close errors
+            }
+        }
     }
 
     /**

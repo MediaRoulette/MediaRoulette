@@ -1,5 +1,8 @@
 package me.hash.mediaroulette.bot;
 
+import net.dv8tion.jda.api.events.session.ReadyEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +30,7 @@ import net.dv8tion.jda.api.sharding.ShardManager;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class Bot {
+public class Bot extends ListenerAdapter {
     private static final Logger logger = LoggerFactory.getLogger(Bot.class);
     private static ShardManager shardManager = null;
     public static final long COOLDOWN_DURATION = 2500;
@@ -74,7 +77,7 @@ public class Bot {
             commandHandlers.forEach(shardManager::addEventListener);
             
             // Add autocomplete handler
-            shardManager.addEventListener(new AutoCompleteHandler());
+            shardManager.addEventListener(new AutoCompleteHandler(), this);
 
             logger.info("Registered all event listeners.");
         }
@@ -92,7 +95,6 @@ public class Bot {
                     new ChancesCommand().getCommandData(),
                     new DictionaryCommand(Main.dictionaryService).getCommandData(),
                     new SettingsCommand(Main.dictionaryService).getCommandData(),
-                    new AdminCommand().getCommandData(),
                     new GiveawayCommand().getCommandData(),
                     new ChannelNuke().getCommandData(),
                     new InfoCommand().getCommandData(),
@@ -100,8 +102,6 @@ public class Bot {
                     new ThemeCommand().getCommandData(),
                     new BalanceCommand().getCommandData(),
                     new QuestsCommand().getCommandData()
-                    // new ShopCommand().getCommandData()
-                    // new MediaHuntCommand().getCommandData() // Temporarily disabled
             );
 
             shardManager.getShards().forEach(jda -> jda.updateCommands().addCommands(commands).queue());
@@ -117,5 +117,10 @@ public class Bot {
      */
     public static ShardManager getShardManager() {
         return shardManager;
+    }
+
+    @Override
+    public void onReady(@NotNull ReadyEvent event) {
+        getShardManager().getGuildById(Main.getEnv("ADMIN_COMMAND_GUILD_ID")).updateCommands().addCommands(new AdminCommand().getCommandData()).queue();
     }
 }

@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.RandomDictionaryLineFetcher;
 
+import java.util.Objects;
+
 /**
  * Utility class to integrate dictionary system with existing providers
  */
@@ -29,6 +31,8 @@ public class DictionaryIntegration {
         
         // Fallback to existing system
         logger.debug("Using fallback word");
+        if (Objects.equals(source, "reddit"))
+            return getDefaultRandomSubreddit();
         return getDefaultRandomWord();
     }
     
@@ -45,6 +49,18 @@ public class DictionaryIntegration {
     private static String getDefaultRandomWord() {
         try {
             RandomDictionaryLineFetcher fetcher = RandomDictionaryLineFetcher.getBasicDictionaryFetcher();
+            return fetcher.getRandomLine();
+        } catch (Exception e) {
+            return "random"; // Ultimate fallback
+        }
+    }
+
+    /**
+     * Fallback to the existing basic dictionary system
+     */
+    private static String getDefaultRandomSubreddit() {
+        try {
+            RandomDictionaryLineFetcher fetcher = RandomDictionaryLineFetcher.getRedditDictionaryFetcher();
             return fetcher.getRandomLine();
         } catch (Exception e) {
             return "random"; // Ultimate fallback

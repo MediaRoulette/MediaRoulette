@@ -30,11 +30,18 @@ public class PluginDescriptionFile {
         this.description = (String) data.get("description");
         this.author = (String) data.get("author");
         this.authors = (List<String>) data.get("authors");
-        this.depend = (List<String>) data.get("depend");
-        this.softDepend = (List<String>) data.get("softdepend");
+        this.depend = normalizeStringList((List<String>) data.get("depend"));
+        this.softDepend = normalizeStringList((List<String>) data.get("softdepend"));
+    }
+    private List<String> normalizeStringList(List<String> list) {
+        if (list == null) {
+            return null;
+        }
+
+        list.removeIf(item -> item == null || item.trim().isEmpty());
+        return list.isEmpty() ? null : list;
     }
 
-    // Getters
     public String getName() { return name; }
     public String getVersion() { return version; }
     public String getMain() { return main; }
@@ -43,4 +50,10 @@ public class PluginDescriptionFile {
     public List<String> getAuthors() { return authors; }
     public List<String> getDepend() { return depend; }
     public List<String> getSoftDepend() { return softDepend; }
+
+    @Override
+    public String toString() {
+        return String.format("PluginDescriptionFile{name='%s', version='%s', main='%s', depend=%s}",
+                name, version, main, depend);
+    }
 }

@@ -565,7 +565,23 @@ public class InfoCommand extends ListenerAdapter implements CommandHandler {
     }
 
     private static String formatBytes(long bytes) {
-        return formatBytes(bytes);
+        if (bytes < 0) return "0 B";
+
+        String[] units = {"B", "KB", "MB", "GB", "TB"};
+        int unitIndex = 0;
+        double size = bytes;
+
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+
+        // Format to 1 decimal place for values >= 10, no decimals for < 10
+        if (size >= 10) {
+            return String.format("%.0f %s", size, units[unitIndex]);
+        } else {
+            return String.format("%.1f %s", size, units[unitIndex]);
+        }
     }
 
     // Simplified SystemMetrics class

@@ -21,16 +21,44 @@ public final class MediaSource {
     private final String name;
     private final String displayName;
 
+    // Private constructor that doesn't modify the registry
     private MediaSource(String name, String displayName) {
         this.name = name;
         this.displayName = displayName;
-        REGISTRY.put(name.toLowerCase(), this);
+        // Only register built-in sources during class initialization
+        if (isStaticInitialization()) {
+            REGISTRY.put(name.toLowerCase(), this);
+        }
     }
 
-    // Static method for plugins to register new sources
+    private static boolean isStaticInitialization() {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        for (StackTraceElement element : stackTrace) {
+            if ("<clinit>".equals(element.getMethodName()) &&
+                    MediaSource.class.getName().equals(element.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static MediaSource register(String name, String displayName) {
         String key = name.toLowerCase();
-        return REGISTRY.computeIfAbsent(key, k -> new MediaSource(name, displayName));
+
+        MediaSource existing = REGISTRY.get(key);
+        if (existing != null) {
+            return existing;
+        }
+
+        MediaSource newSource = createWithoutRegistering(name, displayName);
+
+        MediaSource result = REGISTRY.putIfAbsent(key, newSource);
+        return result != null ? result : newSource;
+    }
+
+    private static MediaSource createWithoutRegistering(String name, String displayName) {
+        MediaSource source = new MediaSource(name, displayName);
+        return source;
     }
 
     public static MediaSource valueOf(String name) {
@@ -41,12 +69,10 @@ public final class MediaSource {
         return source;
     }
 
-    // Get all registered sources
     public static Collection<MediaSource> values() {
         return Collections.unmodifiableCollection(REGISTRY.values());
     }
 
-    // Check if a source exists
     public static boolean exists(String name) {
         return REGISTRY.containsKey(name.toLowerCase());
     }

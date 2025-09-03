@@ -35,16 +35,21 @@ public class ImageSourceRegistry {
     }
     
     /**
-     * Initialize built-in image source providers from the original enum
+     * Initialize built-in image source providers
      */
     private void initializeBuiltInProviders() {
-        // Convert existing ImageSource enum values to providers
-        for (ImageSource source : ImageSource.values()) {
-            if (source != ImageSource.ALL) { // Skip ALL as it's a special case
-                BuiltInImageSourceProvider provider = new BuiltInImageSourceProvider(source);
-                builtInProviders.put(source.getName(), provider);
-                providers.put(source.getName(), provider);
-            }
+        // Create providers for all built-in sources
+        String[] builtInSources = {
+            ImageSource.TENOR, ImageSource._4CHAN, ImageSource.GOOGLE, ImageSource.IMGUR,
+            ImageSource.PICSUM, ImageSource.RULE34XXX, ImageSource.MOVIE, ImageSource.TVSHOW,
+            ImageSource.URBAN, ImageSource.YOUTUBE, ImageSource.SHORT
+            // Note: ALL is handled specially and doesn't need a provider
+        };
+        
+        for (String sourceName : builtInSources) {
+            BuiltInImageSourceProvider provider = new BuiltInImageSourceProvider(sourceName);
+            builtInProviders.put(sourceName, provider);
+            providers.put(sourceName, provider);
         }
         logger.info("Initialized {} built-in image source providers", builtInProviders.size());
     }

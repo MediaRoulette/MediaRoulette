@@ -129,6 +129,11 @@ public class RandomDictionaryLineFetcher {
         return new RandomDictionaryLineFetcher(resourcePath, true);
     }
 
+    public static RandomDictionaryLineFetcher getRedditDictionaryFetcher() {
+        String resourcePath = "subreddits.txt";
+        return new RandomDictionaryLineFetcher(resourcePath, true);
+    }
+
     /**
      * Creates a fetcher configured to fetch random Google search queries from an online source.
      * @return A RandomDictionaryLineFetcher instance for search queries.

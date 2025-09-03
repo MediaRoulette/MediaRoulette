@@ -6,17 +6,8 @@ plugins {
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     archiveClassifier.set("")
 
-    // Enable JAR minimization - removes unused classes
-    minimize {
-        // Exclude SLF4J service provider files from minimization
-        exclude(dependency("ch.qos.logback:.*:.*"))
-        exclude(dependency("org.slf4j:.*:.*"))
-    }
-
-    // Preserve service provider files for SLF4J
     mergeServiceFiles()
 
-    // Compress the JAR contents
     isZip64 = true
 
     manifest {
@@ -26,19 +17,16 @@ tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
 }
 
 repositories {
-    // Use Maven Central for resolving dependencies.
     mavenCentral()
     google()
 
-    // Add JitPack repository for custom dependencies
     maven { url = uri("https://jitpack.io") }
 }
 
 dependencies {
-    // Playwright for headless browser functionality with auto-browser installation
     implementation("com.microsoft.playwright:playwright:1.40.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("net.dv8tion:JDA:6.0.0-rc.1")
+    implementation("net.dv8tion:JDA:6.0.0-rc.4")
 
     implementation("org.json:json:20250517")
     implementation("org.jsoup:jsoup:1.16.1")

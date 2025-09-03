@@ -365,7 +365,7 @@ public class MediaContainerManager {
             ((ButtonInteractionEvent) event).getHook().editOriginalComponents(container)
                     .setFiles(file)
                     .useComponentsV2()
-                    .queue(message -> future.complete(message), future::completeExceptionally);
+                    .queue(future::complete, future::completeExceptionally);
         } else {
             sendMessageContainerWithFile(event, container, file, future);
         }
@@ -381,7 +381,7 @@ public class MediaContainerManager {
             hook.editOriginalComponents(container)
                     .setFiles(file)
                     .useComponentsV2()
-                    .queue(message -> future.complete(message), future::completeExceptionally);
+                    .queue(future::complete, future::completeExceptionally);
         } else {
             sendMessageContainerWithFileFromHook(hook, container, file, future);
         }
@@ -448,7 +448,7 @@ public class MediaContainerManager {
         MessageComponentTree components = event.getMessage().getComponentTree();
         ComponentReplacer replacer = ComponentReplacer.of(
                 Button.class,
-                button -> buttonId.equals(button.getId()),
+                button -> buttonId.equals(button.getCustomId()),
                 Button::asDisabled
         );
         MessageComponentTree updated = components.replace(replacer);
@@ -486,12 +486,10 @@ public class MediaContainerManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        return FFmpegDownloader.getFFmpegPath().thenCompose(path -> {
-            return FFmpegDownloader.getFFmpegVersion().thenAccept(version -> {
-                System.out.println("FFmpeg initialized: " + version);
-                ffmpegInitialized = true;
-            });
-        }).exceptionally(throwable -> {
+        return FFmpegDownloader.getFFmpegPath().thenCompose(path -> FFmpegDownloader.getFFmpegVersion().thenAccept(version -> {
+            System.out.println("FFmpeg initialized: " + version);
+            ffmpegInitialized = true;
+        })).exceptionally(throwable -> {
             System.err.println("Failed to initialize FFmpeg: " + throwable.getMessage());
             return null;
         });
@@ -523,12 +521,10 @@ public class MediaContainerManager {
                 return CompletableFuture.completedFuture("Video processing not available");
             }
 
-            return ffmpegService.getVideoInfo(videoUrl).thenApply(info -> {
-                return String.format("📹 **%s** • ⏱️ **%s** • 🎬 **%s**", 
-                        info.getResolution(), 
-                        info.getFormattedDuration(), 
-                        info.getCodec());
-            }).exceptionally(throwable -> {
+            return ffmpegService.getVideoInfo(videoUrl).thenApply(info -> String.format("📹 **%s** • ⏱️ **%s** • 🎬 **%s**",
+                    info.getResolution(),
+                    info.getFormattedDuration(),
+                    info.getCodec())).exceptionally(throwable -> {
                 System.err.println("Failed to get video info: " + throwable.getMessage());
                 return "📹 Video information unavailable";
             });
@@ -779,7 +775,7 @@ public class MediaContainerManager {
         return url.matches(".*\\.gif$");
     }
 
-    private static Color extractColorFromVideo(String url) throws Exception {
+    private static Color extractColorFromVideo(String url) {
         // Try to get a preview image first (faster)
         String previewUrl = ffmpegService.getVideoPreviewUrl(url);
         if (previewUrl != null) {

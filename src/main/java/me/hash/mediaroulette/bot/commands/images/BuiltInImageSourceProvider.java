@@ -1,10 +1,16 @@
 package me.hash.mediaroulette.bot.commands.images;
 
+import me.hash.mediaroulette.Main;
+import me.hash.mediaroulette.bot.errorHandler;
+import me.hash.mediaroulette.content.RandomText;
+import me.hash.mediaroulette.content.factory.MediaServiceFactory;
+import me.hash.mediaroulette.content.provider.impl.images.FourChanProvider;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.content.MediaSource;
 import me.hash.mediaroulette.plugins.Images.ImageSource;
 import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
+import me.hash.mediaroulette.utils.Locale;
 import net.dv8tion.jda.api.interactions.Interaction;
 
 import java.util.Map;
@@ -15,31 +21,31 @@ import java.util.Map;
  */
 public class BuiltInImageSourceProvider implements ImageSourceProvider {
     
-    private final ImageSource source;
+    private final String sourceName;
     
-    public BuiltInImageSourceProvider(ImageSource source) {
-        this.source = source;
+    public BuiltInImageSourceProvider(String sourceName) {
+        this.sourceName = sourceName;
     }
     
     @Override
     public String getName() {
-        return source.getName();
+        return sourceName;
     }
     
     @Override
     public String getDisplayName() {
-        return source.getName();
+        return sourceName;
     }
     
     @Override
     public String getDescription() {
-        return getDescriptionForSource(source);
+        return getDescriptionForSource(sourceName);
     }
     
     @Override
     public boolean isEnabled() {
         // Use the same logic as ImageSource.handle() method
-        return !isOptionDisabled(source.getName()) && isSourceEnabledInLocalConfig(source);
+        return !isOptionDisabled(sourceName) && isSourceEnabledInLocalConfig(sourceName);
     }
     
     /**
@@ -52,16 +58,93 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     /**
      * Check if this source is enabled in LocalConfig (admin toggle system)
      */
-    private boolean isSourceEnabledInLocalConfig(ImageSource source) {
+    private boolean isSourceEnabledInLocalConfig(String sourceName) {
         me.hash.mediaroulette.utils.LocalConfig config = me.hash.mediaroulette.utils.LocalConfig.getInstance();
-        String configKey = source.getConfigKey();
+        String configKey = ImageSource.getConfigKey(sourceName);
         return config.isSourceEnabled(configKey);
     }
     
     @Override
     public MediaResult getRandomImage(Interaction interaction, User user, String query) throws Exception {
-        Map<String, String> result = source.handle(interaction, query);
+        // Call the built-in source handling directly to avoid infinite recursion
+        Map<String, String> result = handleBuiltInSourceDirect(sourceName, interaction, query, user);
         return convertMapToMediaResult(result);
+    }
+    
+    /**
+     * Handle built-in source directly without going through registry to avoid infinite recursion
+     */
+    private Map<String, String> handleBuiltInSourceDirect(String sourceName, Interaction event, String option, User user) throws Exception {
+        // Check both old config system and new LocalConfig system
+        if (isOptionDisabled(sourceName) || !isSourceEnabledInLocalConfig(sourceName)) {
+            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
+            throw new Exception("Command Disabled");
+        }
+
+        return switch (sourceName) {
+            case ImageSource.TENOR -> {
+                var provider = new MediaServiceFactory().createTenorProvider();
+                if (provider instanceof me.hash.mediaroulette.content.provider.impl.gifs.TenorProvider tenorProvider) {
+                    yield tenorProvider.getRandomMedia(option, event.getUser().getId()).toMap();
+                } else {
+                    yield provider.getRandomMedia(option).toMap();
+                }
+            }
+            case ImageSource.IMGUR -> new MediaServiceFactory().createImgurProvider().getRandomMedia(null).toMap();
+            case ImageSource._4CHAN -> handle4Chan(event, option);
+            case ImageSource.GOOGLE -> {
+                var provider = new MediaServiceFactory().createGoogleProvider();
+                if (provider instanceof me.hash.mediaroulette.content.provider.impl.images.GoogleProvider googleProvider) {
+                    yield googleProvider.getRandomMedia(option, event.getUser().getId()).toMap();
+                } else {
+                    yield provider.getRandomMedia(option).toMap();
+                }
+            }
+            case ImageSource.PICSUM -> new MediaServiceFactory().createPicsumProvider().getRandomMedia(null).toMap();
+            case ImageSource.RULE34XXX -> new MediaServiceFactory().createRule34Provider().getRandomMedia(null).toMap();
+            case ImageSource.MOVIE -> new MediaServiceFactory().createTMDBMovieProvider().getRandomMedia(null).toMap();
+            case ImageSource.TVSHOW -> new MediaServiceFactory().createTMDBTvProvider().getRandomMedia(null).toMap();
+            case ImageSource.URBAN -> handleUrban(event, option);
+            case ImageSource.YOUTUBE -> new MediaServiceFactory().createYouTubeProvider().getRandomMedia(null).toMap();
+            case ImageSource.SHORT -> new MediaServiceFactory().createYouTubeShortsProvider().getRandomMedia(null).toMap();
+            default -> throw new RuntimeException("Unknown image source: " + sourceName);
+        };
+    }
+
+    private Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
+        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+
+        FourChanProvider provider = (FourChanProvider) new MediaServiceFactory().createFourChanProvider();
+
+        if (option != null && !provider.isValidBoard(option)) {
+            String errorMessage = new Locale(user.getLocale()).get("error.4chan_invalid_board_description").replace("{0}", option);
+            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.4chan_invalid_board_title"), errorMessage);
+            throw new Exception("Board doesn't exist: " + option);
+        }
+        
+        try {
+            return provider.getRandomMedia(option, event.getUser().getId()).toMap();
+        } catch (Exception e) {
+            // Check if it's a board validation error
+            if (e.getMessage().contains("No valid 4chan boards found") || e.getMessage().contains("No images available for board")) {
+                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), "No valid 4chan boards available. Please use /support for help.");
+                throw new Exception("No valid 4chan boards available");
+            } else {
+                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), "Error fetching 4chan data. Please use /support for help.");
+                throw new Exception("Error fetching 4chan data: " + e.getMessage());
+            }
+        }
+    }
+
+    private Map<String, String> handleUrban(Interaction event, String option) throws Exception {
+        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        Map<String, String> map = RandomText.getRandomUrbanWord(option);
+        if (map.containsKey("error")) {
+            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), map.get("error"));
+            throw new Exception(map.get("error"));
+        }
+
+        return map;
     }
     
     /**
@@ -78,87 +161,83 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
         String imageType = map.get("image_type");
         String imageContent = map.get("image_content");
         
-        // Map ImageSource to MediaSource
-        MediaSource mediaSource = mapImageSourceToMediaSource(source);
+        // Map source name to MediaSource
+        MediaSource mediaSource = mapSourceNameToMediaSource(sourceName);
         
         return new MediaResult(imageUrl, title, description, mediaSource, imageType, imageContent);
     }
     
     /**
-     * Map ImageSource enum to MediaSource enum
+     * Map source name to MediaSource enum
      */
-    private MediaSource mapImageSourceToMediaSource(ImageSource imageSource) {
-        return switch (imageSource) {
-            case _4CHAN -> MediaSource.CHAN_4;
-            case PICSUM -> MediaSource.PICSUM;
-            case IMGUR -> MediaSource.IMGUR;
-            case RULE34XXX -> MediaSource.RULE34;
-            case GOOGLE -> MediaSource.GOOGLE;
-            case TENOR -> MediaSource.TENOR;
-            case MOVIE, TVSHOW -> MediaSource.TMDB;
-            case YOUTUBE, SHORT -> MediaSource.YOUTUBE;
-            case URBAN -> MediaSource.URBAN_DICTIONARY;
+    private MediaSource mapSourceNameToMediaSource(String sourceName) {
+        return switch (sourceName) {
+            case ImageSource._4CHAN -> MediaSource.CHAN_4;
+            case ImageSource.PICSUM -> MediaSource.PICSUM;
+            case ImageSource.IMGUR -> MediaSource.IMGUR;
+            case ImageSource.RULE34XXX -> MediaSource.RULE34;
+            case ImageSource.GOOGLE -> MediaSource.GOOGLE;
+            case ImageSource.TENOR -> MediaSource.TENOR;
+            case ImageSource.MOVIE, ImageSource.TVSHOW -> MediaSource.TMDB;
+            case ImageSource.YOUTUBE, ImageSource.SHORT -> MediaSource.YOUTUBE;
+            case ImageSource.URBAN -> MediaSource.URBAN_DICTIONARY;
             default -> MediaSource.UNKNOWN; // Default fallback
         };
     }
     
     @Override
     public String getConfigKey() {
-        return source.getConfigKey();
+        return ImageSource.getConfigKey(sourceName);
     }
     
     @Override
     public boolean supportsSearch() {
-        // Most built-in sources support some form of search/filtering
-        return switch (source) {
-            case GOOGLE, IMGUR, YOUTUBE, SHORT -> true;
-            default -> false;
-        };
+        return true;
     }
     
     @Override
     public int getPriority() {
         // Assign priorities to built-in sources
-        return switch (source) {
-            case GOOGLE -> 85;
-            case IMGUR -> 80;
-            case YOUTUBE -> 75;
-            case TENOR -> 70;
-            case _4CHAN -> 65;
-            case PICSUM -> 60;
-            case RULE34XXX -> 55;
-            case MOVIE -> 50;
-            case TVSHOW -> 50;
-            case URBAN -> 45;
-            case SHORT -> 40;
+        return switch (sourceName) {
+            case ImageSource.GOOGLE -> 85;
+            case ImageSource.IMGUR -> 80;
+            case ImageSource.YOUTUBE -> 75;
+            case ImageSource.TENOR -> 70;
+            case ImageSource._4CHAN -> 65;
+            case ImageSource.PICSUM -> 60;
+            case ImageSource.RULE34XXX -> 55;
+            case ImageSource.MOVIE -> 50;
+            case ImageSource.TVSHOW -> 50;
+            case ImageSource.URBAN -> 45;
+            case ImageSource.SHORT -> 40;
             default -> 50;
         };
     }
     
     /**
-     * Get the underlying ImageSource enum value
-     * @return The wrapped ImageSource
+     * Get the source name
+     * @return The source name
      */
-    public ImageSource getImageSource() {
-        return source;
+    public String getSourceName() {
+        return sourceName;
     }
     
     /**
      * Provide descriptions for built-in sources
      */
-    private String getDescriptionForSource(ImageSource source) {
-        return switch (source) {
-            case TENOR -> "GIFs and animated images from Tenor";
-            case _4CHAN -> "Images from 4chan boards";
-            case GOOGLE -> "Images from Google Image Search";
-            case IMGUR -> "Images from Imgur";
-            case PICSUM -> "Random placeholder images from Lorem Picsum";
-            case RULE34XXX -> "Adult content from Rule34";
-            case MOVIE -> "Movie-related images from TMDB";
-            case TVSHOW -> "TV show images from TMDB";
-            case URBAN -> "Images related to Urban Dictionary terms";
-            case YOUTUBE -> "YouTube video thumbnails";
-            case SHORT -> "YouTube Shorts thumbnails";
+    private String getDescriptionForSource(String sourceName) {
+        return switch (sourceName) {
+            case ImageSource.TENOR -> "GIFs and animated images from Tenor";
+            case ImageSource._4CHAN -> "Images from 4chan boards";
+            case ImageSource.GOOGLE -> "Images from Google Image Search";
+            case ImageSource.IMGUR -> "Images from Imgur";
+            case ImageSource.PICSUM -> "Random placeholder images from Lorem Picsum";
+            case ImageSource.RULE34XXX -> "Adult content from Rule34";
+            case ImageSource.MOVIE -> "Movie-related images from TMDB";
+            case ImageSource.TVSHOW -> "TV show images from TMDB";
+            case ImageSource.URBAN -> "Images related to Urban Dictionary terms";
+            case ImageSource.YOUTUBE -> "YouTube video thumbnails";
+            case ImageSource.SHORT -> "YouTube Shorts thumbnails";
             default -> "Built-in image source";
         };
     }
