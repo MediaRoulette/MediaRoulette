@@ -277,7 +277,7 @@ Open an issue with:
 5. Open a Pull Request
 
 ### 💬 Join Our Community
-[![Discord](https://img.shields.io/discord/your-discord-id?color=7289da&logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/Kr7qvutZ4N)
+[![Discord](https://img.shields.io/discord/1147752337746702407?color=7289da&logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/Kr7qvutZ4N)
 
 ---
 
