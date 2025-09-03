@@ -1,6 +1,5 @@
 package me.hash.mediaroulette.utils.media.ffmpeg.resolvers;
 
-import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.impl.GfycatResolver;
 import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.impl.DirectUrlResolver;
 
 import java.util.ArrayList;
@@ -15,19 +14,11 @@ public class UrlResolverFactory {
 
     public UrlResolverFactory() {
         resolvers = new ArrayList<>();
-        initializeResolvers();
-    }
-
-    private void initializeResolvers() {
-        // Add resolvers in order of priority
-        resolvers.add(new GfycatResolver());
-        resolvers.add(new DirectUrlResolver());
-        
-        resolvers.sort(Comparator.comparingInt(UrlResolver::getPriority).reversed());
     }
 
     public static void addResolver(UrlResolver resolver) {
         resolvers.add(resolver);
+        resolvers.sort(Comparator.comparingInt(UrlResolver::getPriority).reversed());
     }
 
     /**

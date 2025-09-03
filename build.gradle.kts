@@ -24,7 +24,6 @@ repositories {
 }
 
 dependencies {
-    implementation("com.microsoft.playwright:playwright:1.40.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("net.dv8tion:JDA:6.0.0-rc.4")
 
