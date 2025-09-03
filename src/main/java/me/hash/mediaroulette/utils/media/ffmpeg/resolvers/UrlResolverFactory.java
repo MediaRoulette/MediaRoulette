@@ -1,6 +1,5 @@
 package me.hash.mediaroulette.utils.media.ffmpeg.resolvers;
 
-import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.impl.RedGifsResolver;
 import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.impl.GfycatResolver;
 import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.impl.DirectUrlResolver;
 
@@ -12,21 +11,23 @@ import java.util.List;
  * Factory for URL resolvers that manages different video platform resolvers
  */
 public class UrlResolverFactory {
-    private final List<UrlResolver> resolvers;
+    private static List<UrlResolver> resolvers = List.of();
 
     public UrlResolverFactory() {
-        this.resolvers = new ArrayList<>();
+        resolvers = new ArrayList<>();
         initializeResolvers();
     }
 
     private void initializeResolvers() {
         // Add resolvers in order of priority
-        resolvers.add(new RedGifsResolver());
         resolvers.add(new GfycatResolver());
-        resolvers.add(new DirectUrlResolver()); // Fallback resolver
+        resolvers.add(new DirectUrlResolver());
         
-        // Sort by priority (highest first)
         resolvers.sort(Comparator.comparingInt(UrlResolver::getPriority).reversed());
+    }
+
+    public static void addResolver(UrlResolver resolver) {
+        resolvers.add(resolver);
     }
 
     /**
