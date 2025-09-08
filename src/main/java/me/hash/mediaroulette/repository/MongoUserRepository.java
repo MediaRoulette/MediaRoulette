@@ -85,10 +85,14 @@ public class MongoUserRepository implements UserRepository {
         List<Document> favDocs = (List<Document>) doc.get("favorites", new ArrayList<Document>());
         for (Document favDoc : favDocs) {
             int id = favDoc.getInteger("id", 0);
+            String title = favDoc.getString("title");
             String description = favDoc.getString("description");
             String image = favDoc.getString("image");
             String type = favDoc.getString("type");
-            user.getFavorites().add(new Favorite(id, description, image, type));
+            Integer accentColor = favDoc.containsKey("accentColor") ? (favDoc.get("accentColor") instanceof Number ? ((Number) favDoc.get("accentColor")).intValue() : null) : null;
+            // Backward compatibility: if title is missing, default to "Favorite"
+            if (title == null || title.isBlank()) title = "Favorite";
+            user.getFavorites().add(new Favorite(id, title, description, image, type, accentColor));
         }
 
         // Map quests
@@ -155,9 +159,11 @@ public class MongoUserRepository implements UserRepository {
         List<Document> favDocs = new ArrayList<>();
         for (Favorite fav : user.getFavorites()) {
             Document favDoc = new Document("id", fav.getId())
+                    .append("title", fav.getTitle())
                     .append("description", fav.getDescription())
                     .append("image", fav.getImage())
-                    .append("type", fav.getType());
+                    .append("type", fav.getType())
+                    .append("accentColor", fav.getAccentColor());
             favDocs.add(favDoc);
         }
         doc.append("favorites", favDocs);

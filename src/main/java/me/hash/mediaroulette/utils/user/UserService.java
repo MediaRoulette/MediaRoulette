@@ -84,8 +84,13 @@ public class UserService {
     }
 
     public void addFavorite(String userId, String description, String image, String type) {
+        // Backward-compatible method
+        addFavorite(userId, "Favorite", description, image, type, null);
+    }
+
+    public void addFavorite(String userId, String title, String description, String image, String type, Integer accentColor) {
         User user = getOrCreateUser(userId);
-        user.addFavorite(description, image, type);
+        user.addFavorite(title, description, image, type, accentColor);
         updateUser(user);
     }
 

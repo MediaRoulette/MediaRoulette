@@ -38,7 +38,7 @@ public class Bot extends ListenerAdapter {
     public static final Map<Long, Long> COOLDOWNS = new HashMap<>();
     public static Config config = null;
     public static final ExecutorService executor = Executors.newCachedThreadPool();
-    private static List<ListenerAdapter> listeners = new ArrayList<>();
+    private static final List<ListenerAdapter> listeners = new ArrayList<>();
 
     public Bot(String token) {
         shardManager = DefaultShardManagerBuilder.createDefault(token)
@@ -60,25 +60,22 @@ public class Bot extends ListenerAdapter {
                 new SupportCommand()
         );
 
-        // TODO: create a dedicated plugin command registry system
-        // registerCommands(); <-- plugins are gonna handle this (bad approach but yeah)
-
         config = new Config(Main.database);
     }
 
     public static void addCommands(ListenerAdapter... commands) {
         listeners.addAll(Arrays.asList(commands));
-        // Since registerCommands call may get called other times, register event listeners here.
-        listeners.forEach(Bot.getShardManager()::addEventListener);
     }
 
-    private void registerCommands() {
+    public static void registerCommands() {
         List<CommandData> commandData = listeners.stream()
                 .map(cmd -> ((CommandHandler) cmd).getCommandData())
                 .collect(Collectors.toList());
 
         Bot.getShardManager().getShards().forEach(jda ->
                 jda.updateCommands().addCommands(commandData).queue());
+
+        listeners.forEach(Bot.getShardManager()::addEventListener);
     }
 
     /**

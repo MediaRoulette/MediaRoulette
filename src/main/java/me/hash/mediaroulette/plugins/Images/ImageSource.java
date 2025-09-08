@@ -8,13 +8,12 @@ import me.hash.mediaroulette.content.factory.MediaServiceFactory;
 import me.hash.mediaroulette.content.provider.impl.images.FourChanProvider;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.model.ImageOptions;
 import me.hash.mediaroulette.utils.LocaleManager;
 import me.hash.mediaroulette.utils.LocalConfig;
 import net.dv8tion.jda.api.interactions.Interaction;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.Collection;
+import java.util.*;
 
 public class ImageSource {
     
@@ -45,10 +44,11 @@ public class ImageSource {
      */
     public static Map<String, String> handle(String sourceName, Interaction event, String option) throws Exception {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         // Check if it's the special "ALL" case
         if (ALL.equals(sourceName)) {
-            return user.getImage();
+            return getRandomImageRespectingUserChances(event, user);
         }
 
         // Try to get provider from registry first (supports both built-in and plugin sources)
@@ -56,7 +56,7 @@ public class ImageSource {
         if (provider != null) {
             // Check if provider is enabled
             if (!provider.isEnabled()) {
-                errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.no_images_title"), new LocaleManager(user.getLocale()).get("error.no_images_description"));
+                errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
                 throw new Exception("Source disabled: " + sourceName);
             }
             
@@ -76,9 +76,10 @@ public class ImageSource {
      * Fallback handler for built-in sources
      */
     private static Map<String, String> handleBuiltInSource(String sourceName, Interaction event, String option, User user) throws Exception {
-        // Check both old config system and new LocalConfig system
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+
         if (isOptionDisabled(sourceName) || !isSourceEnabledInLocalConfig(sourceName)) {
-            errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.no_images_title"), new LocaleManager(user.getLocale()).get("error.no_images_description"));
+            errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
             throw new Exception("Command Disabled");
         }
 
@@ -115,12 +116,13 @@ public class ImageSource {
 
     private static Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         FourChanProvider provider = (FourChanProvider) new MediaServiceFactory().createFourChanProvider();
 
         if (option != null && !provider.isValidBoard(option)) {
-            String errorMessage = new LocaleManager(user.getLocale()).get("error.4chan_invalid_board_description").replace("{0}", option);
-            errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.4chan_invalid_board_title"), errorMessage);
+            String errorMessage = localeManager.get("error.4chan_invalid_board_description").replace("{0}", option);
+            errorHandler.sendErrorEmbed(event, localeManager.get("error.4chan_invalid_board_title"), errorMessage);
             throw new Exception("Board doesn't exist: " + option);
         }
         
@@ -129,10 +131,10 @@ public class ImageSource {
         } catch (Exception e) {
             // Check if it's a board validation error
             if (e.getMessage().contains("No valid 4chan boards found") || e.getMessage().contains("No images available for board")) {
-                errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.title"), "No valid 4chan boards available. Please use /support for help.");
+                errorHandler.sendErrorEmbed(event, localeManager.get("error.title"), "No valid 4chan boards available. Please use /support for help.");
                 throw new Exception("No valid 4chan boards available");
             } else {
-                errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.title"), "Error fetching 4chan data. Please use /support for help.");
+                errorHandler.sendErrorEmbed(event, localeManager.get("error.title"), "Error fetching 4chan data. Please use /support for help.");
                 throw new Exception("Error fetching 4chan data: " + e.getMessage());
             }
         }
@@ -140,9 +142,11 @@ public class ImageSource {
 
     private static Map<String, String> handleUrban(Interaction event, String option) throws Exception {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+
         Map<String, String> map = RandomText.getRandomUrbanWord(option);
         if (map.containsKey("error")) {
-            errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.title"), map.get("error"));
+            errorHandler.sendErrorEmbed(event, localeManager.get("error.title"), map.get("error"));
             throw new Exception(map.get("error"));
         }
 
@@ -248,6 +252,195 @@ public class ImageSource {
         
         MediaResult result = randomSource.getRandomImage(interaction, user, null);
         return result != null ? result.toMap() : null;
+    }
+
+    /**
+     * Get a random image respecting user-configured chances for both built-in and plugin sources
+     * @param interaction The Discord interaction
+     * @param user The user requesting the image
+     * @return Map<String, String> containing the image data
+     */
+    private static Map<String, String> getRandomImageRespectingUserChances(Interaction interaction, User user) throws Exception {
+        // Get all available sources from registry
+        ImageSourceRegistry registry = ImageSourceRegistry.getInstance();
+        Collection<ImageSourceProvider> allProviders = registry.getAllProviders();
+        
+        // Get default options and user options
+        List<ImageOptions> defaultImageOptions = ImageOptions.getDefaultOptions();
+        Map<String, ImageOptions> userImageOptions = user.getImageOptionsMap();
+        LocalConfig config = LocalConfig.getInstance();
+        
+        // Build a list of weighted sources
+        List<WeightedSource> weightedSources = new ArrayList<>();
+        double totalWeight = 0;
+        
+        // Process default sources from config file
+        for (ImageOptions defaultOption : defaultImageOptions) {
+            String imageType = defaultOption.getImageType();
+            
+            // Check if source is enabled in admin config
+            if (!isSourceEnabledInConfig(config, imageType)) {
+                continue;
+            }
+            
+            // Find corresponding provider
+            ImageSourceProvider provider = findProviderForImageType(allProviders, imageType);
+            if (provider == null || !provider.isEnabled()) {
+                continue;
+            }
+            
+            ImageOptions userOption = userImageOptions.get(imageType);
+            double weight;
+            boolean enabled;
+            
+            if (userOption != null) {
+                // User has explicitly set this option
+                enabled = userOption.isEnabled();
+                weight = userOption.getChance();
+            } else {
+                // Use default settings
+                enabled = defaultOption.isEnabled();
+                weight = defaultOption.getChance();
+            }
+            
+            if (enabled && weight > 0) {
+                weightedSources.add(new WeightedSource(provider, weight, imageType));
+                totalWeight += weight;
+            }
+        }
+        
+        // Also check for plugin sources that have user-configured chances but aren't in defaults
+        for (Map.Entry<String, ImageOptions> entry : userImageOptions.entrySet()) {
+            String imageType = entry.getKey();
+            ImageOptions userOption = entry.getValue();
+            
+            // Skip if already processed from defaults
+            if (defaultImageOptions.stream().anyMatch(opt -> opt.getImageType().equals(imageType))) {
+                continue;
+            }
+            
+            // Find corresponding provider
+            ImageSourceProvider provider = findProviderForImageType(allProviders, imageType);
+            if (provider != null && provider.isEnabled() && userOption.isEnabled() && userOption.getChance() > 0) {
+                weightedSources.add(new WeightedSource(provider, userOption.getChance(), imageType));
+                totalWeight += userOption.getChance();
+            }
+        }
+        
+        if (weightedSources.isEmpty()) {
+            throw new Exception("No image sources are enabled or have valid chances configured");
+        }
+        
+        // Select a random source based on weights
+        Random random = new Random();
+        double randomValue = random.nextDouble() * totalWeight;
+        double currentWeight = 0;
+        
+        for (WeightedSource weightedSource : weightedSources) {
+            currentWeight += weightedSource.weight;
+            if (randomValue <= currentWeight) {
+                try {
+                    MediaResult result = weightedSource.provider.getRandomImage(interaction, user, null);
+                    return result != null ? result.toMap() : null;
+                } catch (Exception e) {
+                    // If this source fails, fall back to the old user.getImage() method
+                    System.err.println("Selected source failed: " + weightedSource.imageType + ", falling back to legacy method: " + e.getMessage());
+                    return user.getImage();
+                }
+            }
+        }
+        
+        // Fallback - should not reach here, but just in case
+        return user.getImage();
+    }
+    
+    /**
+     * Find a provider that matches the given image type
+     */
+    private static ImageSourceProvider findProviderForImageType(Collection<ImageSourceProvider> providers, String imageType) {
+        // First try exact match (case insensitive)
+        for (ImageSourceProvider provider : providers) {
+            if (provider.getName().equalsIgnoreCase(imageType)) {
+                return provider;
+            }
+        }
+        
+        // Try mapping common image types to provider names
+        String mappedName = mapImageTypeToProviderName(imageType);
+        if (mappedName != null) {
+            for (ImageSourceProvider provider : providers) {
+                if (provider.getName().equalsIgnoreCase(mappedName)) {
+                    return provider;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Map image types from config to provider names
+     */
+    private static String mapImageTypeToProviderName(String imageType) {
+        return switch (imageType.toLowerCase()) {
+            case "4chan" -> _4CHAN;
+            case "picsum" -> PICSUM;
+            case "imgur" -> IMGUR;
+            case "reddit" -> "REDDIT"; // Plugin source
+            case "rule34xxx" -> RULE34XXX;
+            case "tenor" -> TENOR;
+            case "google" -> GOOGLE;
+            case "movies" -> MOVIE;
+            case "tvshow" -> TVSHOW;
+            case "youtube" -> YOUTUBE;
+            case "short" -> SHORT;
+            case "urban" -> URBAN;
+            default -> null;
+        };
+    }
+    
+    /**
+     * Check if a source is enabled in admin config
+     */
+    private static boolean isSourceEnabledInConfig(LocalConfig config, String imageType) {
+        String configKey = mapImageTypeToConfigKey(imageType);
+        return config.isSourceEnabled(configKey);
+    }
+    
+    /**
+     * Map image types to config keys
+     */
+    private static String mapImageTypeToConfigKey(String imageType) {
+        return switch (imageType.toLowerCase()) {
+            case "4chan" -> "4chan";
+            case "picsum" -> "picsum";
+            case "imgur" -> "imgur";
+            case "reddit" -> "reddit";
+            case "rule34xxx" -> "rule34";
+            case "tenor" -> "tenor";
+            case "google" -> "google";
+            case "movies" -> "tmdb_movie";
+            case "tvshow" -> "tmdb_tv";
+            case "youtube" -> "youtube";
+            case "short" -> "youtube_shorts";
+            case "urban" -> "urban_dictionary";
+            default -> imageType.toLowerCase();
+        };
+    }
+    
+    /**
+     * Helper class to store weighted source information
+     */
+    private static class WeightedSource {
+        final ImageSourceProvider provider;
+        final double weight;
+        final String imageType;
+        
+        WeightedSource(ImageSourceProvider provider, double weight, String imageType) {
+            this.provider = provider;
+            this.weight = weight;
+            this.imageType = imageType;
+        }
     }
 
 }

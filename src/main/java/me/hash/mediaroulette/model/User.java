@@ -261,12 +261,17 @@ public class User {
     }
 
     public void addFavorite(String description, String image, String type) {
+        // Backward-compatible path: default title
+        addFavorite("Favorite", description, image, type, null);
+    }
+
+    public void addFavorite(String title, String description, String image, String type, Integer accentColor) {
         if (favorites.size() >= getFavoriteLimit()) {
             // Log warning as needed – favorite limit reached.
             return;
         }
         int id = favorites.size();
-        favorites.add(new Favorite(id, description, image, type));
+        favorites.add(new Favorite(id, title, description, image, type, accentColor));
     }
 
     public void removeFavorite(int id) {

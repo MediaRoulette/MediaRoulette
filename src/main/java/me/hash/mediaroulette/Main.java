@@ -82,6 +82,8 @@ public class Main {
 
         logger.info("Application started with {} plugins", pluginManager.getPlugins().size());
 
+        Bot.registerCommands();
+
         GiveawayManager.initialize();
 
         // Start terminal interface

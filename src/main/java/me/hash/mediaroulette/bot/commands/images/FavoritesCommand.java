@@ -2,15 +2,24 @@ package me.hash.mediaroulette.bot.commands.images;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
+import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.errorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.Favorite;
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.utils.LocaleManager;
 import me.hash.mediaroulette.utils.MaintenanceChecker;
-import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.components.container.Container;
+import net.dv8tion.jda.api.components.mediagallery.MediaGallery;
+import net.dv8tion.jda.api.components.mediagallery.MediaGalleryItem;
+import net.dv8tion.jda.api.components.section.Section;
+import net.dv8tion.jda.api.components.separator.Separator;
+import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.components.thumbnail.Thumbnail;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -29,7 +38,6 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-// TODO: make locales here
 public class FavoritesCommand extends ListenerAdapter implements CommandHandler {
     private static final int ITEMS_PER_PAGE = 25;
 
@@ -45,7 +53,6 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
         if (!event.getName().equals("favorites"))
             return;
 
-        // Check maintenance mode
         if (MaintenanceChecker.isMaintenanceBlocked(event)) {
             MaintenanceChecker.sendMaintenanceMessage(event);
             return;
@@ -53,22 +60,20 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
 
         event.deferReply().queue();
 
-        // Get the current time and the user's ID
         long now = System.currentTimeMillis();
         long userId = event.getUser().getIdLong();
+        User user = Main.userService.getOrCreateUser(event.getUser().getId());
 
-        // Check if the user is on cooldown
         if (Bot.COOLDOWNS.containsKey(userId) && now - Bot.COOLDOWNS.get(userId) < Bot.COOLDOWN_DURATION) {
-            // The user is on cooldown, reply with an embed and return
             errorHandler.sendErrorEmbed(event, "Slow down!", "Please wait for 2 seconds before using this command again.");
             return;
         }
 
-        // Update the user's cooldown
         Bot.COOLDOWNS.put(userId, now);
 
+        if (!validateChannelAccess(event, user))
+            return;
 
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
         if (user.getFavorites() == null || user.getFavorites().isEmpty()) {
             event.getHook().sendMessage("You do not have any favorites yet!").queue();
             return;
@@ -83,10 +88,13 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
         if (!event.getComponentId().startsWith("favorite:"))
             return;
 
+        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale()); // Get once, use multiple times
+
         // Check if the user is the same as the one who initiated the interaction
         String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
         if (!event.getUser().getId().equals(originalUserId)) {
-            event.reply("This is not your menu!").setEphemeral(true).queue();
+            event.reply(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
             return;
         }
 
@@ -96,64 +104,59 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
 
         event.deferEdit().queue();
 
-        // Use the service layer to get or create the user
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
         List<Favorite> favorites = user.getFavorites();
 
         switch (action) {
             case "prev":
-            case "next": {
-                int page = Integer.parseInt(parts[2]);
-                int newPage = action.equals("prev") ? page - 1 : page + 1;
-                sendFavoriteDetail(event.getHook(), user, newPage * ITEMS_PER_PAGE, false);
+            case "next":
+            case "refresh": {
+                int pageVal = Integer.parseInt(parts[2]); // 1-based page value from container pagination
+                int targetPage = Math.max(1, pageVal);
+                int startIndex = (targetPage - 1) * ITEMS_PER_PAGE;
+                sendFavoriteDetail(event.getHook(), user, startIndex, false);
                 break;
             }
             case "delete": {
                 int index = Integer.parseInt(parts[2]);
                 if (index < 0 || index >= favorites.size()) {
-                    event.getHook().sendMessage("Invalid favorite to delete.").setEphemeral(true).queue();
+                    event.getHook().sendMessage(localeManager.get("error.invalid_favorite_delete")).setEphemeral(true).queue();
                     return;
                 }
-                // Remove the favorite using the updated User model
                 user.removeFavorite(index);
-                // Persist the change via the service (if your service automatically saves changes,
-                // ensure removeFavorite internally calls updateUser or call Main.userService.updateUser(user) here)
                 Main.userService.updateUser(user);
 
-                event.getHook().sendMessage("Favorite has been deleted.").setEphemeral(true).queue();
+                event.getHook().sendMessage(localeManager.get("success.favorite_deleted")).setEphemeral(true).queue();
 
-                // Refresh the favorites list
                 favorites = user.getFavorites();
 
-                // After deletion, if there are favorites left, show the adjusted favorite details.
                 if (!favorites.isEmpty()) {
                     int newIndex = Math.min(index, favorites.size() - 1);
                     sendFavoriteDetail(event.getHook(), user, newIndex, false);
                 } else {
-                    // No favorites left, inform the user
-                    event.getHook().editOriginalEmbeds(new EmbedBuilder()
-                                    .setTitle("No Favorites")
-                                    .setDescription("You have no favorites left.")
-                                    .setColor(Color.RED)
-                                    .build())
-                            .setComponents()
+                    Container empty = Container.of(
+                            Section.of(
+                                    Thumbnail.fromUrl(event.getUser().getEffectiveAvatarUrl()),
+                                    TextDisplay.of(localeManager.get("warn.no_favorites_title")),
+                                    TextDisplay.of(localeManager.get("warn.no_favorites_description"))
+                            )
+                    ).withAccentColor(Color.RED);
+                    event.getHook().editOriginalComponents(empty)
+                            .useComponentsV2()
                             .queue();
                 }
                 break;
             }
-            // Handle other actions if necessary
         }
     }
 
     @Override
     public void onStringSelectInteraction(StringSelectInteractionEvent event) {
-        if (!event.getComponentId().equals("favorite-select-menu"))
-            return;
+        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale()); // Get once, use multiple times
 
-        // Check if the user is the same as the one who initiated the interaction
         String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
         if (!event.getUser().getId().equals(originalUserId)) {
-            event.reply("This is not your menu!").setEphemeral(true).queue();
+            event.reply(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
             return;
         }
 
@@ -161,56 +164,72 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
 
         int selectedIndex = Integer.parseInt(event.getValues().getFirst());
 
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
         sendFavoriteDetail(event.getHook(), user, selectedIndex, false);
     }
 
     private void sendFavoriteDetail(InteractionHook hook, User user, int index, boolean isNewMessage) {
         List<Favorite> favorites = user.getFavorites();
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale()); // Get once, use multiple times
 
         if (index < 0 || index >= favorites.size()) {
-            hook.sendMessage("Invalid favorite selected.").setEphemeral(true).queue();
+            hook.sendMessage(localeManager.get("error.invalid_favorite_selected")).setEphemeral(true).queue();
             return;
         }
 
         Favorite favorite = favorites.get(index);
+        String avatarUrl = hook.getInteraction().getUser().getEffectiveAvatarUrl();
 
-        EmbedBuilder embedBuilder = new EmbedBuilder();
-        embedBuilder.setTitle("⭐ Favorite Details");
-        embedBuilder.setDescription(favorite.getDescription());
-        embedBuilder.setImage(favorite.getImage());
-        embedBuilder.setColor(Color.CYAN);
-        embedBuilder.setFooter("Favorite " + (index + 1) + "/" + favorites.size());
+        Section headerSection = Section.of(
+                Thumbnail.fromUrl(avatarUrl),
+                TextDisplay.of("## " + (favorite.getTitle() != null ? favorite.getTitle() : "⭐ Favorite")),
+                TextDisplay.of("**" + favorite.getDescription() + "**"),
+                TextDisplay.of("*Favorite " + (index + 1) + "/" + favorites.size() + "*")
+        );
 
         int currentPage = index / ITEMS_PER_PAGE;
 
-        // Build the selection menu and navigation buttons
         List<ActionRow> paginatorComponents = buildPaginatorComponents(user, currentPage);
 
-        // Add a delete button
         Button deleteButton = Button.danger("favorite:delete:" + index, "Delete")
                 .withEmoji(Emoji.fromUnicode("❌"));
         ActionRow deleteButtonRow = ActionRow.of(deleteButton);
 
-        // Assemble components
-        // First, add the selection menu and navigation buttons
-        List<ActionRow> actionRows = new ArrayList<>(paginatorComponents);
-        // Then, add the delete button below them
-        actionRows.add(deleteButtonRow);
+        String imageUrl = favorite.getImage();
+        boolean hasDisplayableImage = imageUrl != null && !imageUrl.isBlank() && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
+
+        Color accent = favorite.getAccentColor() != null ? new Color(favorite.getAccentColor()) : Color.CYAN;
+        Container container = hasDisplayableImage
+                ? Container.of(
+                    headerSection,
+                    Separator.createDivider(Separator.Spacing.SMALL),
+                    MediaGallery.of(MediaGalleryItem.fromUrl(imageUrl)),
+                    Separator.createDivider(Separator.Spacing.SMALL),
+                    paginatorComponents.get(0),
+                    paginatorComponents.size() > 1 ? paginatorComponents.get(1) : ActionRow.of(Button.secondary("favorite:none", " ").asDisabled()),
+                    deleteButtonRow
+                ).withAccentColor(accent)
+                : Container.of(
+                    headerSection,
+                    Separator.createDivider(Separator.Spacing.SMALL),
+                    paginatorComponents.get(0),
+                    paginatorComponents.size() > 1 ? paginatorComponents.get(1) : ActionRow.of(Button.secondary("favorite:none", " ").asDisabled()),
+                    deleteButtonRow
+                ).withAccentColor(accent);
 
         if (isNewMessage) {
-            hook.sendMessageEmbeds(embedBuilder.build())
-                    .setComponents(actionRows)
+            hook.sendMessageComponents(container)
+                    .useComponentsV2()
                     .queue();
         } else {
-            hook.editOriginalEmbeds(embedBuilder.build())
-                    .setComponents(actionRows)
+            hook.editOriginalComponents(container)
+                    .useComponentsV2()
                     .queue();
         }
     }
 
     private List<ActionRow> buildPaginatorComponents(User user, int page) {
         List<Favorite> favorites = user.getFavorites();
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale()); // Get once, use multiple times
 
         int totalPages = (int) Math.ceil((double) favorites.size() / ITEMS_PER_PAGE);
         page = Math.max(0, Math.min(page, totalPages - 1)); // Ensure page is within bounds
@@ -222,19 +241,17 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
 
         // Build the selection menu with options from the current page
         StringSelectMenu.Builder menuBuilder = StringSelectMenu.create("favorite-select-menu")
-                .setPlaceholder("Select a favorite to view details")
+                .setPlaceholder(localeManager.get("info.select_favorite_to_view"))
                 .setMinValues(1)
                 .setMaxValues(1);
 
         int index = start; // Zero-based index
         for (Favorite favorite : favoritesOnPage) {
             String description = favorite.getDescription();
-            // Remove any line breaks and limit the description length
             description = description.replaceAll("\\n", " ");
             description = (description.length() > 80) ? description.substring(0, 80) + "..." : description;
 
             String label = (index + 1) + ". " + description;
-            // Ensure the label does not exceed 100 characters
             if (label.length() > 100) {
                 label = label.substring(0, 97) + "...";
             }
@@ -244,11 +261,35 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
             index++;
         }
 
-        // Assemble the selection menu into an ActionRow
+        // Assemble the selection menu into an ActionRow and add pagination buttons
         List<ActionRow> actionRows = new ArrayList<>();
         actionRows.add(ActionRow.of(menuBuilder.build()));
+
+        int displayPage = page + 1; // convert to 1-based page index for pagination component
+        ActionRow pagination = MediaContainerManager.createPaginationButtons("favorite", displayPage, Math.max(1, totalPages), null);
+        actionRows.add(pagination);
+
         return actionRows;
     }
 
+    private boolean validateChannelAccess(SlashCommandInteractionEvent event, User user) {
+        boolean isPrivateChannel = event.getChannelType() == ChannelType.PRIVATE;
+        boolean isTextChannel = event.getChannelType() == ChannelType.TEXT;
+        boolean isNsfwChannel = isTextChannel && event.getChannel().asTextChannel().isNSFW();
 
+        if (isPrivateChannel && !user.isNsfw()) {
+            errorHandler.sendErrorEmbed(event, "NSFW not enabled", "Please use the bot in an NSFW channel first");
+            return false;
+        }
+
+        if (isTextChannel) {
+            if (!user.isNsfw() && isNsfwChannel) {
+                user.setNsfw(true);
+            } else if (user.isNsfw() && !isNsfwChannel) {
+                errorHandler.sendErrorEmbed(event, "Use in NSFW channel/DMs!", "Please use the bot in an NSFW channel or DMs!");
+                return false;
+            }
+        }
+        return true;
+    }
 }

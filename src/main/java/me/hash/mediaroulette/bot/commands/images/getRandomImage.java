@@ -6,12 +6,11 @@ import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.errorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.plugins.Images.ImageSource;
-import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
 import me.hash.mediaroulette.utils.LocaleManager;
 import me.hash.mediaroulette.utils.MaintenanceChecker;
 import me.hash.mediaroulette.utils.QuestGenerator;
+import net.dv8tion.jda.api.components.Component;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.replacer.ComponentReplacer;
 import net.dv8tion.jda.api.components.tree.MessageComponentTree;
@@ -28,7 +27,6 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import java.awt.Color;
 import java.time.Instant;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -150,13 +148,15 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
     }
 
     private void processImageRequest(SlashCommandInteractionEvent event, User user, String subcommand, String query, net.dv8tion.jda.api.interactions.InteractionHook hook) {
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+
         try {
             boolean shouldContinue = event.getOption("shouldcontinue") != null && event.getOption("shouldcontinue").getAsBoolean();
 
             try {
                 Map<String, String> image = ImageSource.handle(subcommand.toUpperCase(), event, query);
                 if (image == null || image.get("image") == null) {
-                    errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.no_images_title"), new LocaleManager(user.getLocale()).get("error.no_images_description"));
+                    errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
                     return;
                 }
 
@@ -169,16 +169,16 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                             Main.userService.updateUser(user);
                         })
                         .exceptionally(ex -> {
-                            errorHandler.handleException(event, new LocaleManager(user.getLocale()).get("error.unexpected_error"), new LocaleManager(user.getLocale()).get("error.failed_to_send_image"), ex);
+                            errorHandler.handleException(event, localeManager.get("error.unexpected_error"), localeManager.get("error.failed_to_send_image"), ex);
                             return null;
                         });
             } catch (Exception e) {
-                errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.generic_title"), e.getMessage());
+                errorHandler.sendErrorEmbed(event, localeManager.get("error.generic_title"), e.getMessage());
             }
             user.incrementImagesGenerated();
             Main.userService.updateUser(user);
         } catch (Exception e) {
-            errorHandler.handleException(event, new LocaleManager(user.getLocale()).get("error.unexpected_error"), e.getMessage(), e);
+            errorHandler.handleException(event, localeManager.get("error.unexpected_error"), e.getMessage(), e);
         }
     }
 
@@ -190,7 +190,6 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             return;
         }
 
-        // Check maintenance mode for button interactions too
         if (MaintenanceChecker.isMaintenanceBlocked(event)) {
             MaintenanceChecker.sendMaintenanceMessage(event);
             return;
@@ -201,13 +200,13 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             MessageData data = ACTIVE_MESSAGES.get(messageId);
 
             User user = Main.userService.getOrCreateUser(event.getUser().getId());
+            LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
             data.updateLastInteractionTime();
 
             if (!data.isUserAllowed(event.getUser().getIdLong())) {
-                // Show error container using hook since interaction is already acknowledged
-                showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.unknown_button_title"),
-                        new LocaleManager(user.getLocale()).get("error.unknown_button_description"));
+                showErrorContainer(event, localeManager.get("error.image_interaction_not_allowed_title"),
+                        localeManager.get("error.image_interaction_not_allowed_description"));
                 return;
             }
 
@@ -234,14 +233,15 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                 case null:
                 default:
                     // Show error container using hook since interaction is already acknowledged
-                    showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.unknown_button_title"),
-                            new LocaleManager(user.getLocale()).get("error.unknown_button_description"));
+                    showErrorContainer(event, localeManager.get("error.unknown_button_title"),
+                            localeManager.get("error.unknown_button_description"));
             }
         });
     }
 
     private void handleContinue(ButtonInteractionEvent event, MessageData data) {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         event.getHook().editOriginalComponents(createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
                 .useComponentsV2()
@@ -250,8 +250,8 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     try {
                         Map<String, String> image = ImageSource.handle(data.getSubcommand().toUpperCase(), event, data.getQuery());
                         if (image == null || image.get("image") == null) {
-                            showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.no_more_images_title"),
-                                    new LocaleManager(user.getLocale()).get("error.no_more_images_description"));
+                            showErrorContainer(event, localeManager.get("error.no_more_images_title"),
+                                    localeManager.get("error.no_more_images_description"));
                             return;
                         }
                         MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
@@ -260,31 +260,137 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                         QuestGenerator.onImageGenerated(user, data.getSubcommand());
                         Main.userService.updateUser(user);
                     } catch (Exception e) {
-                        showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.title"), e.getMessage());
+                        showErrorContainer(event, localeManager.get("error.title"), e.getMessage());
                     }
                 });
     }
 
     private void handleFavorite(ButtonInteractionEvent event) {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+
         try {
             MessageData data = ACTIVE_MESSAGES.get(event.getMessageIdLong());
             if (data == null) {
-                showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.no_image_title"),
-                        new LocaleManager(user.getLocale()).get("error.no_image_description"));
+                showErrorContainer(event, localeManager.get("error.no_image_title"),
+                        localeManager.get("error.no_image_description"));
                 return;
             }
 
-            String description = "Random " + data.getSubcommand() + " image";
-            String imageUrl = extractImageUrlFromContainer(event.getMessage());
+            // Extract container fields: title, description, image URL, and accent color
+            ContainerData containerData = extractContainerData(event.getMessage());
+            String title = containerData.title != null ? containerData.title : ("Random " + data.getSubcommand());
+            String description = containerData.description != null ? containerData.description : ("Random " + data.getSubcommand() + " image");
+            String imageUrl = containerData.imageUrl;
+            Integer accentColor = containerData.accentColor;
 
-            user.addFavorite(description, imageUrl, "image");
+            // Validate that we have an image URL
+            if (imageUrl == null || imageUrl.isBlank() || "none".equals(imageUrl)) {
+                showErrorContainer(event, localeManager.get("error.no_image_title"),
+                        "Cannot favorite: No image found in this container");
+                return;
+            }
+
+            // Save a deep-copy favorite (no buttons included in storage)
+            Main.userService.addFavorite(user.getUserId(), title, description, imageUrl, "image", accentColor);
             QuestGenerator.onImageFavorited(user);
             Main.userService.updateUser(user);
             disableButtonInContainer(event, "favorite");
         } catch (Exception e) {
-            showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.title"), e.getMessage());
+            showErrorContainer(event, localeManager.get("error.title"), e.getMessage());
         }
+    }
+
+    private static class ContainerData {
+        String title;
+        String description;
+        String imageUrl;
+        Integer accentColor;
+        
+        ContainerData(String title, String description, String imageUrl, Integer accentColor) {
+            this.title = title;
+            this.description = description;
+            this.imageUrl = imageUrl;
+            this.accentColor = accentColor;
+        }
+    }
+
+    private static ContainerData extractContainerData(net.dv8tion.jda.api.entities.Message message) {
+        String title = null;
+        String description = null;
+        String imageUrl = null;
+        Integer accentColor = null;
+        
+        try {
+            var components = message.getComponents();
+            if (components.isEmpty()) {
+                return new ContainerData(null, null, null, null);
+            }
+            
+            var container = components.getFirst().asContainer();
+            var containerComponents = container.getComponents();
+            
+            // Extract accent color from container
+            try {
+                java.awt.Color color = container.getAccentColor();
+                if (color != null) {
+                    accentColor = color.getRGB();
+                }
+            } catch (Exception ignored) { }
+            
+            // Process all components in the container
+            for (var comp : containerComponents) {
+                try {
+                    // Handle Section components (which contain TextDisplay elements)
+                    if (comp.getType() == Component.Type.SECTION) {
+                        var section = comp.asSection();
+                        var sectionComponents = section.getContentComponents();
+                        
+                        for (var sectionComp : sectionComponents) {
+                            try {
+                                if (sectionComp.getType() == Component.Type.TEXT_DISPLAY) {
+                                    var textDisplay = sectionComp.asTextDisplay();
+                                    String text = textDisplay.getContent();
+                                    String trimmed = text.trim();
+                                    
+                                    if (trimmed.startsWith("## ")) {
+                                        // Header title (remove the ## markdown)
+                                        title = trimmed.substring(3).trim();
+                                    } else if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.length() >= 4) {
+                                        // Bold description (remove the ** markdown)
+                                        description = trimmed.substring(2, trimmed.length() - 2).trim();
+                                    }
+                                }
+                            } catch (Exception ignored) { }
+                        }
+                    }
+                    // Handle MediaGallery components
+                    else if (comp.getType() == Component.Type.MEDIA_GALLERY) {
+                        var gallery = comp.asMediaGallery();
+                        if (!gallery.getItems().isEmpty()) {
+                            String url = gallery.getItems().getFirst().getUrl();
+                            if (!url.isBlank() && !url.startsWith("attachment://")) {
+                                imageUrl = url;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) { }
+            }
+            
+            // Fallback: if gallery URL is an attachment or not found, try message attachments (Discord CDN URL)
+            if ((imageUrl == null || imageUrl.startsWith("attachment://")) && !message.getAttachments().isEmpty()) {
+                String attachUrl = message.getAttachments().getFirst().getUrl();
+                if (attachUrl != null && !attachUrl.isBlank()) {
+                    imageUrl = attachUrl;
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error extracting container data: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return new ContainerData(title, description, imageUrl, accentColor);
     }
 
     private void showImageContainer(ButtonInteractionEvent event, Map<String, String> image, String query, String subcommand, User user) {
@@ -358,7 +464,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
     private static void updateButtonInContainer(ButtonInteractionEvent event, String buttonId) {
         try {
             MessageComponentTree components = event.getMessage().getComponentTree();
-            ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> buttonId.equals(button.getId()), Button::asDisabled);
+            ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> buttonId.equals(button.getCustomId()), Button::asDisabled);
             MessageComponentTree updated = components.replace(replacer);
             event.getHook().editOriginalComponents(updated).useComponentsV2().queue(
                 success -> {}, // Success callback - do nothing
@@ -402,14 +508,6 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
         }
     }
 
-    private static String extractImageUrlFromContainer(net.dv8tion.jda.api.entities.Message message) {
-        try {
-            return message.getComponentTree().getComponents().getFirst()
-                    .asMediaGallery().getItems().getFirst().getUrl();
-        } catch (Exception e) {
-            return null;
-        }
-    }
 
     private void trackSourceUsage(String userId, String subcommand, String query) {
         if (query != null) {
@@ -485,4 +583,5 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                 )
         ).withAccentColor(new Color(88, 101, 242));
     }
+
 }

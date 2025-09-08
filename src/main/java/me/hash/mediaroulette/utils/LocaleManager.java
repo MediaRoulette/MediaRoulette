@@ -7,19 +7,56 @@ import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LocaleManager {
     private static final Logger logger = LoggerFactory.getLogger(LocaleManager.class);
+    private static final ConcurrentHashMap<String, LocaleManager> CACHE = new ConcurrentHashMap<>();
+    private static final LocaleManager DEFAULT_INSTANCE = new LocaleManager("en_US", true);
+
     private ResourceBundle bundle;
     private Locale locale;
 
+    // Private constructor to prevent direct instantiation
+    private LocaleManager(String localeName, boolean isDefault) {
+        initializeLocale(localeName);
+    }
+
     /**
-     * Creates a LocaleManager for the specified locale.
-     * Falls back to default locale if the requested one is not found.
+     * Gets a cached LocaleManager instance for the specified locale.
      *
      * @param localeName the locale identifier (e.g., "en_US", "es_ES")
+     * @return cached LocaleManager instance
      */
-    public LocaleManager(String localeName) {
+    public static LocaleManager getInstance(String localeName) {
+        if (localeName == null || localeName.trim().isEmpty()) {
+            return DEFAULT_INSTANCE;
+        }
+
+        return CACHE.computeIfAbsent(localeName, key -> new LocaleManager(key, false));
+    }
+
+    /**
+     * Gets the default LocaleManager instance (en_US).
+     *
+     * @return default LocaleManager instance
+     */
+    public static LocaleManager getDefault() {
+        return DEFAULT_INSTANCE;
+    }
+
+    /**
+     * Alternative method that accepts language and country separately.
+     *
+     * @param language the language code (e.g., "en", "es")
+     * @param country the country code (e.g., "US", "ES")
+     * @return cached LocaleManager instance
+     */
+    public static LocaleManager getInstance(String language, String country) {
+        return getInstance(language + "_" + country);
+    }
+
+    private void initializeLocale(String localeName) {
         try {
             // Parse locale string (e.g., "en_US" -> language="en", country="US")
             String[] parts = localeName.split("_");
@@ -43,16 +80,6 @@ public class LocaleManager {
                 this.bundle = ResourceBundle.getBundle("locales.messages");
             }
         }
-    }
-
-    /**
-     * Alternative constructor that accepts language and country separately.
-     *
-     * @param language the language code (e.g., "en", "es")
-     * @param country the country code (e.g., "US", "ES")
-     */
-    public LocaleManager(String language, String country) {
-        this(language + "_" + country);
     }
 
     /**
@@ -117,5 +144,21 @@ public class LocaleManager {
         } catch (MissingResourceException e) {
             return false;
         }
+    }
+
+    /**
+     * Clears the cache. Use with caution - mainly for testing or memory management.
+     */
+    public static void clearCache() {
+        CACHE.clear();
+    }
+
+    /**
+     * Gets the current cache size (for monitoring purposes).
+     *
+     * @return number of cached LocaleManager instances
+     */
+    public static int getCacheSize() {
+        return CACHE.size();
     }
 }
