@@ -5,6 +5,8 @@ import me.hash.mediaroulette.utils.media.image_generation.components.TextParser;
 import me.hash.mediaroulette.utils.media.image_generation.ImageRenderer;
 import me.hash.mediaroulette.utils.media.image_generation.Theme;
 import me.hash.mediaroulette.utils.media.image_generation.ThemeManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -13,6 +15,8 @@ import java.io.IOException;
 import java.util.List;
 
 public class ImageGenerator {
+    private static final Logger logger = LoggerFactory.getLogger(ImageGenerator.class);
+
     private static final int DEFAULT_WIDTH = 500;
     private static final int DEFAULT_HEIGHT = 300;
     private static final double DEFAULT_SCALE_FACTOR = 2.5;
@@ -53,7 +57,7 @@ public class ImageGenerator {
 
             return convertToByteArray(image);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Image generation failed: {}", e.getMessage());
             return new byte[0];
         }
     }

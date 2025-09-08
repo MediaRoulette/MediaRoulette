@@ -10,7 +10,7 @@ import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.content.MediaSource;
 import me.hash.mediaroulette.plugins.Images.ImageSource;
 import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
-import me.hash.mediaroulette.utils.Locale;
+import me.hash.mediaroulette.utils.LocaleManager;
 import net.dv8tion.jda.api.interactions.Interaction;
 
 import java.util.Map;
@@ -77,7 +77,7 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     private Map<String, String> handleBuiltInSourceDirect(String sourceName, Interaction event, String option, User user) throws Exception {
         // Check both old config system and new LocalConfig system
         if (isOptionDisabled(sourceName) || !isSourceEnabledInLocalConfig(sourceName)) {
-            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
+            errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.no_images_title"), new LocaleManager(user.getLocale()).get("error.no_images_description"));
             throw new Exception("Command Disabled");
         }
 
@@ -117,8 +117,8 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
         FourChanProvider provider = (FourChanProvider) new MediaServiceFactory().createFourChanProvider();
 
         if (option != null && !provider.isValidBoard(option)) {
-            String errorMessage = new Locale(user.getLocale()).get("error.4chan_invalid_board_description").replace("{0}", option);
-            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.4chan_invalid_board_title"), errorMessage);
+            String errorMessage = new LocaleManager(user.getLocale()).get("error.4chan_invalid_board_description").replace("{0}", option);
+            errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.4chan_invalid_board_title"), errorMessage);
             throw new Exception("Board doesn't exist: " + option);
         }
         
@@ -127,10 +127,10 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
         } catch (Exception e) {
             // Check if it's a board validation error
             if (e.getMessage().contains("No valid 4chan boards found") || e.getMessage().contains("No images available for board")) {
-                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), "No valid 4chan boards available. Please use /support for help.");
+                errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.title"), "No valid 4chan boards available. Please use /support for help.");
                 throw new Exception("No valid 4chan boards available");
             } else {
-                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), "Error fetching 4chan data. Please use /support for help.");
+                errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.title"), "Error fetching 4chan data. Please use /support for help.");
                 throw new Exception("Error fetching 4chan data: " + e.getMessage());
             }
         }
@@ -140,7 +140,7 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
         Map<String, String> map = RandomText.getRandomUrbanWord(option);
         if (map.containsKey("error")) {
-            errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.title"), map.get("error"));
+            errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.title"), map.get("error"));
             throw new Exception(map.get("error"));
         }
 

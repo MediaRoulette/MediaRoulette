@@ -5,10 +5,13 @@ import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.content.MediaSource;
 import me.hash.mediaroulette.content.provider.MediaProvider;
 import me.hash.mediaroulette.content.http.HttpClientWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 public class PicsumProvider implements MediaProvider {
+    private static final Logger logger = LoggerFactory.getLogger(PicsumProvider.class);
     private final HttpClientWrapper httpClient;
 
     public PicsumProvider(HttpClientWrapper httpClient) {
@@ -32,13 +35,13 @@ public class PicsumProvider implements MediaProvider {
         try {
             return getRandomImageDirect();
         } catch (IOException e) {
-            System.err.println("Method 1 failed: " + e.getMessage());
+            logger.error("Method 1 failed: {}", e.getMessage());
         }
 
         try {
             return getRandomImageById();
         } catch (IOException e) {
-            System.err.println("Method 2 failed: " + e.getMessage());
+            logger.error("Method 2 failed: {}", e.getMessage());
         }
 
         // Method 3: Fallback to a specific image

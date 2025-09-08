@@ -23,6 +23,8 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.utils.FileUpload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -43,6 +45,8 @@ import java.util.concurrent.CompletableFuture;
  * Replaces both Embeds.java and LoadingEmbeds.java with optimized, non-duplicated code.
  */
 public class MediaContainerManager {
+    private static final Logger logger = LoggerFactory.getLogger(MediaContainerManager.class);
+
     private static final FFmpegService ffmpegService = new FFmpegService();
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static boolean ffmpegInitialized = false;
@@ -234,7 +238,7 @@ public class MediaContainerManager {
         if (!event.isAcknowledged()) {
             event.deferEdit().queue(
                 success -> updateButtonComponents(event, buttonId),
-                failure -> System.err.println("Failed to defer edit: " + failure.getMessage())
+                failure -> logger.error("Failed to defer edit: {}", failure.getMessage())
             );
         } else {
             updateButtonComponents(event, buttonId);
@@ -245,7 +249,7 @@ public class MediaContainerManager {
         if (!event.isAcknowledged()) {
             event.deferEdit().queue(
                 success -> updateAllButtonComponents(event),
-                failure -> System.err.println("Failed to defer edit: " + failure.getMessage())
+                failure -> logger.error("Failed to defer edit: {}", failure.getMessage())
             );
         } else {
             updateAllButtonComponents(event);
@@ -487,10 +491,10 @@ public class MediaContainerManager {
         }
 
         return FFmpegDownloader.getFFmpegPath().thenCompose(path -> FFmpegDownloader.getFFmpegVersion().thenAccept(version -> {
-            System.out.println("FFmpeg initialized: " + version);
+            logger.info("FFmpeg initialized: {}", version);
             ffmpegInitialized = true;
         })).exceptionally(throwable -> {
-            System.err.println("Failed to initialize FFmpeg: " + throwable.getMessage());
+            logger.error("Failed to initialize FFmpeg: {}", throwable.getMessage());
             return null;
         });
     }
@@ -525,7 +529,7 @@ public class MediaContainerManager {
                     info.getResolution(),
                     info.getFormattedDuration(),
                     info.getCodec())).exceptionally(throwable -> {
-                System.err.println("Failed to get video info: " + throwable.getMessage());
+                logger.error("Failed to get video info: {}", throwable.getMessage());
                 return "📹 Video information unavailable";
             });
         });
@@ -550,11 +554,11 @@ public class MediaContainerManager {
                     javax.imageio.ImageIO.write(thumbnail, "jpg", baos);
                     return baos.toByteArray();
                 } catch (Exception e) {
-                    System.err.println("Failed to convert thumbnail to bytes: " + e.getMessage());
+                    logger.error("Failed to convert thumbnail to bytes: {}", e.getMessage());
                     return null;
                 }
             }).exceptionally(throwable -> {
-                System.err.println("Failed to create video thumbnail: " + throwable.getMessage());
+                logger.error("Failed to create video thumbnail: {}", throwable.getMessage());
                 return null;
             });
         });
@@ -626,8 +630,8 @@ public class MediaContainerManager {
                 Map<String, String> updatedMap = new java.util.HashMap<>(map);
                 updatedMap.put("image", resolvedUrl); // Use direct MP4/M4S URL
                 updatedMap.put("original_video_url", imageUrl); // Keep original for reference
-                
-                System.out.println("Using direct video URL: " + resolvedUrl);
+
+                logger.info("Using direct video URL: {}", resolvedUrl);
                 
                 return extractDominantColor(map).thenApply(color -> {
                     Container container = createImageContainer(event.getUser(), updatedMap, color, shouldContinue);
@@ -651,7 +655,7 @@ public class MediaContainerManager {
             })
             .exceptionally(throwable -> {
                 // If video resolution fails, fallback to regular container
-                System.err.println("Video resolution failed, falling back to regular container: " + throwable.getMessage());
+                logger.error("Video resolution failed, falling back to regular container: {}", throwable.getMessage());
                 try {
                     return sendImageContainer(event, map, shouldContinue).get();
                 } catch (Exception e) {
@@ -683,8 +687,8 @@ public class MediaContainerManager {
                 Map<String, String> updatedMap = new java.util.HashMap<>(map);
                 updatedMap.put("image", resolvedUrl); // Use direct MP4/M4S URL
                 updatedMap.put("original_video_url", imageUrl); // Keep original for reference
-                
-                System.out.println("Using direct video URL: " + resolvedUrl);
+
+                logger.error("Using direct video URL: {}", resolvedUrl);
                 
                 return extractDominantColor(map).thenApply(color -> {
                     Container container = createImageContainer(hook.getInteraction().getUser(), updatedMap, color, shouldContinue);
@@ -700,7 +704,7 @@ public class MediaContainerManager {
             })
             .exceptionally(throwable -> {
                 // If video resolution fails, fallback to regular container
-                System.err.println("Video resolution failed, falling back to regular container: " + throwable.getMessage());
+                logger.error("Video resolution failed, falling back to regular container: {}", throwable.getMessage());
                 
                 try {
                     // Create a fallback container with just the video URL (no direct video)
@@ -761,7 +765,7 @@ public class MediaContainerManager {
                     return extractColorFromImage(imageUrl);
                 }
             } catch (Exception e) {
-                System.err.println("Failed to extract color from: " + imageUrl + " - " + e.getMessage());
+                logger.error("Failed to extract color from: {} - {}", imageUrl, e.getMessage());
                 return Color.CYAN;
             }
         });
@@ -782,7 +786,7 @@ public class MediaContainerManager {
             try {
                 return extractColorFromImage(previewUrl);
             } catch (Exception e) {
-                System.err.println("Failed to extract color from preview, falling back to FFmpeg: " + e.getMessage());
+                logger.error("Failed to extract color from preview, falling back to FFmpeg: {}", e.getMessage());
             }
         }
         
@@ -790,7 +794,7 @@ public class MediaContainerManager {
         try {
             return ffmpegService.extractDominantColor(url).get();
         } catch (Exception e) {
-            System.err.println("FFmpeg color extraction failed: " + e.getMessage());
+            logger.error("FFmpeg color extraction failed: {}", e.getMessage());
             return Color.CYAN;
         }
     }

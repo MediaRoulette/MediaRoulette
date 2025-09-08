@@ -4,7 +4,6 @@ import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.*;
-import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.service.DictionaryService;
 import com.mongodb.client.MongoCollection;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
@@ -13,14 +12,19 @@ import org.bson.Document;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
+import java.io.InputStream;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +33,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class SettingsCommand extends ListenerAdapter implements CommandHandler {
+    private static final Logger logger = LoggerFactory.getLogger(SettingsCommand.class);
+
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
     private static final Color SUCCESS_COLOR = new Color(87, 242, 135);
     private static final Color ERROR_COLOR = new Color(220, 53, 69);
@@ -37,7 +43,7 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
         "tenor", "google", "reddit"
     );
     
-    private DictionaryService dictionaryService;
+    private final DictionaryService dictionaryService;
     
     public SettingsCommand(DictionaryService dictionaryService) {
         this.dictionaryService = dictionaryService;
@@ -184,7 +190,7 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
             }
             configBuilder.append("=".repeat(50)).append("\n");
             configBuilder.append("User ID: ").append(userId).append("\n");
-            configBuilder.append("Export Date: ").append(java.time.Instant.now().toString()).append("\n");
+            configBuilder.append("Export Date: ").append(Instant.now().toString()).append("\n");
             if (customDescription != null) {
                 configBuilder.append("Description: ").append(customDescription).append("\n");
             }
@@ -301,7 +307,7 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
                     .addField("📋 Title", titleText, true)
                     .addField("📝 Description", descText, true)
                     .setFooter("Configuration created at", null)
-                    .setTimestamp(java.time.Instant.now());
+                    .setTimestamp(Instant.now());
                     
                 event.getHook().sendMessageEmbeds(embed.build())
                     .addComponents(ActionRow.of(applyConfigButton))
@@ -341,19 +347,18 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
                 .addField("📋 Applied Config", configTitle != null ? configTitle : "Configuration", true)
                 .addField("📝 Description", configDescription != null ? configDescription : "MediaRoulette configuration", true)
                 .setFooter("Configuration applied at", null)
-                .setTimestamp(java.time.Instant.now());
+                .setTimestamp(Instant.now());
                 
             event.getHook().sendMessageEmbeds(embed.build()).queue();
             
         } catch (Exception e) {
-            System.err.println("Failed to apply shared configuration: " + e.getMessage());
-            e.printStackTrace();
-            
+            logger.error("Failed to apply shared configuration: {}", e.getMessage());
+
             EmbedBuilder errorEmbed = new EmbedBuilder()
                 .setTitle("❌ Configuration Apply Failed")
                 .setDescription("Failed to apply the shared configuration. The configuration may be invalid or expired.")
                 .setColor(ERROR_COLOR)
-                .setTimestamp(java.time.Instant.now());
+                .setTimestamp(Instant.now());
                 
             event.getHook().sendMessageEmbeds(errorEmbed.build()).queue();
         }
@@ -371,14 +376,14 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
                 .append("title", title)
                 .append("description", description)
                 .append("creatorUserId", creatorUserId)
-                .append("createdAt", java.time.Instant.now())
-                .append("expiresAt", java.time.Instant.now().plusSeconds(30 * 24 * 60 * 60)); // 30 days
+                .append("createdAt", Instant.now())
+                .append("expiresAt", Instant.now().plusSeconds(30 * 24 * 60 * 60)); // 30 days
             
             configCollection.insertOne(configDoc);
             return configId;
             
         } catch (Exception e) {
-            System.err.println("Failed to store configuration in database: " + e.getMessage());
+            logger.error("Failed to store configuration in database: {}", e.getMessage());
             return null;
         }
     }
@@ -388,12 +393,12 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
             MongoCollection<Document> configCollection = Main.database.getCollection("shared_configs");
             
             Document query = new Document("_id", configId)
-                .append("expiresAt", new Document("$gt", java.time.Instant.now()));
+                .append("expiresAt", new Document("$gt", Instant.now()));
             
             return configCollection.find(query).first();
             
         } catch (Exception e) {
-            System.err.println("Failed to retrieve configuration from database: " + e.getMessage());
+            logger.error("Failed to retrieve configuration from database: {}", e.getMessage());
             return null;
         }
     }
@@ -560,7 +565,7 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
             Main.userService.updateUser(user);
             
         } catch (Exception e) {
-            System.err.println("Failed to parse and apply configuration: " + e.getMessage());
+            logger.error("Failed to parse and apply configuration: {}", e.getMessage());
         }
     }
     
@@ -613,17 +618,17 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
             // Reset all image source chances to default values
             // Load default values from randomWeightValues.json
             try {
-                java.io.InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config/randomWeightValues.json");
+                InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config/randomWeightValues.json");
                 if (inputStream != null) {
                     String jsonContent = new String(inputStream.readAllBytes());
-                    org.json.JSONArray defaultValues = new org.json.JSONArray(jsonContent);
+                    JSONArray defaultValues = new JSONArray(jsonContent);
                     
                     // Clear existing image options
                     user.getImageOptionsMap().clear();
                     
                     // Set default values
                     for (int i = 0; i < defaultValues.length(); i++) {
-                        org.json.JSONObject item = defaultValues.getJSONObject(i);
+                        JSONObject item = defaultValues.getJSONObject(i);
                         String imageType = item.getString("imageType");
                         boolean enabled = item.getBoolean("enabled");
                         double chance = item.getDouble("chance");
@@ -645,7 +650,7 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
                             removedAssignments))
                         .setColor(SUCCESS_COLOR)
                         .setFooter("Reset completed at", null)
-                        .setTimestamp(java.time.Instant.now());
+                        .setTimestamp(Instant.now());
                         
                     event.getHook().sendMessageEmbeds(embed.build()).queue();
                 } else {

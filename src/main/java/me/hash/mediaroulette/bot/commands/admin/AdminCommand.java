@@ -9,7 +9,6 @@ import me.hash.mediaroulette.model.BotInventoryItem;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.service.BotInventoryService;
 import me.hash.mediaroulette.service.GiveawayService;
-import me.hash.mediaroulette.utils.Locale;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.label.Label;

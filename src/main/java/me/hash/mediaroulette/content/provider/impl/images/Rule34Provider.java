@@ -8,10 +8,13 @@ import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 public class Rule34Provider implements MediaProvider {
+    private static final Logger logger = LoggerFactory.getLogger(Rule34Provider.class);
     private final HttpClientWrapper httpClient;
 
     public Rule34Provider(HttpClientWrapper httpClient) {
@@ -64,7 +67,7 @@ public class Rule34Provider implements MediaProvider {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Rule34 scraping failed {}", e.getMessage());
             }
 
             String description = "Source: Rule34 - NSFW Content\nURL: " + (finalUrl != null ? finalUrl : "N/A");

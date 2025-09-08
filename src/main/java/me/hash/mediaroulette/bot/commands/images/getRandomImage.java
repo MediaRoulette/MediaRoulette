@@ -9,7 +9,7 @@ import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.plugins.Images.ImageSource;
 import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
-import me.hash.mediaroulette.utils.Locale;
+import me.hash.mediaroulette.utils.LocaleManager;
 import me.hash.mediaroulette.utils.MaintenanceChecker;
 import me.hash.mediaroulette.utils.QuestGenerator;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -156,7 +156,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             try {
                 Map<String, String> image = ImageSource.handle(subcommand.toUpperCase(), event, query);
                 if (image == null || image.get("image") == null) {
-                    errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.no_images_title"), new Locale(user.getLocale()).get("error.no_images_description"));
+                    errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.no_images_title"), new LocaleManager(user.getLocale()).get("error.no_images_description"));
                     return;
                 }
 
@@ -169,16 +169,16 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                             Main.userService.updateUser(user);
                         })
                         .exceptionally(ex -> {
-                            errorHandler.handleException(event, new Locale(user.getLocale()).get("error.unexpected_error"), new Locale(user.getLocale()).get("error.failed_to_send_image"), ex);
+                            errorHandler.handleException(event, new LocaleManager(user.getLocale()).get("error.unexpected_error"), new LocaleManager(user.getLocale()).get("error.failed_to_send_image"), ex);
                             return null;
                         });
             } catch (Exception e) {
-                errorHandler.sendErrorEmbed(event, new Locale(user.getLocale()).get("error.generic_title"), e.getMessage());
+                errorHandler.sendErrorEmbed(event, new LocaleManager(user.getLocale()).get("error.generic_title"), e.getMessage());
             }
             user.incrementImagesGenerated();
             Main.userService.updateUser(user);
         } catch (Exception e) {
-            errorHandler.handleException(event, new Locale(user.getLocale()).get("error.unexpected_error"), e.getMessage(), e);
+            errorHandler.handleException(event, new LocaleManager(user.getLocale()).get("error.unexpected_error"), e.getMessage(), e);
         }
     }
 
@@ -206,8 +206,8 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
 
             if (!data.isUserAllowed(event.getUser().getIdLong())) {
                 // Show error container using hook since interaction is already acknowledged
-                showErrorContainer(event, new Locale(user.getLocale()).get("error.unknown_button_title"),
-                        new Locale(user.getLocale()).get("error.unknown_button_description"));
+                showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.unknown_button_title"),
+                        new LocaleManager(user.getLocale()).get("error.unknown_button_description"));
                 return;
             }
 
@@ -234,8 +234,8 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                 case null:
                 default:
                     // Show error container using hook since interaction is already acknowledged
-                    showErrorContainer(event, new Locale(user.getLocale()).get("error.unknown_button_title"),
-                            new Locale(user.getLocale()).get("error.unknown_button_description"));
+                    showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.unknown_button_title"),
+                            new LocaleManager(user.getLocale()).get("error.unknown_button_description"));
             }
         });
     }
@@ -250,8 +250,8 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     try {
                         Map<String, String> image = ImageSource.handle(data.getSubcommand().toUpperCase(), event, data.getQuery());
                         if (image == null || image.get("image") == null) {
-                            showErrorContainer(event, new Locale(user.getLocale()).get("error.no_more_images_title"),
-                                    new Locale(user.getLocale()).get("error.no_more_images_description"));
+                            showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.no_more_images_title"),
+                                    new LocaleManager(user.getLocale()).get("error.no_more_images_description"));
                             return;
                         }
                         MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
@@ -260,7 +260,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                         QuestGenerator.onImageGenerated(user, data.getSubcommand());
                         Main.userService.updateUser(user);
                     } catch (Exception e) {
-                        showErrorContainer(event, new Locale(user.getLocale()).get("error.title"), e.getMessage());
+                        showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.title"), e.getMessage());
                     }
                 });
     }
@@ -270,8 +270,8 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
         try {
             MessageData data = ACTIVE_MESSAGES.get(event.getMessageIdLong());
             if (data == null) {
-                showErrorContainer(event, new Locale(user.getLocale()).get("error.no_image_title"),
-                        new Locale(user.getLocale()).get("error.no_image_description"));
+                showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.no_image_title"),
+                        new LocaleManager(user.getLocale()).get("error.no_image_description"));
                 return;
             }
 
@@ -283,7 +283,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             Main.userService.updateUser(user);
             disableButtonInContainer(event, "favorite");
         } catch (Exception e) {
-            showErrorContainer(event, new Locale(user.getLocale()).get("error.title"), e.getMessage());
+            showErrorContainer(event, new LocaleManager(user.getLocale()).get("error.title"), e.getMessage());
         }
     }
 
