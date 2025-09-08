@@ -89,7 +89,7 @@
     </tr>
     <tr>
       <td>🅰️ <strong>4Chan</strong></td>
-      <td>✅ Active</td>
+      <td>❌ Maintenance</td>
       <td>Imageboards</td>
     </tr>
     <tr>
