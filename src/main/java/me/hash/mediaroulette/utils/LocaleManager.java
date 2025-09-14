@@ -66,18 +66,23 @@ public class LocaleManager {
                 this.locale = new Locale(parts[0]);
             }
 
-            // Try to load the requested locale
-            this.bundle = ResourceBundle.getBundle("messages", this.locale);
+            this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
 
         } catch (MissingResourceException e) {
             // Fallback to default locale (en_US)
-            logger.error("Locale {} not found, falling back to en_US", localeName);
+            logger.warn("Locale {} not found, falling back to en_US", localeName);
             this.locale = new Locale("en", "US");
             try {
-                this.bundle = ResourceBundle.getBundle("messages", this.locale);
+                this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
             } catch (MissingResourceException fallbackError) {
-                // If even the fallback fails, try the root bundle
-                this.bundle = ResourceBundle.getBundle("locales.messages");
+                // If even the fallback fails, try without locale specification
+                logger.error("Could not load locales.messages bundle for en_US, trying default", fallbackError);
+                try {
+                    this.bundle = ResourceBundle.getBundle("locales.messages");
+                } catch (MissingResourceException finalError) {
+                    logger.error("Could not load any locales.messages bundle", finalError);
+                    throw new RuntimeException("Could not initialize LocaleManager - no resource bundles found", finalError);
+                }
             }
         }
     }
@@ -93,7 +98,7 @@ public class LocaleManager {
         try {
             return bundle.getString(key);
         } catch (MissingResourceException e) {
-            logger.error("Translation key not found: {}", key);
+            logger.warn("Translation key not found: {}", key);
             return key; // Return the key as fallback
         }
     }
@@ -114,11 +119,15 @@ public class LocaleManager {
             }
             return MessageFormat.format(pattern, args);
         } catch (MissingResourceException e) {
-            logger.error("Translation key not found: {}", key);
+            logger.warn("Translation key not found: {}", key);
             return key;
         } catch (IllegalArgumentException e) {
             logger.error("Error formatting message for key: {} - {}", key, e.getMessage());
-            return bundle.getString(key); // Return unformatted message
+            try {
+                return bundle.getString(key); // Return unformatted message
+            } catch (MissingResourceException mre) {
+                return key; // Return key if even unformatted message fails
+            }
         }
     }
 

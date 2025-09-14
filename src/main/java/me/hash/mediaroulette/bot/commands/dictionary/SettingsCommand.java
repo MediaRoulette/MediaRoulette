@@ -2,12 +2,16 @@ package me.hash.mediaroulette.bot.commands.dictionary;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.model.*;
 import me.hash.mediaroulette.service.DictionaryService;
 import com.mongodb.client.MongoCollection;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.IntegrationType;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import org.bson.Document;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -32,7 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-public class SettingsCommand extends ListenerAdapter implements CommandHandler {
+public class SettingsCommand extends BaseCommand {
     private static final Logger logger = LoggerFactory.getLogger(SettingsCommand.class);
 
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
@@ -59,17 +63,19 @@ public class SettingsCommand extends ListenerAdapter implements CommandHandler {
                     new SubcommandData("view", "View current assignments"),
                     new SubcommandData("unassign", "Remove dictionary assignment")
                         .addOption(OptionType.STRING, "source", "Source name", true),
-                    new SubcommandData("shareconfig", "Share your configuration via Hastebin")
+                    new SubcommandData("shareconfig", "Share your configuration")
                         .addOption(OptionType.STRING, "title", "Title for the configuration share", false)
                         .addOption(OptionType.STRING, "description", "Description for the configuration share", false),
                     new SubcommandData("assigndefault", "Remove dictionary assignment and use default")
                         .addOption(OptionType.STRING, "source", "Source name (tenor, reddit, etc.)", true),
                     new SubcommandData("reset", "Reset all settings to default values")
-                );
+                ).setIntegrationTypes(IntegrationType.ALL)
+                .setContexts(InteractionContextType.ALL);
     }
     
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"settings"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("settings")) return;
         
         event.deferReply().queue();

@@ -1,5 +1,7 @@
 package me.hash.mediaroulette.bot.commands.admin;
 
+import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +32,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
-public class GiveawayCommand extends ListenerAdapter implements CommandHandler {
+public class GiveawayCommand extends BaseCommand {
     private static final Logger logger = LoggerFactory.getLogger(GiveawayCommand.class);
 
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
@@ -68,7 +70,8 @@ public class GiveawayCommand extends ListenerAdapter implements CommandHandler {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"giveaway"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("giveaway")) return;
 
         // Check if user is admin

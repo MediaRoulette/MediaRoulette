@@ -16,11 +16,11 @@ public class HttpClientWrapper {
     
     private final HttpClient httpClient;
     private final ConcurrentHashMap<String, AtomicLong> rateLimitMap;
-    private static final long DEFAULT_RATE_LIMIT_DELAY = 2000; // 2 seconds between requests per domain
+    private static final long DEFAULT_RATE_LIMIT_DELAY = 100;
     
     public HttpClientWrapper() {
         this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(30))
+            .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
         this.rateLimitMap = new ConcurrentHashMap<>();
@@ -32,7 +32,7 @@ public class HttpClientWrapper {
     public HttpResponse<String> get(String url) throws IOException, InterruptedException, RateLimitException {
         return sendRequest(HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .timeout(Duration.ofSeconds(30))
+            .timeout(Duration.ofSeconds(15))
             .GET()
             .build());
     }
@@ -67,17 +67,16 @@ public class HttpClientWrapper {
      */
     private HttpResponse<String> sendRequest(HttpRequest request) throws IOException, InterruptedException, RateLimitException {
         String domain = request.uri().getHost();
-        
-        // Check rate limit
+
         AtomicLong lastRequest = rateLimitMap.computeIfAbsent(domain, k -> new AtomicLong(0));
         long now = System.currentTimeMillis();
         long timeSinceLastRequest = now - lastRequest.get();
-        
+
         if (timeSinceLastRequest < DEFAULT_RATE_LIMIT_DELAY) {
             long waitTime = DEFAULT_RATE_LIMIT_DELAY - timeSinceLastRequest;
-            throw new RateLimitException("Rate limit exceeded for " + domain + ". Wait " + waitTime + "ms");
+            Thread.sleep(waitTime);
         }
-        
+
         lastRequest.set(now);
         
         // Add user agent to avoid 403 errors (excluding restricted headers)

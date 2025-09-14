@@ -1,10 +1,15 @@
 package me.hash.mediaroulette.bot.commands.dictionary;
 
+import com.fasterxml.jackson.databind.ser.Serializers;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.model.Dictionary;
+import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.service.DictionaryService;
+import me.hash.mediaroulette.utils.LocaleManager;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -15,6 +20,8 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.IntegrationType;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -26,12 +33,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-public class DictionaryCommand extends ListenerAdapter implements CommandHandler {
+public class DictionaryCommand extends BaseCommand {
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
     private static final Color SUCCESS_COLOR = new Color(87, 242, 135);
     private static final Color ERROR_COLOR = new Color(220, 53, 69);
     
-    private DictionaryService dictionaryService;
+    private final DictionaryService dictionaryService;
     
     public DictionaryCommand(DictionaryService dictionaryService) {
         this.dictionaryService = dictionaryService;
@@ -52,11 +59,13 @@ public class DictionaryCommand extends ListenerAdapter implements CommandHandler
                     new SubcommandData("delete", "Delete a dictionary")
                         .addOption(OptionType.STRING, "id", "Dictionary ID", true),
                     new SubcommandData("public", "Browse public dictionaries")
-                );
+                ).setIntegrationTypes(IntegrationType.ALL)
+                .setContexts(InteractionContextType.ALL);
     }
     
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"dictionary"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("dictionary")) return;
         
         event.deferReply().queue();
@@ -208,6 +217,15 @@ public class DictionaryCommand extends ListenerAdapter implements CommandHandler
         String userId = event.getUser().getId();
         
         Bot.executor.execute(() -> {
+            User user = Main.userService.getOrCreateUser(event.getUser().getId());
+            LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+
+            String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
+            if (!event.getUser().getId().equals(originalUserId)) {
+                event.reply(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
+                return;
+            }
+
             // Check permissions first
             Optional<Dictionary> dictOpt = dictionaryService.getDictionary(dictId);
             if (dictOpt.isEmpty() || !dictOpt.get().canBeEditedBy(userId)) {

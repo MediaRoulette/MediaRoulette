@@ -1,12 +1,12 @@
 package me.hash.mediaroulette.bot.commands.bot;
 
 import me.hash.mediaroulette.bot.Bot;
-import me.hash.mediaroulette.bot.commands.CommandHandler;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
@@ -15,7 +15,7 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import java.awt.Color;
 import java.time.Instant;
 
-public class SupportCommand extends ListenerAdapter implements CommandHandler {
+public class SupportCommand extends BaseCommand {
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
     private static final String SUPPORT_SERVER_URL = "https://discord.gg/Kr7qvutZ4N";
 
@@ -27,7 +27,8 @@ public class SupportCommand extends ListenerAdapter implements CommandHandler {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"support"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("support")) return;
 
         event.deferReply().queue();

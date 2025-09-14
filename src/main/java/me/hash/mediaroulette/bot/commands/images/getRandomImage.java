@@ -2,8 +2,10 @@ package me.hash.mediaroulette.bot.commands.images;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.MediaContainerManager;
-import me.hash.mediaroulette.bot.errorHandler;
+import me.hash.mediaroulette.bot.utils.errorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.plugins.Images.ImageSource;
@@ -32,7 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class getRandomImage extends ListenerAdapter implements CommandHandler {
+public class getRandomImage extends BaseCommand {
 
     @Override
     public CommandData getCommandData() {
@@ -120,13 +122,15 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"random"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("random")) return;
 
         if (MaintenanceChecker.isMaintenanceBlocked(event)) {
             MaintenanceChecker.sendMaintenanceMessage(event);
             return;
         }
+
 
         event.deferReply().queue();
 
@@ -205,8 +209,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
             data.updateLastInteractionTime();
 
             if (!data.isUserAllowed(event.getUser().getIdLong())) {
-                showErrorContainer(event, localeManager.get("error.image_interaction_not_allowed_title"),
-                        localeManager.get("error.image_interaction_not_allowed_description"));
+                event.getHook().sendMessage(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
                 return;
             }
 
@@ -222,7 +225,6 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     break;
                 case "nsfw":
                 case "safe":
-                    // Update quest progress for rating images
                     QuestGenerator.onImageRated(user);
                     Main.userService.updateUser(user);
                     disableAllButtonsInContainer(event);
@@ -232,7 +234,6 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     break;
                 case null:
                 default:
-                    // Show error container using hook since interaction is already acknowledged
                     showErrorContainer(event, localeManager.get("error.unknown_button_title"),
                             localeManager.get("error.unknown_button_description"));
             }
@@ -255,7 +256,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                             return;
                         }
                         MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
-                        
+
                         user.incrementImagesGenerated();
                         QuestGenerator.onImageGenerated(user, data.getSubcommand());
                         Main.userService.updateUser(user);
@@ -306,7 +307,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
         String description;
         String imageUrl;
         Integer accentColor;
-        
+
         ContainerData(String title, String description, String imageUrl, Integer accentColor) {
             this.title = title;
             this.description = description;
@@ -320,16 +321,16 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
         String description = null;
         String imageUrl = null;
         Integer accentColor = null;
-        
+
         try {
             var components = message.getComponents();
             if (components.isEmpty()) {
                 return new ContainerData(null, null, null, null);
             }
-            
+
             var container = components.getFirst().asContainer();
             var containerComponents = container.getComponents();
-            
+
             // Extract accent color from container
             try {
                 java.awt.Color color = container.getAccentColor();
@@ -337,7 +338,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     accentColor = color.getRGB();
                 }
             } catch (Exception ignored) { }
-            
+
             // Process all components in the container
             for (var comp : containerComponents) {
                 try {
@@ -345,14 +346,14 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     if (comp.getType() == Component.Type.SECTION) {
                         var section = comp.asSection();
                         var sectionComponents = section.getContentComponents();
-                        
+
                         for (var sectionComp : sectionComponents) {
                             try {
                                 if (sectionComp.getType() == Component.Type.TEXT_DISPLAY) {
                                     var textDisplay = sectionComp.asTextDisplay();
                                     String text = textDisplay.getContent();
                                     String trimmed = text.trim();
-                                    
+
                                     if (trimmed.startsWith("## ")) {
                                         // Header title (remove the ## markdown)
                                         title = trimmed.substring(3).trim();
@@ -376,7 +377,7 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     }
                 } catch (Exception ignored) { }
             }
-            
+
             // Fallback: if gallery URL is an attachment or not found, try message attachments (Discord CDN URL)
             if ((imageUrl == null || imageUrl.startsWith("attachment://")) && !message.getAttachments().isEmpty()) {
                 String attachUrl = message.getAttachments().getFirst().getUrl();
@@ -384,12 +385,12 @@ public class getRandomImage extends ListenerAdapter implements CommandHandler {
                     imageUrl = attachUrl;
                 }
             }
-            
+
         } catch (Exception e) {
             System.err.println("Error extracting container data: " + e.getMessage());
             e.printStackTrace();
         }
-        
+
         return new ContainerData(title, description, imageUrl, accentColor);
     }
 

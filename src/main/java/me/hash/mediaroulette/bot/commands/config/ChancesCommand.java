@@ -2,10 +2,13 @@ package me.hash.mediaroulette.bot.commands.config;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
-import me.hash.mediaroulette.bot.Emoji;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
+import me.hash.mediaroulette.bot.utils.Emoji;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.ImageOptions;
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.utils.LocaleManager;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -29,7 +32,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ChancesCommand extends ListenerAdapter implements CommandHandler {
+public class ChancesCommand extends BaseCommand {
 
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
     private static final Color SUCCESS_COLOR = new Color(87, 242, 135);
@@ -45,25 +48,13 @@ public class ChancesCommand extends ListenerAdapter implements CommandHandler {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"chances"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("chances")) return;
 
         event.deferReply().queue();
         Bot.executor.execute(() -> {
-            long now = System.currentTimeMillis();
             long userId = event.getUser().getIdLong();
-
-            if (Bot.COOLDOWNS.containsKey(userId) && now - Bot.COOLDOWNS.get(userId) < Bot.COOLDOWN_DURATION) {
-                EmbedBuilder cooldownEmbed = new EmbedBuilder()
-                        .setTitle("⏰ Slow Down!")
-                        .setDescription("Please wait **2 seconds** before using this command again.")
-                        .setColor(ERROR_COLOR)
-                        .setTimestamp(Instant.now());
-                event.getHook().sendMessageEmbeds(cooldownEmbed.build()).queue();
-                return;
-            }
-
-            Bot.COOLDOWNS.put(userId, now);
 
             User user = Main.userService.getOrCreateUser(event.getUser().getId());
             
@@ -87,16 +78,24 @@ public class ChancesCommand extends ListenerAdapter implements CommandHandler {
     public void onButtonInteraction(ButtonInteractionEvent event) {
         if (!event.getComponentId().startsWith("chances:")) return;
 
+        long userId = event.getUser().getIdLong();
+        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+
+        String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
+        if (!event.getUser().getId().equals(originalUserId)) {
+            event.getHook().sendMessage(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
+            return;
+        }
+
         String action = event.getComponentId().split(":")[1];
         
         // Handle edit actions differently (no defer, direct modal reply)
         if (action.startsWith("edit_")) {
             Bot.executor.execute(() -> {
-                long userId = event.getUser().getIdLong();
                 ChancesSession session = USER_SESSIONS.get(userId);
                 
                 if (session == null) {
-                    User user = Main.userService.getOrCreateUser(event.getUser().getId());
                     if (user.getImageOptionsMap().isEmpty()) {
                         initializeDefaultOptions(user);
                     }
@@ -113,11 +112,9 @@ public class ChancesCommand extends ListenerAdapter implements CommandHandler {
         // For all other actions, defer edit first
         event.deferEdit().queue();
         Bot.executor.execute(() -> {
-            long userId = event.getUser().getIdLong();
             ChancesSession session = USER_SESSIONS.get(userId);
             
             if (session == null) {
-                User user = Main.userService.getOrCreateUser(event.getUser().getId());
                 if (user.getImageOptionsMap().isEmpty()) {
                     initializeDefaultOptions(user);
                 }
@@ -147,6 +144,16 @@ public class ChancesCommand extends ListenerAdapter implements CommandHandler {
         event.deferEdit().queue();
         Bot.executor.execute(() -> {
             long userId = event.getUser().getIdLong();
+
+            User user = Main.userService.getOrCreateUser(event.getUser().getId());
+            LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+
+            String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
+            if (!event.getUser().getId().equals(originalUserId)) {
+                event.getHook().sendMessage(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
+                return;
+            }
+
             ChancesSession session = USER_SESSIONS.get(userId);
             
             if (session == null) return;

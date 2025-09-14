@@ -2,7 +2,9 @@ package me.hash.mediaroulette.bot.commands.admin;
 
 import java.io.IOException;
 
-import me.hash.mediaroulette.bot.errorHandler;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
+import me.hash.mediaroulette.bot.utils.errorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.content.factory.MediaServiceFactory;
 import me.hash.mediaroulette.content.http.HttpClientWrapper;
@@ -16,7 +18,7 @@ import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 
-public class ChannelNuke extends ListenerAdapter implements CommandHandler {
+public class ChannelNuke extends BaseCommand {
 
     @Override
     public CommandData getCommandData() {
@@ -25,22 +27,13 @@ public class ChannelNuke extends ListenerAdapter implements CommandHandler {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"nuke"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("nuke"))
             return;
 
         event.deferReply().queue();
         Bot.executor.execute(() -> {
-            long now = System.currentTimeMillis();
-            long userId = event.getUser().getIdLong();
-
-            if (Bot.COOLDOWNS.containsKey(userId) && now - Bot.COOLDOWNS.get(userId) < Bot.COOLDOWN_DURATION) {
-                errorHandler.sendErrorEmbed(event, "Slow down dude", "Please wait for 2 seconds before using this command again!...");
-                return;
-            }
-
-            Bot.COOLDOWNS.put(userId, now);
-
             if (!event.getMember().hasPermission(Permission.MANAGE_CHANNEL)) {
                 errorHandler.sendErrorEmbed(event, "Sorry dude...", "You do not have the Manage Channel permission.");
                 return;

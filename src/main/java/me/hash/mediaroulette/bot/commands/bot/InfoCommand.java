@@ -4,15 +4,16 @@ import java.awt.Color;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.OperatingSystemMXBean;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+import com.fasterxml.jackson.databind.ser.Serializers;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.model.User;
-import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.container.Container;
@@ -34,7 +35,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import static me.hash.mediaroulette.bot.MediaContainerManager.PREMIUM_COLOR;
 import static me.hash.mediaroulette.bot.MediaContainerManager.PRIMARY_COLOR;
 
-public class InfoCommand extends ListenerAdapter implements CommandHandler {
+public class InfoCommand extends BaseCommand {
     private static final Color ACCENT_COLOR = new Color(114, 137, 218);
     private static final MemoryMXBean MEMORY_BEAN = ManagementFactory.getMemoryMXBean();
     private static final OperatingSystemMXBean OS_BEAN = ManagementFactory.getOperatingSystemMXBean();
@@ -52,13 +53,12 @@ public class InfoCommand extends ListenerAdapter implements CommandHandler {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"info"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("info")) return;
 
         event.deferReply().queue();
         Bot.executor.execute(() -> {
-            if (!checkCooldown(event)) return;
-
             Container container = "bot".equals(event.getSubcommandName())
                     ? getBotInfoContainer()
                     : getUserInfoContainer(event.getUser());
@@ -99,24 +99,6 @@ public class InfoCommand extends ListenerAdapter implements CommandHandler {
                     : createUserActionContainer(event.getUser().getId(), value);
             event.getHook().editOriginalComponents(container).useComponentsV2().queue();
         });
-    }
-
-    private boolean checkCooldown(SlashCommandInteractionEvent event) {
-        long now = System.currentTimeMillis();
-        long userId = event.getUser().getIdLong();
-
-        if (Bot.COOLDOWNS.containsKey(userId) && now - Bot.COOLDOWNS.get(userId) < Bot.COOLDOWN_DURATION) {
-            EmbedBuilder cooldownEmbed = new EmbedBuilder()
-                    .setTitle("⏰ Slow Down!")
-                    .setDescription("Please wait **2 seconds** before using this command again.")
-                    .setColor(new Color(255, 107, 107))
-                    .setTimestamp(Instant.now());
-            event.getHook().sendMessageEmbeds(cooldownEmbed.build()).queue();
-            return false;
-        }
-
-        Bot.COOLDOWNS.put(userId, now);
-        return true;
     }
 
     private boolean isValidButtonId(String id) {

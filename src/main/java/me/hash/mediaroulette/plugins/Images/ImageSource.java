@@ -2,7 +2,7 @@ package me.hash.mediaroulette.plugins.Images;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
-import me.hash.mediaroulette.bot.errorHandler;
+import me.hash.mediaroulette.bot.utils.errorHandler;
 import me.hash.mediaroulette.content.RandomText;
 import me.hash.mediaroulette.content.factory.MediaServiceFactory;
 import me.hash.mediaroulette.content.provider.impl.images.FourChanProvider;

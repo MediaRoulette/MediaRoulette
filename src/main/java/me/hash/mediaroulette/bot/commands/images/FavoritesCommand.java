@@ -1,9 +1,10 @@
 package me.hash.mediaroulette.bot.commands.images;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.MediaContainerManager;
-import me.hash.mediaroulette.bot.errorHandler;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
+import me.hash.mediaroulette.bot.utils.errorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.Favorite;
 import me.hash.mediaroulette.model.User;
@@ -38,7 +39,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FavoritesCommand extends ListenerAdapter implements CommandHandler {
+public class FavoritesCommand extends BaseCommand {
     private static final int ITEMS_PER_PAGE = 25;
 
     @Override
@@ -49,7 +50,8 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"favorites"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("favorites"))
             return;
 
@@ -60,16 +62,7 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
 
         event.deferReply().queue();
 
-        long now = System.currentTimeMillis();
-        long userId = event.getUser().getIdLong();
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
-
-        if (Bot.COOLDOWNS.containsKey(userId) && now - Bot.COOLDOWNS.get(userId) < Bot.COOLDOWN_DURATION) {
-            errorHandler.sendErrorEmbed(event, "Slow down!", "Please wait for 2 seconds before using this command again.");
-            return;
-        }
-
-        Bot.COOLDOWNS.put(userId, now);
 
         if (!validateChannelAccess(event, user))
             return;
@@ -79,7 +72,6 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
             return;
         }
 
-        // Show the first favorite by default
         sendFavoriteDetail(event.getHook(), user, 0, true);
     }
 
@@ -151,6 +143,9 @@ public class FavoritesCommand extends ListenerAdapter implements CommandHandler 
 
     @Override
     public void onStringSelectInteraction(StringSelectInteractionEvent event) {
+        if (!event.getComponentId().equals("favorite-select-menu"))
+            return;
+
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale()); // Get once, use multiple times
 

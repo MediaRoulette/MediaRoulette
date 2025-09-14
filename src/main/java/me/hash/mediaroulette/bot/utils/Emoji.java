@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.bot;
+package me.hash.mediaroulette.bot.utils;
 
 public enum Emoji {
     YT_SHORTS_LOGO("<:yt_shorts_logo:1406389291915018250>"),

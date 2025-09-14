@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.bot;
+package me.hash.mediaroulette.bot.utils;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.model.User;

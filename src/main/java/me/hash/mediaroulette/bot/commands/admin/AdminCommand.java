@@ -1,7 +1,10 @@
 package me.hash.mediaroulette.bot.commands.admin;
 
+import com.fasterxml.jackson.databind.ser.Serializers;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
+import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.utils.LocalConfig;
 import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
@@ -34,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class AdminCommand extends ListenerAdapter implements CommandHandler {
+public class AdminCommand extends BaseCommand {
 
     private static final Color PRIMARY_COLOR = new Color(88, 101, 242);
     private static final Color SUCCESS_COLOR = new Color(87, 242, 135);
@@ -88,7 +91,8 @@ public class AdminCommand extends ListenerAdapter implements CommandHandler {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    @CommandCooldown(value = 3, commands = {"admin"})
+    public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("admin")) return;
 
         User user = Main.userService.getOrCreateUser(event.getUser().getId());
