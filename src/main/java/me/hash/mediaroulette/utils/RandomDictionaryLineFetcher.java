@@ -1,4 +1,4 @@
-package me.hash.mediaroulette;
+package me.hash.mediaroulette.utils;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;

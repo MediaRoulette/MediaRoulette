@@ -25,7 +25,7 @@ repositories {
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("net.dv8tion:JDA:6.0.0-rc.4")
+    implementation("net.dv8tion:JDA:6.1.0")
 
     implementation("org.json:json:20250517")
     implementation("org.jsoup:jsoup:1.16.1")
@@ -33,7 +33,7 @@ dependencies {
     implementation("io.github.cdimascio:dotenv-java:3.0.0")
     implementation("club.minnced:discord-webhooks:0.8.4")
     implementation("org.mongodb:mongodb-driver-sync:5.5.1")
-    implementation("ch.qos.logback:logback-classic:1.5.18")
+    implementation("ch.qos.logback:logback-classic:1.5.19")
     implementation("org.fusesource.jansi:jansi:2.4.0")
     implementation("org.yaml:snakeyaml:2.4")
 

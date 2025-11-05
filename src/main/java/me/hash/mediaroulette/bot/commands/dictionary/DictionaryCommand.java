@@ -217,7 +217,7 @@ public class DictionaryCommand extends BaseCommand {
         String userId = event.getUser().getId();
         
         Bot.executor.execute(() -> {
-            User user = Main.userService.getOrCreateUser(event.getUser().getId());
+            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
             LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
             String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();

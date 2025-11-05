@@ -360,7 +360,7 @@ public class MediaContainerManager {
 
     private static void handleGeneratedImageContainer(Interaction event, Container container, Map<String, String> map,
                                                       boolean isEdit, CompletableFuture<Message> future) {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
         FileUpload file = FileUpload.fromData(imageBytes, "image.png");
 
@@ -376,7 +376,7 @@ public class MediaContainerManager {
 
     private static void handleGeneratedImageContainerFromHook(InteractionHook hook, Container container, Map<String, String> map,
                                                               boolean isEdit, CompletableFuture<Message> future) {
-        User user = Main.userService.getOrCreateUser(hook.getInteraction().getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(hook.getInteraction().getUser().getId());
         byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
         FileUpload file = FileUpload.fromData(imageBytes, "image.png");
 

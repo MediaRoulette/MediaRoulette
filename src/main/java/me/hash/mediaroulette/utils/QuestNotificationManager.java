@@ -50,7 +50,7 @@ public class QuestNotificationManager {
         }
         
         // Save user data
-        Main.userService.updateUser(user);
+        Main.getUserService().updateUser(user);
         
         // Send notification
         if (totalReward > 0) {

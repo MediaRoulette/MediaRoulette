@@ -56,7 +56,7 @@ public class ChancesCommand extends BaseCommand {
         Bot.executor.execute(() -> {
             long userId = event.getUser().getIdLong();
 
-            User user = Main.userService.getOrCreateUser(event.getUser().getId());
+            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
             
             if (user.getImageOptionsMap().isEmpty()) {
                 initializeDefaultOptions(user);
@@ -79,7 +79,7 @@ public class ChancesCommand extends BaseCommand {
         if (!event.getComponentId().startsWith("chances:")) return;
 
         long userId = event.getUser().getIdLong();
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
@@ -145,7 +145,7 @@ public class ChancesCommand extends BaseCommand {
         Bot.executor.execute(() -> {
             long userId = event.getUser().getIdLong();
 
-            User user = Main.userService.getOrCreateUser(event.getUser().getId());
+            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
             LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
             String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
@@ -223,7 +223,7 @@ public class ChancesCommand extends BaseCommand {
         for (ImageOptions option : defaultOptions) {
             user.setChances(option);
         }
-        Main.userService.updateUser(user);
+        Main.getUserService().updateUser(user);
     }
 
     private EmbedBuilder createChancesEmbed(ChancesSession session, net.dv8tion.jda.api.entities.User discordUser) {
@@ -298,19 +298,18 @@ public class ChancesCommand extends BaseCommand {
         // Source selector dropdown
         StringSelectMenu.Builder sourceMenu = StringSelectMenu.create("chances:source_select")
                 .setPlaceholder("🎯 Select source to configure...");
-        
+
         List<ImageOptions> categoryItems = session.getCategoryItems();
         if (!categoryItems.isEmpty()) {
             for (ImageOptions option : categoryItems) {
-                String emoji = getSourceEmoji(option.getImageType());
                 String status = option.isEnabled() ? "🟢" : "🔴";
-                String description = String.format("%.1f%% chance | %s", 
+                String description = String.format("%.1f%% chance | %s",
                         option.getChance(), option.isEnabled() ? "Enabled" : "Disabled");
-                
+
                 sourceMenu.addOption(
-                    String.format("%s %s %s", status, emoji, formatSourceName(option.getImageType())),
-                    option.getImageType(),
-                    description
+                        String.format("%s %s", status, formatSourceName(option.getImageType())),
+                        option.getImageType(),
+                        description
                 );
             }
         } else {
@@ -418,7 +417,7 @@ public class ChancesCommand extends BaseCommand {
     private void handleSaveChanges(ButtonInteractionEvent event, ChancesSession session) {
         try {
             session.saveChanges();
-            Main.userService.updateUser(session.getUser());
+            Main.getUserService().updateUser(session.getUser());
             updateChancesDisplay(event, session, "✅ Changes saved successfully!");
         } catch (Exception e) {
             updateChancesDisplay(event, session, "❌ Failed to save changes.");

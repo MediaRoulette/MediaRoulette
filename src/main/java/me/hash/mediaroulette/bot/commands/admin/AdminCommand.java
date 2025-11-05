@@ -95,7 +95,7 @@ public class AdminCommand extends BaseCommand {
     public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("admin")) return;
 
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         // Check if user is admin
         if (!user.isAdmin()) {
             sendError(event, "Access Denied - You don't have permission to use admin commands.");
@@ -310,9 +310,9 @@ public class AdminCommand extends BaseCommand {
         
         Bot.executor.submit(() -> {
             try {
-                User user = Main.userService.getOrCreateUser(targetUser.getId());
+                User user = Main.getUserService().getOrCreateUser(targetUser.getId());
                 user.setCoins(user.getCoins() + amount);
-                Main.userService.updateUser(user);
+                Main.getUserService().updateUser(user);
                 
                 EmbedBuilder embed = new EmbedBuilder()
                         .setTitle("Coins Given")
@@ -338,9 +338,9 @@ public class AdminCommand extends BaseCommand {
         
         Bot.executor.submit(() -> {
             try {
-                User user = Main.userService.getOrCreateUser(targetUser.getId());
+                User user = Main.getUserService().getOrCreateUser(targetUser.getId());
                 user.setPremium(premium);
-                Main.userService.updateUser(user);
+                Main.getUserService().updateUser(user);
                 
                 EmbedBuilder embed = new EmbedBuilder()
                         .setTitle("Premium Status Updated")
@@ -361,8 +361,8 @@ public class AdminCommand extends BaseCommand {
         event.deferReply(true).queue();
         
         Bot.executor.submit(() -> {
-            long totalUsers = Main.userService.getTotalUsers();
-            long totalImages = Main.userService.getTotalImagesGenerated();
+            long totalUsers = Main.getUserService().getTotalUsers();
+            long totalImages = Main.getUserService().getTotalImagesGenerated();
             List<BotInventoryItem> botItems = botInventoryService.getAllItems();
             
             EmbedBuilder embed = new EmbedBuilder()
@@ -494,7 +494,7 @@ public class AdminCommand extends BaseCommand {
     
     private void handleUserLookup(SlashCommandInteractionEvent event) {
         net.dv8tion.jda.api.entities.User targetDiscordUser = event.getOption("user").getAsUser();
-        User targetUser = Main.userService.getOrCreateUser(targetDiscordUser.getId());
+        User targetUser = Main.getUserService().getOrCreateUser(targetDiscordUser.getId());
         
         EmbedBuilder embed = MediaContainerManager.createUserEmbed("User Lookup", null, targetDiscordUser, targetUser);
         
@@ -553,7 +553,7 @@ public class AdminCommand extends BaseCommand {
     
     private void handleUserStats(SlashCommandInteractionEvent event) {
         net.dv8tion.jda.api.entities.User targetDiscordUser = event.getOption("user").getAsUser();
-        User targetUser = Main.userService.getOrCreateUser(targetDiscordUser.getId());
+        User targetUser = Main.getUserService().getOrCreateUser(targetDiscordUser.getId());
         
         EmbedBuilder embed = MediaContainerManager.createUserEmbed("User Usage Statistics", null, targetDiscordUser, targetUser);
         

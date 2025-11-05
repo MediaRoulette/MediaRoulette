@@ -31,6 +31,7 @@ public class TerminalInterface {
         commandSystem.registerCommand(new RateLimitCommand());
         commandSystem.registerCommand(new ClearCommand());
         commandSystem.registerCommand(new PluginCommand());
+        commandSystem.registerCommand(new AnalyticsCommand());
     }
 
     public void start() {

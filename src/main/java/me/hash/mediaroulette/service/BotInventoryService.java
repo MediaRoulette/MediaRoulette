@@ -22,7 +22,7 @@ public class BotInventoryService {
     private final MongoCollection<Document> collection;
 
     public BotInventoryService() {
-        this.collection = Main.database.getCollection("bot_inventory");
+        this.collection = Main.getDatabase().getCollection("bot_inventory");
     }
 
     /**

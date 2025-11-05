@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.RandomDictionaryLineFetcher;
 
 import java.util.Objects;
 
@@ -20,8 +19,8 @@ public class DictionaryIntegration {
      */
     public static String getRandomWordForSource(String userId, String source) {
         logger.debug("Getting word for user {} and source {}", userId, source);
-        if (Main.dictionaryService != null) {
-            String word = Main.dictionaryService.getRandomWordForSource(userId, source);
+        if (Main.getDictionaryService() != null) {
+            String word = Main.getDictionaryService().getRandomWordForSource(userId, source);
             logger.debug("Dictionary service returned: {}", word);
             if (word != null && !word.equals("random")) {
                 logger.debug("Using dictionary word: {}", word);

@@ -29,7 +29,7 @@ public class MaintenanceChecker {
         }
         
         // Check if user is admin - admins can use commands during maintenance
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         if (user.isAdmin()) {
             return false; // Allow admins to use commands during maintenance
         }

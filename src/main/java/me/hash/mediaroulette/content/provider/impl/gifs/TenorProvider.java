@@ -1,6 +1,5 @@
 package me.hash.mediaroulette.content.provider.impl.gifs;
 
-import me.hash.mediaroulette.RandomDictionaryLineFetcher;
 import me.hash.mediaroulette.utils.DictionaryIntegration;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.content.MediaSource;

@@ -113,7 +113,7 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     }
 
     private Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         FourChanProvider provider = (FourChanProvider) new MediaServiceFactory().createFourChanProvider();
@@ -139,7 +139,7 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     }
 
     private Map<String, String> handleUrban(Interaction event, String option) throws Exception {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         Map<String, String> map = RandomText.getRandomUrbanWord(option);

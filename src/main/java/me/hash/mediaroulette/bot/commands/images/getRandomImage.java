@@ -6,7 +6,6 @@ import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.utils.errorHandler;
-import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.plugins.Images.ImageSource;
 import me.hash.mediaroulette.utils.LocaleManager;
@@ -19,7 +18,6 @@ import net.dv8tion.jda.api.components.tree.MessageComponentTree;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -77,7 +75,7 @@ public class getRandomImage extends BaseCommand {
                         new SubcommandData("youtube", "Sends a random YouTube video")
                                 .addOption(OptionType.BOOLEAN, "shouldcontinue",
                                         "Should the image keep generating?"),
-                        new SubcommandData("short", "Sends a random Short from TMDB")
+                        new SubcommandData("short", "Sends a random Short from YouTube")
                                 .addOption(OptionType.BOOLEAN, "shouldcontinue",
                                         "Should the image keep generating?"),
                         new SubcommandData("urban", "Sends a random word from The Urban Dictionary")
@@ -138,14 +136,14 @@ public class getRandomImage extends BaseCommand {
         String subcommand = event.getSubcommandName();
         String query = event.getOption("query") != null ? event.getOption("query").getAsString() : null;
 
-        Main.userService.trackCommandUsage(userId, "random");
+        Main.getUserService().trackCommandUsage(userId, "random");
         trackSourceUsage(userId, subcommand, query);
 
-        User user = Main.userService.getOrCreateUser(userId);
+        User user = Main.getUserService().getOrCreateUser(userId);
 
         if (!validateChannelAccess(event, user)) return;
 
-        Main.userService.updateUser(user);
+        Main.getUserService().updateUser(user);
 
         event.getHook().sendMessageComponents(createLoadingContainer(event.getUser().getEffectiveAvatarUrl())).useComponentsV2().queue(hook ->
                 Bot.executor.execute(() -> processImageRequest(event, user, subcommand, query, event.getHook())));
@@ -170,7 +168,7 @@ public class getRandomImage extends BaseCommand {
                         .thenAccept(msg -> {
                             ACTIVE_MESSAGES.put(msg.getIdLong(), new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
                             QuestGenerator.onImageGenerated(user, subcommand);
-                            Main.userService.updateUser(user);
+                            Main.getUserService().updateUser(user);
                         })
                         .exceptionally(ex -> {
                             errorHandler.handleException(event, localeManager.get("error.unexpected_error"), localeManager.get("error.failed_to_send_image"), ex);
@@ -180,7 +178,7 @@ public class getRandomImage extends BaseCommand {
                 errorHandler.sendErrorEmbed(event, localeManager.get("error.generic_title"), e.getMessage());
             }
             user.incrementImagesGenerated();
-            Main.userService.updateUser(user);
+            Main.getUserService().updateUser(user);
         } catch (Exception e) {
             errorHandler.handleException(event, localeManager.get("error.unexpected_error"), e.getMessage(), e);
         }
@@ -203,7 +201,7 @@ public class getRandomImage extends BaseCommand {
         Bot.executor.execute(() -> {
             MessageData data = ACTIVE_MESSAGES.get(messageId);
 
-            User user = Main.userService.getOrCreateUser(event.getUser().getId());
+            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
             LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
             data.updateLastInteractionTime();
@@ -226,7 +224,7 @@ public class getRandomImage extends BaseCommand {
                 case "nsfw":
                 case "safe":
                     QuestGenerator.onImageRated(user);
-                    Main.userService.updateUser(user);
+                    Main.getUserService().updateUser(user);
                     disableAllButtonsInContainer(event);
                     break;
                 case "exit":
@@ -241,7 +239,7 @@ public class getRandomImage extends BaseCommand {
     }
 
     private void handleContinue(ButtonInteractionEvent event, MessageData data) {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         event.getHook().editOriginalComponents(createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
@@ -259,7 +257,7 @@ public class getRandomImage extends BaseCommand {
 
                         user.incrementImagesGenerated();
                         QuestGenerator.onImageGenerated(user, data.getSubcommand());
-                        Main.userService.updateUser(user);
+                        Main.getUserService().updateUser(user);
                     } catch (Exception e) {
                         showErrorContainer(event, localeManager.get("error.title"), e.getMessage());
                     }
@@ -267,7 +265,7 @@ public class getRandomImage extends BaseCommand {
     }
 
     private void handleFavorite(ButtonInteractionEvent event) {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         try {
@@ -293,9 +291,9 @@ public class getRandomImage extends BaseCommand {
             }
 
             // Save a deep-copy favorite (no buttons included in storage)
-            Main.userService.addFavorite(user.getUserId(), title, description, imageUrl, "image", accentColor);
+            Main.getUserService().addFavorite(user.getUserId(), title, description, imageUrl, "image", accentColor);
             QuestGenerator.onImageFavorited(user);
-            Main.userService.updateUser(user);
+            Main.getUserService().updateUser(user);
             disableButtonInContainer(event, "favorite");
         } catch (Exception e) {
             showErrorContainer(event, localeManager.get("error.title"), e.getMessage());
@@ -514,33 +512,33 @@ public class getRandomImage extends BaseCommand {
         if (query != null) {
             switch (subcommand) {
                 case "reddit" -> {
-                    Main.userService.addCustomSubreddit(userId, query);
-                    Main.userService.trackSourceUsage(userId, "reddit");
+                    Main.getUserService().addCustomSubreddit(userId, query);
+                    Main.getUserService().trackSourceUsage(userId, "reddit");
                 }
                 case "google" -> {
-                    Main.userService.addCustomQuery(userId, "google", query);
-                    Main.userService.trackSourceUsage(userId, "google");
+                    Main.getUserService().addCustomQuery(userId, "google", query);
+                    Main.getUserService().trackSourceUsage(userId, "google");
                 }
                 case "tenor" -> {
-                    Main.userService.addCustomQuery(userId, "tenor", query);
-                    Main.userService.trackSourceUsage(userId, "tenor");
+                    Main.getUserService().addCustomQuery(userId, "tenor", query);
+                    Main.getUserService().trackSourceUsage(userId, "tenor");
                 }
                 case "4chan" -> {
-                    Main.userService.addCustomQuery(userId, "4chan", query);
-                    Main.userService.trackSourceUsage(userId, "4chan");
+                    Main.getUserService().addCustomQuery(userId, "4chan", query);
+                    Main.getUserService().trackSourceUsage(userId, "4chan");
                 }
             }
         } else {
             switch (subcommand) {
-                case "all" -> Main.userService.trackSourceUsage(userId, "all");
-                case "picsum" -> Main.userService.trackSourceUsage(userId, "picsum");
-                case "imgur" -> Main.userService.trackSourceUsage(userId, "imgur");
-                case "rulee34xxx" -> Main.userService.trackSourceUsage(userId, "rule34");
-                case "movie" -> Main.userService.trackSourceUsage(userId, "tmdb-movie");
-                case "tvshow" -> Main.userService.trackSourceUsage(userId, "tmdb-tv");
-                case "youtube" -> Main.userService.trackSourceUsage(userId, "youtube");
-                case "short" -> Main.userService.trackSourceUsage(userId, "youtube-shorts");
-                case "urban" -> Main.userService.trackSourceUsage(userId, "urban-dictionary");
+                case "all" -> Main.getUserService().trackSourceUsage(userId, "all");
+                case "picsum" -> Main.getUserService().trackSourceUsage(userId, "picsum");
+                case "imgur" -> Main.getUserService().trackSourceUsage(userId, "imgur");
+                case "rulee34xxx" -> Main.getUserService().trackSourceUsage(userId, "rule34");
+                case "movie" -> Main.getUserService().trackSourceUsage(userId, "tmdb-movie");
+                case "tvshow" -> Main.getUserService().trackSourceUsage(userId, "tmdb-tv");
+                case "youtube" -> Main.getUserService().trackSourceUsage(userId, "youtube");
+                case "short" -> Main.getUserService().trackSourceUsage(userId, "youtube-shorts");
+                case "urban" -> Main.getUserService().trackSourceUsage(userId, "urban-dictionary");
             }
         }
     }
@@ -567,10 +565,10 @@ public class getRandomImage extends BaseCommand {
     }
 
     private void trackStats(String userId, String subcommand, User user) {
-        if (Main.statsService != null) {
-            Main.statsService.trackImageGenerated(userId, subcommand, user.isNsfw(), user.isPremium());
-            Main.statsService.trackCommandUsed(userId, "random", user.isPremium());
-            Main.statsService.trackUserActivity(userId, user.isPremium());
+        if (Main.getStatsService() != null) {
+            Main.getStatsService().trackImageGenerated(userId, subcommand, user.isNsfw(), user.isPremium());
+            Main.getStatsService().trackCommandUsed(userId, "random", user.isPremium());
+            Main.getStatsService().trackUserActivity(userId, user.isPremium());
         }
     }
 

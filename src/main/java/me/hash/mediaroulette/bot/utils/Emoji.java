@@ -11,7 +11,15 @@ public enum Emoji {
     _4CHAN_LOGO("<:4chan_logo:1406389199187476480>"),
     COIN("<:coin:1394695223858167928>"),
     LOADING("<a:loading:1350829863157891094>"),
-    INFO("<:info:1285350527281922121>");
+    INFO("<:info:1285350527281922121>"),
+
+    // Progress Bars
+    PROGRESS_BAR_LEFT_EMPTY("<:progress_bar_left_empty_green:1420849889058881596>"),
+    PROGRESS_BAR_MID_EMPTY("<:progress_bar_mid_empty_green:1420849903781019690>"),
+    PROGRESS_BAR_RIGHT_EMPTY("<:progress_bar_right_empty_green:1420849918008098866>"),
+    PROGRESS_BAR_LEFT_FULL("<:progress_bar_left_full_green:1420849896516485352>"),
+    PROGRESS_BAR_MID_FULL("<:progress_bar_mid_full_green:1420849910563082280>"),
+    PROGRESS_BAR_RIGHT_FULL("<:progress_bar_right_full_green:1420849924655808623>");
 
     private final String format;
 

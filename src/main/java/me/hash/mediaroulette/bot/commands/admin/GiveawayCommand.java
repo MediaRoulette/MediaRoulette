@@ -75,7 +75,7 @@ public class GiveawayCommand extends BaseCommand {
         if (!event.getName().equals("giveaway")) return;
 
         // Check if user is admin
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         if (!user.isAdmin()) {
             sendError(event, "❌ **Access Denied**\n\nYou don't have permission to manage giveaways.");
             return;
@@ -466,10 +466,10 @@ public class GiveawayCommand extends BaseCommand {
                 if ("coins".equals(giveaway.getPrize().getType())) {
                     try {
                         int coinAmount = Integer.parseInt(giveaway.getPrize().getValue());
-                        User user = Main.userService.getOrCreateUser(winnerId);
+                        User user = Main.getUserService().getOrCreateUser(winnerId);
                         user.addCoins(coinAmount, me.hash.mediaroulette.model.Transaction.TransactionType.GIVEAWAY_WIN, 
                             "Won giveaway: " + giveaway.getTitle());
-                        Main.userService.updateUser(user);
+                        Main.getUserService().updateUser(user);
                         
                         embed.addField("💰 Coins Added", String.format("%,d coins have been added to your account!", coinAmount), false);
                     } catch (NumberFormatException e) {

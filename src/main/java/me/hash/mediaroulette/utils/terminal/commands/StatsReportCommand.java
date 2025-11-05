@@ -68,11 +68,11 @@ public class StatsReportCommand extends Command {
     }
 
     private CommandResult showCurrentHourlyStats() {
-        if (Main.statsService == null) {
+        if (Main.getStatsService() == null) {
             return CommandResult.error("Stats service not initialized");
         }
 
-        Map<String, Object> currentStats = Main.statsService.getCurrentHourlyStats();
+        Map<String, Object> currentStats = Main.getStatsService().getCurrentHourlyStats();
         
         StringBuilder stats = new StringBuilder();
         stats.append("=== CURRENT HOUR STATISTICS ===\n");

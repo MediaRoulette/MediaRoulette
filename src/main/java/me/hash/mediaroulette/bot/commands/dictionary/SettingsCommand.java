@@ -180,7 +180,7 @@ public class SettingsCommand extends BaseCommand {
     
     private void handleShareConfig(SlashCommandInteractionEvent event, String userId) {
         try {
-            User user = Main.userService.getOrCreateUser(userId);
+            User user = Main.getUserService().getOrCreateUser(userId);
             
             // Get optional title and description from command options
             String customTitle = event.getOption("title") != null ? event.getOption("title").getAsString() : null;
@@ -372,7 +372,7 @@ public class SettingsCommand extends BaseCommand {
     
     private String storeConfigInDatabase(String configContent, String title, String description, String creatorUserId) {
         try {
-            MongoCollection<Document> configCollection = Main.database.getCollection("shared_configs");
+            MongoCollection<Document> configCollection = Main.getDatabase().getCollection("shared_configs");
             
             String configId = UUID.randomUUID().toString();
             
@@ -396,7 +396,7 @@ public class SettingsCommand extends BaseCommand {
     
     private Document getConfigFromDatabase(String configId) {
         try {
-            MongoCollection<Document> configCollection = Main.database.getCollection("shared_configs");
+            MongoCollection<Document> configCollection = Main.getDatabase().getCollection("shared_configs");
             
             Document query = new Document("_id", configId)
                 .append("expiresAt", new Document("$gt", Instant.now()));
@@ -411,7 +411,7 @@ public class SettingsCommand extends BaseCommand {
     
     private void parseAndApplyConfig(String userId, String configContent) {
         try {
-            User user = Main.userService.getOrCreateUser(userId);
+            User user = Main.getUserService().getOrCreateUser(userId);
             String[] lines = configContent.split("\n");
             
             // Maps to store created dictionaries for this import
@@ -568,7 +568,7 @@ public class SettingsCommand extends BaseCommand {
             }
             
             // Save the updated user configuration
-            Main.userService.updateUser(user);
+            Main.getUserService().updateUser(user);
             
         } catch (Exception e) {
             logger.error("Failed to parse and apply configuration: {}", e.getMessage());
@@ -611,7 +611,7 @@ public class SettingsCommand extends BaseCommand {
     
     private void handleReset(SlashCommandInteractionEvent event, String userId) {
         try {
-            User user = Main.userService.getOrCreateUser(userId);
+            User user = Main.getUserService().getOrCreateUser(userId);
             
             // Remove all dictionary assignments
             int removedAssignments = 0;
@@ -644,7 +644,7 @@ public class SettingsCommand extends BaseCommand {
                     }
                     
                     // Save the updated user
-                    Main.userService.updateUser(user);
+                    Main.getUserService().updateUser(user);
                     
                     EmbedBuilder embed = new EmbedBuilder()
                         .setTitle("🔄 Settings Reset Complete")

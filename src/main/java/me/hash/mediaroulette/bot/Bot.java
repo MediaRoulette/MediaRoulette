@@ -1,11 +1,10 @@
 package me.hash.mediaroulette.bot;
 
+import me.hash.mediaroulette.bot.utils.AutoCompleteHandler;
 import me.hash.mediaroulette.bot.utils.CooldownManager;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
@@ -31,8 +30,6 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class Bot extends ListenerAdapter {
-    private static final Logger logger = LoggerFactory.getLogger(Bot.class);
-
     private static ShardManager shardManager = null;
     public static Config config = null;
     public static final ThreadPoolExecutor executor = new ThreadPoolExecutor(
@@ -50,7 +47,11 @@ public class Bot extends ListenerAdapter {
                 .setActivity(Activity.playing("Use /support for help! | Alpha :3"))
                 .setStatus(OnlineStatus.ONLINE)
                 .setShardsTotal(-1)
-                .addEventListeners(new AdminCommand())
+                .addEventListeners(
+                        new AdminCommand(),
+                        new AutoCompleteHandler(),
+                        this
+                )
                 .build();
 
         cooldownManager = new CooldownManager();
@@ -59,15 +60,15 @@ public class Bot extends ListenerAdapter {
                 new FavoritesCommand(),
                 new getRandomImage(),
                 new ChancesCommand(),
-                new DictionaryCommand(Main.dictionaryService),
-                new SettingsCommand(Main.dictionaryService),
+                new DictionaryCommand(Main.getDictionaryService()),
+                new SettingsCommand(Main.getDictionaryService()),
                 new GiveawayCommand(),
                 new ChannelNuke(),
                 new InfoCommand(),
                 new SupportCommand()
         );
 
-        config = new Config(Main.database);
+        config = new Config(Main.getDatabase());
     }
 
     public static void addCommands(ListenerAdapter... commands) {
@@ -98,14 +99,8 @@ public class Bot extends ListenerAdapter {
         return shardManager;
     }
 
-    /**
-     * Get the cooldown manager instance for debugging/management
-     */
-    public static CooldownManager getCooldownManager() {
-        return cooldownManager;
-    }
-
     @Override
+    @SuppressWarnings("ALL")
     public void onReady(@NotNull ReadyEvent event) {
         getShardManager().getGuildById(Main.getEnv("ADMIN_COMMAND_GUILD_ID")).updateCommands().addCommands(new AdminCommand().getCommandData()).queue();
     }

@@ -48,6 +48,29 @@ public class errorHandler {
         }
     }
 
+    public static void editErrorEmbed(Interaction event, String title, String description) {
+        EmbedBuilder errorEmbed = new EmbedBuilder()
+                .setTitle(title != null && !title.isEmpty() ? title : "Error")
+                .setDescription(description != null ? description : "An unexpected error occurred.")
+                .setColor(Color.RED);
+
+
+        switch (event) {
+            case SlashCommandInteractionEvent slashCommandInteractionEvent -> slashCommandInteractionEvent.getHook()
+                    .sendMessageEmbeds(errorEmbed.build())
+                    .setEphemeral(true)
+                    .queue();
+            case ButtonInteractionEvent buttonInteractionEvent -> buttonInteractionEvent.getHook()
+                    .sendMessageEmbeds(errorEmbed.build())
+                    .setEphemeral(true)
+                    .queue();
+            case StringSelectInteraction stringSelectInteraction -> stringSelectInteraction.getHook()
+                    .sendMessageEmbeds(errorEmbed.build())
+                    .setEphemeral(true)
+                    .queue();
+            case null, default -> logger.error("Unsupported interaction type for error embedding.");
+        }    }
+
     /**
      * Handles exceptions globally by logging the throwable and sending an error embed to the user. It also
      * ensures that sensitive information like environment keys or values is censored from the stack trace.
@@ -97,7 +120,7 @@ public class errorHandler {
         String stackTrace = stringWriter.toString();
 
         // Replace sensitive environment data in the stack trace
-        for (DotenvEntry entry : Main.env.entries()) {
+        for (DotenvEntry entry : Main.getEnvironment().entries()) {
             String key = entry.getKey();
             String value = entry.getValue();
 

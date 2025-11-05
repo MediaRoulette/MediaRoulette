@@ -62,7 +62,7 @@ public class FavoritesCommand extends BaseCommand {
 
         event.deferReply().queue();
 
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
 
         if (!validateChannelAccess(event, user))
             return;
@@ -80,7 +80,7 @@ public class FavoritesCommand extends BaseCommand {
         if (!event.getComponentId().startsWith("favorite:"))
             return;
 
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale()); // Get once, use multiple times
 
         // Check if the user is the same as the one who initiated the interaction
@@ -115,7 +115,7 @@ public class FavoritesCommand extends BaseCommand {
                     return;
                 }
                 user.removeFavorite(index);
-                Main.userService.updateUser(user);
+                Main.getUserService().updateUser(user);
 
                 event.getHook().sendMessage(localeManager.get("success.favorite_deleted")).setEphemeral(true).queue();
 
@@ -146,7 +146,7 @@ public class FavoritesCommand extends BaseCommand {
         if (!event.getComponentId().equals("favorite-select-menu"))
             return;
 
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale()); // Get once, use multiple times
 
         String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();

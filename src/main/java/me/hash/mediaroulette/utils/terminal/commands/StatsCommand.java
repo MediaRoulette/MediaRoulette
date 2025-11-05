@@ -16,8 +16,8 @@ public class StatsCommand extends Command {
     @Override
     public CommandResult execute(String[] args) {
         try {
-            long totalUsers = Main.userService.getTotalUsers();
-            long totalImages = Main.userService.getTotalImagesGenerated();
+            long totalUsers = Main.getUserService().getTotalUsers();
+            long totalImages = Main.getUserService().getTotalImagesGenerated();
             
             StringBuilder stats = new StringBuilder();
             stats.append("=== DATABASE STATISTICS ===\n");

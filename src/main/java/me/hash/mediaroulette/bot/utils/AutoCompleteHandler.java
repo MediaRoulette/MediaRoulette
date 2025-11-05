@@ -43,7 +43,7 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleSubredditAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         
         // Get user's custom subreddits and filter by input
         List<String> userSubreddits = user.getCustomSubreddits().stream()
@@ -60,7 +60,7 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleGoogleQueryAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         
         // Get user's Google search history
         List<String> googleQueries = user.getCustomQueries("google").stream()
@@ -76,7 +76,7 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleTenorQueryAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         
         // Get user's tenor search history
         List<String> tenorQueries = user.getCustomQueries("tenor").stream()
@@ -92,7 +92,7 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleFourChanBoardAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         
         // Get user's 4chan board history
         List<String> boards = user.getCustomQueries("4chan").stream()

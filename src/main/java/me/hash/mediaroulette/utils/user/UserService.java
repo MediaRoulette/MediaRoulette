@@ -25,8 +25,8 @@ public class UserService {
                     User savedUser = userRepository.save(newUser);
                     
                     // Track new user registration in stats service
-                    if (me.hash.mediaroulette.Main.statsService != null) {
-                        me.hash.mediaroulette.Main.statsService.trackNewUser(userId);
+                    if (me.hash.mediaroulette.Main.getStatsService() != null) {
+                        me.hash.mediaroulette.Main.getStatsService().trackNewUser(userId);
                     }
                     
                     return savedUser;
@@ -174,5 +174,9 @@ public class UserService {
         User user = getOrCreateUser(userId);
         user.setTheme(theme);
         updateUser(user);
+    }
+
+    public UserRepository getUserRepository() {
+        return userRepository;
     }
 }

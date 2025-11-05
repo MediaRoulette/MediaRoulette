@@ -84,13 +84,13 @@ public class UserCommand extends Command {
 
     private CommandResult setUserAdmin(long userId, boolean isAdmin) {
         try {
-            User user = Main.userService.getOrCreateUser(String.valueOf(userId));
+            User user = Main.getUserService().getOrCreateUser(String.valueOf(userId));
             if (user == null) {
                 return CommandResult.error("User not found: " + userId);
             }
 
             user.setAdmin(isAdmin);
-            Main.userService.updateUser(user);
+            Main.getUserService().updateUser(user);
 
             return CommandResult.success("User " + userId + " admin status set to: " + isAdmin);
         } catch (Exception e) {
@@ -100,13 +100,13 @@ public class UserCommand extends Command {
 
     private CommandResult setUserPremium(long userId, boolean isPremium) {
         try {
-            User user = Main.userService.getOrCreateUser(String.valueOf(userId));
+            User user = Main.getUserService().getOrCreateUser(String.valueOf(userId));
             if (user == null) {
                 return CommandResult.error("User not found: " + userId);
             }
 
             user.setPremium(isPremium);
-            Main.userService.updateUser(user);
+            Main.getUserService().updateUser(user);
 
             return CommandResult.success("User " + userId + " premium status set to: " + isPremium);
         } catch (Exception e) {
@@ -116,7 +116,7 @@ public class UserCommand extends Command {
 
     private CommandResult getUserInfo(long userId) {
         try {
-            User user = Main.userService.getOrCreateUser(String.valueOf(userId));
+            User user = Main.getUserService().getOrCreateUser(String.valueOf(userId));
             if (user == null) {
                 return CommandResult.error("User not found: " + userId);
             }

@@ -29,7 +29,7 @@ public class GiveawayService {
     private final ScheduledExecutorService scheduler;
 
     public GiveawayService() {
-        this.collection = Main.database.getCollection("giveaways");
+        this.collection = Main.getDatabase().getCollection("giveaways");
         this.botInventoryService = new BotInventoryService();
         this.scheduler = Executors.newScheduledThreadPool(2);
         

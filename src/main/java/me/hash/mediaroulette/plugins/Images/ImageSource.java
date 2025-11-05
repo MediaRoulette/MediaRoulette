@@ -43,7 +43,7 @@ public class ImageSource {
      * @throws Exception if source is disabled or error occurs
      */
     public static Map<String, String> handle(String sourceName, Interaction event, String option) throws Exception {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         // Check if it's the special "ALL" case
@@ -57,7 +57,7 @@ public class ImageSource {
             // Check if provider is enabled
             if (!provider.isEnabled()) {
                 errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
-                throw new Exception("Source disabled: " + sourceName);
+
             }
             
             try {
@@ -68,54 +68,11 @@ public class ImageSource {
             }
         }
 
-        // Fallback for built-in sources that might not be in registry yet
-        return handleBuiltInSource(sourceName, event, option, user);
+        return null;
     }
-    
-    /**
-     * Fallback handler for built-in sources
-     */
-    private static Map<String, String> handleBuiltInSource(String sourceName, Interaction event, String option, User user) throws Exception {
-        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
-
-        if (isOptionDisabled(sourceName) || !isSourceEnabledInLocalConfig(sourceName)) {
-            errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
-            throw new Exception("Command Disabled");
-        }
-
-        return switch (sourceName) {
-            case TENOR -> {
-                var provider = new MediaServiceFactory().createTenorProvider();
-                if (provider instanceof me.hash.mediaroulette.content.provider.impl.gifs.TenorProvider tenorProvider) {
-                    yield tenorProvider.getRandomMedia(option, event.getUser().getId()).toMap();
-                } else {
-                    yield provider.getRandomMedia(option).toMap();
-                }
-            }
-            case IMGUR -> new MediaServiceFactory().createImgurProvider().getRandomMedia(null).toMap();
-            case _4CHAN -> handle4Chan(event, option);
-            case GOOGLE -> {
-                var provider = new MediaServiceFactory().createGoogleProvider();
-                if (provider instanceof me.hash.mediaroulette.content.provider.impl.images.GoogleProvider googleProvider) {
-                    yield googleProvider.getRandomMedia(option, event.getUser().getId()).toMap();
-                } else {
-                    yield provider.getRandomMedia(option).toMap();
-                }
-            }
-            case PICSUM -> new MediaServiceFactory().createPicsumProvider().getRandomMedia(null).toMap();
-            case RULE34XXX -> new MediaServiceFactory().createRule34Provider().getRandomMedia(null).toMap();
-            case MOVIE -> new MediaServiceFactory().createTMDBMovieProvider().getRandomMedia(null).toMap();
-            case TVSHOW -> new MediaServiceFactory().createTMDBTvProvider().getRandomMedia(null).toMap();
-            case URBAN -> handleUrban(event, option);
-            case YOUTUBE -> new MediaServiceFactory().createYouTubeProvider().getRandomMedia(null).toMap();
-            case SHORT -> new MediaServiceFactory().createYouTubeShortsProvider().getRandomMedia(null).toMap();
-            default -> throw new RuntimeException("Unknown image source: " + sourceName);
-        };
-    }
-
 
     private static Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         FourChanProvider provider = (FourChanProvider) new MediaServiceFactory().createFourChanProvider();
@@ -141,7 +98,7 @@ public class ImageSource {
     }
 
     private static Map<String, String> handleUrban(Interaction event, String option) throws Exception {
-        User user = Main.userService.getOrCreateUser(event.getUser().getId());
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
         Map<String, String> map = RandomText.getRandomUrbanWord(option);
@@ -184,19 +141,6 @@ public class ImageSource {
             case SHORT -> "youtube_shorts";
             case ALL -> "all"; // Special case - "all" should always be enabled if any sources are enabled
             default -> sourceName.toLowerCase(); // For plugin sources, use lowercase name as config key
-        };
-    }
-
-    /**
-     * Check if a source name corresponds to a built-in source
-     * @param name The source name to check
-     * @return true if it's a built-in source
-     */
-    public static boolean isBuiltInSource(String name) {
-        return switch (name.toUpperCase()) {
-            case TENOR, _4CHAN, GOOGLE, IMGUR, PICSUM, RULE34XXX, 
-                 MOVIE, TVSHOW, URBAN, YOUTUBE, SHORT, ALL -> true;
-            default -> false;
         };
     }
 

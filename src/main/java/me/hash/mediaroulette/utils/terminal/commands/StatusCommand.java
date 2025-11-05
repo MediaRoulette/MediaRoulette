@@ -17,14 +17,14 @@ public class StatusCommand extends Command {
         StringBuilder status = new StringBuilder();
         status.append("Application Status:\n");
         status.append("  Uptime: ").append(getUptime()).append("\n");
-        status.append("  Bot Status: ").append(Main.bot != null ? "Running" : "Not Running").append("\n");
-        status.append("  Database: ").append(Main.database != null ? "Connected" : "Disconnected").append("\n");
+        status.append("  Bot Status: ").append(Main.getBot() != null ? "Running" : "Not Running").append("\n");
+        status.append("  Database: ").append(Main.getDatabase() != null ? "Connected" : "Disconnected").append("\n");
 
         return CommandResult.success(status.toString());
     }
 
     private String getUptime() {
-        long uptime = System.currentTimeMillis() - Main.startTime;
+        long uptime = System.currentTimeMillis() - Main.START_TIME;
         long seconds = uptime / 1000;
         long minutes = seconds / 60;
         long hours = minutes / 60;

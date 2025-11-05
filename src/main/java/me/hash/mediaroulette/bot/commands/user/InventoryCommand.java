@@ -77,7 +77,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
     }
 
     private void handleView(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.userService.getOrCreateUser(userId);
+        User user = Main.getUserService().getOrCreateUser(userId);
         String filter = event.getOption("filter") != null ? event.getOption("filter").getAsString() : null;
         int page = event.getOption("page") != null ? event.getOption("page").getAsInt() : 1;
 
@@ -143,11 +143,11 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
     }
 
     private void handleSort(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.userService.getOrCreateUser(userId);
+        User user = Main.getUserService().getOrCreateUser(userId);
         String sortBy = event.getOption("by").getAsString();
 
         user.sortInventory(sortBy);
-        Main.userService.updateUser(user);
+        Main.getUserService().updateUser(user);
 
         String description = "Your inventory has been sorted by **" + sortBy + "**.";
         EmbedBuilder embed = MediaContainerManager.createSuccess("Inventory Sorted", description);
@@ -156,7 +156,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
     }
 
     private void handleUse(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.userService.getOrCreateUser(userId);
+        User user = Main.getUserService().getOrCreateUser(userId);
         String itemId = event.getOption("item").getAsString();
         int quantity = event.getOption("quantity") != null ? event.getOption("quantity").getAsInt() : 1;
 
@@ -181,7 +181,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         // Use the item
         boolean success = user.removeInventoryItem(itemId, quantity);
         if (success) {
-            Main.userService.updateUser(user);
+            Main.getUserService().updateUser(user);
             
             EmbedBuilder embed = new EmbedBuilder()
                     .setTitle("✅ Item Used")
@@ -197,7 +197,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
     }
 
     private void handleInfo(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.userService.getOrCreateUser(userId);
+        User user = Main.getUserService().getOrCreateUser(userId);
         String itemId = event.getOption("item").getAsString();
 
         InventoryItem item = user.getInventoryItem(itemId);
@@ -238,7 +238,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
                 int page = Integer.parseInt(parts[2]);
                 String filter = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : null;
                 
-                User user = Main.userService.getOrCreateUser(userId);
+                User user = Main.getUserService().getOrCreateUser(userId);
                 // Recreate the view with new page
                 updateInventoryView(event, user, filter, page);
             }
