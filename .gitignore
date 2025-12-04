@@ -3,6 +3,8 @@ bin/*
 .gradle/*
 .vscode/*
 /src/main/resources/.env
+vault-config.properties
+.env.backup
 /app.log.lck
 /app.log
 .idea/*

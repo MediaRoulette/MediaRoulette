@@ -440,8 +440,8 @@ public class getRandomImage extends BaseCommand {
 
         public void disableButtons() {
             Bot.getShardManager().getTextChannelById(channelId).retrieveMessageById(messageId).queue(message -> {
-                if (message.getActionRows().isEmpty()) return;
                 MessageComponentTree components = message.getComponentTree();
+                if (components.getComponents().isEmpty()) return;
                 ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> true, Button::asDisabled);
                 MessageComponentTree updated = components.replace(replacer);
                 message.editMessageComponents(updated).useComponentsV2().queue(

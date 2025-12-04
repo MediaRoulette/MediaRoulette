@@ -30,4 +30,33 @@ public enum Emoji {
     public String getFormat() {
         return format;
     }
+    
+    /**
+     * Creates a progress bar using custom Discord emojis
+     * @param current Current value
+     * @param max Maximum value
+     * @param segments Number of segments (recommended: 8-12)
+     * @return Formatted progress bar string
+     */
+    public static String createProgressBar(long current, long max, int segments) {
+        if (max == 0 || segments < 1) return "";
+        
+        double percentage = (double) current / max;
+        int filled = (int) Math.round(percentage * segments);
+        filled = Math.max(0, Math.min(segments, filled));
+        
+        StringBuilder bar = new StringBuilder();
+        
+        for (int i = 0; i < segments; i++) {
+            if (i == 0) {
+                bar.append(i < filled ? PROGRESS_BAR_LEFT_FULL.format : PROGRESS_BAR_LEFT_EMPTY.format);
+            } else if (i == segments - 1) {
+                bar.append(i < filled ? PROGRESS_BAR_RIGHT_FULL.format : PROGRESS_BAR_RIGHT_EMPTY.format);
+            } else {
+                bar.append(i < filled ? PROGRESS_BAR_MID_FULL.format : PROGRESS_BAR_MID_EMPTY.format);
+            }
+        }
+        
+        return bar.toString();
+    }
 }

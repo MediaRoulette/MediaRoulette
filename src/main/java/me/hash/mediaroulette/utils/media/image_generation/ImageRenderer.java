@@ -33,18 +33,26 @@ public class ImageRenderer {
 
     public BufferedImage render(List<TextComponent> components) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = image.createGraphics();
+        Graphics2D g2d = null;
 
         try {
+            g2d = image.createGraphics();
             setupRenderingHints(g2d);
             renderBackground(g2d);
             renderOverlay(g2d);
             renderTextBox(g2d, components);
+            return image;
+        } catch (Exception e) {
+            // Clean up on error
+            if (image != null) {
+                image.flush();
+            }
+            throw e;
         } finally {
-            g2d.dispose();
+            if (g2d != null) {
+                g2d.dispose();
+            }
         }
-
-        return image;
     }
 
     private void setupRenderingHints(Graphics2D g2d) {
@@ -58,16 +66,19 @@ public class ImageRenderer {
     private void renderBackground(Graphics2D g2d) {
         String bgPath = theme.getBackgroundImage();
         boolean backgroundLoaded = false;
+        BufferedImage background = null;
+        BufferedImage scaledBg = null;
+        Graphics2D bgG2d = null;
 
         // Try to load background image if path is provided and not empty
         if (bgPath != null && !bgPath.trim().isEmpty()) {
             try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(bgPath)) {
                 if (inputStream != null) {
-                    BufferedImage background = ImageIO.read(inputStream);
+                    background = ImageIO.read(inputStream);
                     if (background != null) {
                         // Optimized scaling - use TYPE_INT_RGB for better performance
-                        BufferedImage scaledBg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-                        Graphics2D bgG2d = scaledBg.createGraphics();
+                        scaledBg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                        bgG2d = scaledBg.createGraphics();
                         bgG2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
                         bgG2d.drawImage(background, 0, 0, width, height, null);
                         bgG2d.dispose();
@@ -76,13 +87,24 @@ public class ImageRenderer {
                         backgroundLoaded = true;
                     }
                 } else {
-                    logger.error("Background image not found: {}, using gradient fallback", bgPath);
+                    logger.warn("Background image not found: {}, using gradient fallback", bgPath);
                 }
             } catch (IOException e) {
                 logger.error("Error loading background image '{}': {}", bgPath, e.getMessage());
+            } finally {
+                // Clean up temporary images
+                if (background != null) {
+                    background.flush();
+                }
+                if (scaledBg != null) {
+                    scaledBg.flush();
+                }
+                if (bgG2d != null) {
+                    bgG2d.dispose();
+                }
             }
         } else {
-            logger.error("No background image specified, using gradient background");
+            logger.warn("No background image specified, using gradient background");
         }
 
         // Always render gradient background if image loading failed or no image specified

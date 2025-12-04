@@ -42,6 +42,7 @@ public class ThumbnailProcessor extends BaseProcessor {
 
         return executeFFmpegCommand(command, config.getThumbnailTimeoutSeconds())
                 .thenApply(result -> {
+                    BufferedImage thumbnail = null;
                     try {
                         if (!result.isSuccessful()) {
                             throw new RuntimeException("FFmpeg thumbnail extraction failed: " + result.getError());
@@ -51,8 +52,7 @@ public class ThumbnailProcessor extends BaseProcessor {
                             throw new RuntimeException("Thumbnail file was not created");
                         }
 
-                        BufferedImage thumbnail = ImageIO.read(thumbnailPath.toFile());
-                        config.getFileManager().deleteIfExists(thumbnailPath);
+                        thumbnail = ImageIO.read(thumbnailPath.toFile());
 
                         if (thumbnail == null) {
                             throw new RuntimeException("Failed to read thumbnail image");
@@ -61,8 +61,14 @@ public class ThumbnailProcessor extends BaseProcessor {
                         return thumbnail;
 
                     } catch (Exception e) {
-                        config.getFileManager().deleteIfExists(thumbnailPath);
+                        // Clean up on error
+                        if (thumbnail != null) {
+                            thumbnail.flush();
+                        }
                         throw new RuntimeException("Failed to extract thumbnail: " + e.getMessage(), e);
+                    } finally {
+                        // Always delete temp file
+                        config.getFileManager().deleteIfExists(thumbnailPath);
                     }
                 });
     }
@@ -98,26 +104,35 @@ public class ThumbnailProcessor extends BaseProcessor {
 
         return extractMultipleThumbnails(videoUrl, timestamps)
                 .thenApply(thumbnails -> {
-                    long totalRed = 0, totalGreen = 0, totalBlue = 0;
-                    int totalPixels = 0;
+                    try {
+                        long totalRed = 0, totalGreen = 0, totalBlue = 0;
+                        int totalPixels = 0;
 
-                    for (BufferedImage thumbnail : thumbnails) {
-                        Color frameColor = analyzeThumbnailColor(thumbnail);
-                        totalRed += frameColor.getRed();
-                        totalGreen += frameColor.getGreen();
-                        totalBlue += frameColor.getBlue();
-                        totalPixels++;
+                        for (BufferedImage thumbnail : thumbnails) {
+                            Color frameColor = analyzeThumbnailColor(thumbnail);
+                            totalRed += frameColor.getRed();
+                            totalGreen += frameColor.getGreen();
+                            totalBlue += frameColor.getBlue();
+                            totalPixels++;
+                        }
+
+                        if (totalPixels == 0) {
+                            return Color.CYAN;
+                        }
+
+                        int avgRed = (int) (totalRed / totalPixels);
+                        int avgGreen = (int) (totalGreen / totalPixels);
+                        int avgBlue = (int) (totalBlue / totalPixels);
+
+                        return enhanceSaturation(new Color(avgRed, avgGreen, avgBlue));
+                    } finally {
+                        // Clean up all thumbnails
+                        for (BufferedImage thumbnail : thumbnails) {
+                            if (thumbnail != null) {
+                                thumbnail.flush();
+                            }
+                        }
                     }
-
-                    if (totalPixels == 0) {
-                        return Color.CYAN;
-                    }
-
-                    int avgRed = (int) (totalRed / totalPixels);
-                    int avgGreen = (int) (totalGreen / totalPixels);
-                    int avgBlue = (int) (totalBlue / totalPixels);
-
-                    return enhanceSaturation(new Color(avgRed, avgGreen, avgBlue));
                 });
     }
 
@@ -128,41 +143,53 @@ public class ThumbnailProcessor extends BaseProcessor {
         int width = Math.min(image.getWidth(), 50);
         int height = Math.min(image.getHeight(), 50);
 
-        BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2d = scaled.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.drawImage(image, 0, 0, width, height, null);
-        g2d.dispose();
+        BufferedImage scaled = null;
+        Graphics2D g2d = null;
+        
+        try {
+            scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            g2d = scaled.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.drawImage(image, 0, 0, width, height, null);
 
-        long redSum = 0, greenSum = 0, blueSum = 0;
-        int pixelCount = 0;
+            long redSum = 0, greenSum = 0, blueSum = 0;
+            int pixelCount = 0;
 
-        for (int x = 0; x < width; x += 2) {
-            for (int y = 0; y < height; y += 2) {
-                int rgb = scaled.getRGB(x, y);
-                int r = (rgb >> 16) & 0xFF;
-                int g = (rgb >> 8) & 0xFF;
-                int b = rgb & 0xFF;
+            for (int x = 0; x < width; x += 2) {
+                for (int y = 0; y < height; y += 2) {
+                    int rgb = scaled.getRGB(x, y);
+                    int r = (rgb >> 16) & 0xFF;
+                    int g = (rgb >> 8) & 0xFF;
+                    int b = rgb & 0xFF;
 
-                int brightness = (r + g + b) / 3;
-                if (brightness > 30 && brightness < 225) {
-                    redSum += r;
-                    greenSum += g;
-                    blueSum += b;
-                    pixelCount++;
+                    int brightness = (r + g + b) / 3;
+                    if (brightness > 30 && brightness < 225) {
+                        redSum += r;
+                        greenSum += g;
+                        blueSum += b;
+                        pixelCount++;
+                    }
                 }
             }
+
+            if (pixelCount == 0) {
+                return Color.CYAN;
+            }
+
+            int avgRed = (int) (redSum / pixelCount);
+            int avgGreen = (int) (greenSum / pixelCount);
+            int avgBlue = (int) (blueSum / pixelCount);
+
+            return new Color(avgRed, avgGreen, avgBlue);
+        } finally {
+            // Clean up resources
+            if (g2d != null) {
+                g2d.dispose();
+            }
+            if (scaled != null) {
+                scaled.flush();
+            }
         }
-
-        if (pixelCount == 0) {
-            return Color.CYAN;
-        }
-
-        int avgRed = (int) (redSum / pixelCount);
-        int avgGreen = (int) (greenSum / pixelCount);
-        int avgBlue = (int) (blueSum / pixelCount);
-
-        return new Color(avgRed, avgGreen, avgBlue);
     }
 
     /**

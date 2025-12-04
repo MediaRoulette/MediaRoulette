@@ -360,33 +360,43 @@ public class MediaContainerManager {
 
     private static void handleGeneratedImageContainer(Interaction event, Container container, Map<String, String> map,
                                                       boolean isEdit, CompletableFuture<Message> future) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
-        FileUpload file = FileUpload.fromData(imageBytes, "image.png");
+        try {
+            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+            byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
+            FileUpload file = FileUpload.fromData(imageBytes, "image.png");
 
-        if (isEdit) {
-            ((ButtonInteractionEvent) event).getHook().editOriginalComponents(container)
-                    .setFiles(file)
-                    .useComponentsV2()
-                    .queue(future::complete, future::completeExceptionally);
-        } else {
-            sendMessageContainerWithFile(event, container, file, future);
+            if (isEdit) {
+                ((ButtonInteractionEvent) event).getHook().editOriginalComponents(container)
+                        .setFiles(file)
+                        .useComponentsV2()
+                        .queue(future::complete, future::completeExceptionally);
+            } else {
+                sendMessageContainerWithFile(event, container, file, future);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to handle generated image container: {}", e.getMessage(), e);
+            future.completeExceptionally(e);
         }
     }
 
     private static void handleGeneratedImageContainerFromHook(InteractionHook hook, Container container, Map<String, String> map,
                                                               boolean isEdit, CompletableFuture<Message> future) {
-        User user = Main.getUserService().getOrCreateUser(hook.getInteraction().getUser().getId());
-        byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
-        FileUpload file = FileUpload.fromData(imageBytes, "image.png");
+        try {
+            User user = Main.getUserService().getOrCreateUser(hook.getInteraction().getUser().getId());
+            byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
+            FileUpload file = FileUpload.fromData(imageBytes, "image.png");
 
-        if (isEdit) {
-            hook.editOriginalComponents(container)
-                    .setFiles(file)
-                    .useComponentsV2()
-                    .queue(future::complete, future::completeExceptionally);
-        } else {
-            sendMessageContainerWithFileFromHook(hook, container, file, future);
+            if (isEdit) {
+                hook.editOriginalComponents(container)
+                        .setFiles(file)
+                        .useComponentsV2()
+                        .queue(future::complete, future::completeExceptionally);
+            } else {
+                sendMessageContainerWithFileFromHook(hook, container, file, future);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to handle generated image container from hook: {}", e.getMessage(), e);
+            future.completeExceptionally(e);
         }
     }
 
@@ -548,12 +558,20 @@ public class MediaContainerManager {
                 double thumbnailTime = info.getDuration() * 0.25;
                 return ffmpegService.extractThumbnail(videoUrl, thumbnailTime);
             }).thenApply(thumbnail -> {
-                try {
-                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                     javax.imageio.ImageIO.write(thumbnail, "jpg", baos);
-                    return baos.toByteArray();
+                    baos.flush();
+                    byte[] result = baos.toByteArray();
+                    // Clean up thumbnail image
+                    if (thumbnail != null) {
+                        thumbnail.flush();
+                    }
+                    return result;
                 } catch (Exception e) {
                     logger.error("Failed to convert thumbnail to bytes: {}", e.getMessage());
+                    if (thumbnail != null) {
+                        thumbnail.flush();
+                    }
                     return null;
                 }
             }).exceptionally(throwable -> {
@@ -814,53 +832,73 @@ public class MediaContainerManager {
             throw new IOException("Failed to fetch image: " + response.statusCode());
         }
 
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
-        if (image == null) {
-            throw new IOException("Could not decode image");
-        }
+        BufferedImage image = null;
+        try {
+            image = ImageIO.read(new ByteArrayInputStream(response.body()));
+            if (image == null) {
+                throw new IOException("Could not decode image");
+            }
 
-        return getDominantColor(image);
+            return getDominantColor(image);
+        } finally {
+            // Clean up image
+            if (image != null) {
+                image.flush();
+            }
+        }
     }
 
     private static Color getDominantColor(BufferedImage image) {
         int width = Math.min(image.getWidth(), 100);
         int height = Math.min(image.getHeight(), 100);
 
-        BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2d = scaled.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.drawImage(image, 0, 0, width, height, null);
-        g2d.dispose();
+        BufferedImage scaled = null;
+        Graphics2D g2d = null;
+        
+        try {
+            scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            g2d = scaled.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.drawImage(image, 0, 0, width, height, null);
 
-        long redSum = 0, greenSum = 0, blueSum = 0;
-        int pixelCount = 0;
+            long redSum = 0, greenSum = 0, blueSum = 0;
+            int pixelCount = 0;
 
-        for (int x = 0; x < width; x += 2) {
-            for (int y = 0; y < height; y += 2) {
-                int rgb = scaled.getRGB(x, y);
-                int r = (rgb >> 16) & 0xFF;
-                int g = (rgb >> 8) & 0xFF;
-                int b = rgb & 0xFF;
+            for (int x = 0; x < width; x += 2) {
+                for (int y = 0; y < height; y += 2) {
+                    int rgb = scaled.getRGB(x, y);
+                    int r = (rgb >> 16) & 0xFF;
+                    int g = (rgb >> 8) & 0xFF;
+                    int b = rgb & 0xFF;
 
-                int brightness = (r + g + b) / 3;
-                if (brightness > 30 && brightness < 225) {
-                    redSum += r;
-                    greenSum += g;
-                    blueSum += b;
-                    pixelCount++;
+                    int brightness = (r + g + b) / 3;
+                    if (brightness > 30 && brightness < 225) {
+                        redSum += r;
+                        greenSum += g;
+                        blueSum += b;
+                        pixelCount++;
+                    }
                 }
             }
+
+            if (pixelCount == 0) {
+                return Color.CYAN;
+            }
+
+            int avgRed = (int) (redSum / pixelCount);
+            int avgGreen = (int) (greenSum / pixelCount);
+            int avgBlue = (int) (blueSum / pixelCount);
+
+            return enhanceSaturation(new Color(avgRed, avgGreen, avgBlue));
+        } finally {
+            // Clean up resources
+            if (g2d != null) {
+                g2d.dispose();
+            }
+            if (scaled != null) {
+                scaled.flush();
+            }
         }
-
-        if (pixelCount == 0) {
-            return Color.CYAN;
-        }
-
-        int avgRed = (int) (redSum / pixelCount);
-        int avgGreen = (int) (greenSum / pixelCount);
-        int avgBlue = (int) (blueSum / pixelCount);
-
-        return enhanceSaturation(new Color(avgRed, avgGreen, avgBlue));
     }
 
     private static Color enhanceSaturation(Color color) {

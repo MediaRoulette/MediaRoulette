@@ -77,8 +77,15 @@ public class ImageGenerator {
     }
 
     private byte[] convertToByteArray(BufferedImage image) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(image, "png", baos);
-        return baos.toByteArray();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            ImageIO.write(image, "png", baos);
+            baos.flush();
+            return baos.toByteArray();
+        } finally {
+            // Help GC by disposing image resources
+            if (image != null) {
+                image.flush();
+            }
+        }
     }
 }

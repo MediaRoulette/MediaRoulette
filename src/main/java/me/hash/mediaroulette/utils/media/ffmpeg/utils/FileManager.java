@@ -58,14 +58,13 @@ public class FileManager {
      * Cleans up old temporary files (older than 1 hour)
      */
     public void cleanupTempFiles() {
-        try {
-            Path tempDir = Paths.get(tempDirectory);
-            if (!Files.exists(tempDir)) {
-                return;
-            }
+        Path tempDir = Paths.get(tempDirectory);
+        if (!Files.exists(tempDir)) {
+            return;
+        }
 
-            Files.walk(tempDir)
-                    .filter(Files::isRegularFile)
+        try (var stream = Files.walk(tempDir)) {
+            stream.filter(Files::isRegularFile)
                     .filter(this::isOldFile)
                     .forEach(this::deleteIfExists);
         } catch (IOException e) {

@@ -16,7 +16,6 @@ import java.util.concurrent.*;
 
 public class DiscordWebhookAppender extends AppenderBase<ILoggingEvent> {
 
-    private static final String WEBHOOK_URL = Main.getEnv("WEBHOOK_URL");
     private static final int MAX_MESSAGE_LENGTH = 2000;
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
@@ -25,7 +24,7 @@ public class DiscordWebhookAppender extends AppenderBase<ILoggingEvent> {
     private final ObjectMapper objectMapper;
     private final Executor executor;
 
-    private String webhookUrl = WEBHOOK_URL;
+    private String webhookUrl = null;
     private String username = "Application Logger";
     private String avatarUrl = null;
     private boolean includeStackTrace = true;
@@ -48,6 +47,11 @@ public class DiscordWebhookAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
+        // Skip if webhook URL is not configured
+        if (webhookUrl == null || webhookUrl.trim().isEmpty()) {
+            return;
+        }
+        
         try {
             String message = formatMessage(event);
             sendToDiscordAsync(message, getEmbedColor(event.getLevel().toString()));
@@ -137,8 +141,8 @@ public class DiscordWebhookAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     public void start() {
-        if (webhookUrl == null || webhookUrl.trim().isEmpty() || webhookUrl.equals(WEBHOOK_URL)) {
-            addError("Discord webhook URL is not configured");
+        if (webhookUrl == null || webhookUrl.trim().isEmpty()) {
+            addWarn("Discord webhook URL is not configured - appender will be disabled");
             return;
         }
 

@@ -21,6 +21,8 @@ import me.hash.mediaroulette.utils.*;
 import me.hash.mediaroulette.utils.media.MediaInitializer;
 import me.hash.mediaroulette.utils.terminal.TerminalInterface;
 import me.hash.mediaroulette.utils.user.UserService;
+import me.hash.mediaroulette.utils.vault.VaultConfig;
+import me.hash.mediaroulette.utils.vault.VaultSecretManager;
 
 /**
  * Main application entry point for MediaRoulette Discord bot.
@@ -34,6 +36,7 @@ public class Main {
     // Environment and Configuration
     private static final Dotenv env = initializeEnvironment();
     private static LocalConfig localConfig;
+    private static VaultSecretManager vaultSecretManager;
 
     // Core Components
     private static Database database;
@@ -52,11 +55,14 @@ public class Main {
     // ==================== Initialization ====================
 
     public static void main(String[] args) throws Exception {
+
         registerShutdownHook();
 
         logger.info("Starting MediaRoulette application...");
+        logger.debug("Debug logging is enabled");
 
         localConfig = LocalConfig.getInstance();
+        initializeVault();
         initializeInfrastructure();
         initializeBot();
         initializePlugins();
@@ -80,6 +86,34 @@ public class Main {
             logger.info("Shutdown signal received");
             shutdown();
         }, "Shutdown-Hook"));
+    }
+
+    // ==================== Vault Setup ====================
+
+    private static void initializeVault() {
+        logger.info("Initializing Vault secret management...");
+        try {
+            VaultConfig vaultConfig = VaultConfig.load();
+            VaultSecretManager.initialize(vaultConfig);
+            vaultSecretManager = VaultSecretManager.getInstance();
+            
+            if (vaultSecretManager.isVaultEnabled()) {
+                logger.info("Vault integration enabled and ready");
+                if (vaultSecretManager.testConnection()) {
+                    logger.info("Vault connection test successful");
+                } else {
+                    logger.warn("Vault connection test failed - check configuration");
+                }
+            } else {
+                logger.info("Vault integration disabled - using fallback to .env and environment variables");
+            }
+        } catch (Exception e) {
+            logger.error("Failed to initialize Vault: {}", e.getMessage());
+            logger.warn("Falling back to .env and environment variables");
+            // Initialize with disabled config to allow fallback
+            VaultSecretManager.initialize(new VaultConfig.Builder().enabled(false).build());
+            vaultSecretManager = VaultSecretManager.getInstance();
+        }
     }
 
     // ==================== Infrastructure Setup ====================
@@ -196,6 +230,7 @@ public class Main {
         logger.info("--------------------------------------------------");
         logger.info("Bot:              {}", getStatus(bot));
         logger.info("Database:         {}", getStatus(database));
+        logger.info("Vault:            {}", vaultSecretManager != null && vaultSecretManager.isVaultEnabled() ? "Enabled" : "Disabled");
         logger.info("Media Processing: {}", MediaInitializer.isInitialized() ? "Ready" : "Limited");
         logger.info("Maintenance Mode: {}", localConfig.getMaintenanceMode());
         logger.info("Plugins Loaded:   {}", pluginManager != null ? pluginManager.getPlugins().size() : 0);
@@ -249,10 +284,18 @@ public class Main {
         safeShutdown("Image Command Cleanup",
                 me.hash.mediaroulette.bot.commands.images.getRandomImage::shutdownCleanupExecutor
         );
+        
+        safeShutdown("Image Memory Manager", 
+                me.hash.mediaroulette.utils.media.ImageMemoryManager.getInstance()::shutdown
+        );
     }
 
     private static void shutdownMediaProcessing() {
         safeShutdown("Media Processing", MediaInitializer::shutdown);
+        
+        safeShutdown("Media Container Cleanup", 
+                me.hash.mediaroulette.bot.MediaContainerManager::cleanup
+        );
     }
 
     private static void shutdownDatabase() {
@@ -287,9 +330,26 @@ public class Main {
         return env;
     }
 
+    /**
+     * Get a secret/environment variable value.
+     * Priority: Vault -> .env file -> System environment variables
+     */
     public static String getEnv(String key) {
+        // Try Vault first if available
+        if (vaultSecretManager != null && vaultSecretManager.isVaultEnabled()) {
+            return vaultSecretManager.getSecret(key);
+        }
+        
+        // Fallback to .env file or system environment
         String value = env.get(key);
         return value != null ? value : System.getenv(key);
+    }
+    
+    /**
+     * Get Vault secret manager instance.
+     */
+    public static VaultSecretManager getVaultSecretManager() {
+        return vaultSecretManager;
     }
 
     public static LocalConfig getLocalConfig() {
