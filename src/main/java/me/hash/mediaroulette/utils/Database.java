@@ -42,5 +42,11 @@ public class Database {
         MongoCollection<Document> collection = getCollection(collectionName);
         collection.drop();
     }
+
+    public void close() {
+        if (mongoClient != null) {
+            mongoClient.close();
+        }
+    }
 }
 

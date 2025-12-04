@@ -11,9 +11,12 @@ import me.hash.mediaroulette.content.provider.impl.videos.YouTubeProvider;
 import me.hash.mediaroulette.content.provider.impl.videos.YouTubeShortsProvider;
 
 public class MediaServiceFactory {
+    private static final HttpClientWrapper SHARED_HTTP_CLIENT = new HttpClientWrapper();
+    
     private final HttpClientWrapper httpClient;
+    
     public MediaServiceFactory() {
-        this.httpClient = new HttpClientWrapper();
+        this.httpClient = SHARED_HTTP_CLIENT;
     }
 
     public MediaProvider createFourChanProvider() {
@@ -25,7 +28,7 @@ public class MediaServiceFactory {
     }
 
     public MediaProvider createImgurProvider() {
-        return new ImgurProvider();
+        return new ImgurProvider(httpClient);
     }
 
     public MediaProvider createGoogleProvider() {

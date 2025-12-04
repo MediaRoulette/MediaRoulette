@@ -300,7 +300,7 @@ public class Main {
 
     private static void shutdownDatabase() {
         if (database != null) {
-            logger.info("Database connections closed");
+            safeShutdown("Database", database::close);
         }
     }
 

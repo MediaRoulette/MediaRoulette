@@ -785,4 +785,17 @@ public class FFmpegDownloader {
 
         logger.info("================================");
     }
+
+    /**
+     * Shuts down the OkHttpClient resources
+     */
+    public static void shutdown() {
+        try {
+            HTTP_CLIENT.dispatcher().executorService().shutdown();
+            HTTP_CLIENT.connectionPool().evictAll();
+            // If cache was used, close it here
+        } catch (Exception e) {
+            logger.error("Error shutting down FFmpegDownloader: {}", e.getMessage());
+        }
+    }
 }

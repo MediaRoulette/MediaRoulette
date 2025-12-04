@@ -52,6 +52,53 @@ public class HttpClientWrapper {
     }
     
     /**
+     * Get response body as bytes (for images/media)
+     */
+    public byte[] getBytes(String url) throws IOException, InterruptedException, RateLimitException {
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .timeout(Duration.ofSeconds(30))
+            .GET()
+            .build();
+            
+        HttpResponse<byte[]> response = sendRequestBytes(request);
+        return response.body();
+    }
+
+    private HttpResponse<byte[]> sendRequestBytes(HttpRequest request) throws IOException, InterruptedException, RateLimitException {
+        String domain = request.uri().getHost();
+
+        AtomicLong lastRequest = rateLimitMap.computeIfAbsent(domain, k -> new AtomicLong(0));
+        long now = System.currentTimeMillis();
+        long timeSinceLastRequest = now - lastRequest.get();
+
+        if (timeSinceLastRequest < DEFAULT_RATE_LIMIT_DELAY) {
+            long waitTime = DEFAULT_RATE_LIMIT_DELAY - timeSinceLastRequest;
+            Thread.sleep(waitTime);
+        }
+
+        lastRequest.set(now);
+        
+        HttpRequest requestWithHeaders = HttpRequest.newBuilder()
+            .uri(request.uri())
+            .timeout(request.timeout().orElse(Duration.ofSeconds(30)))
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            .method(request.method(), request.bodyPublisher().orElse(HttpRequest.BodyPublishers.noBody()))
+            .build();
+        
+        HttpResponse<byte[]> response = httpClient.send(requestWithHeaders, HttpResponse.BodyHandlers.ofByteArray());
+        
+        if (response.statusCode() >= 400) {
+            if (response.statusCode() == 429) {
+                throw new RateLimitException("Server rate limit exceeded for " + domain);
+            }
+            throw new IOException("HTTP " + response.statusCode() + " error for " + request.uri());
+        }
+        
+        return response;
+    }
+    
+    /**
      * Send a POST request with rate limiting
      */
     public HttpResponse<String> post(String url, String body) throws IOException, InterruptedException, RateLimitException {

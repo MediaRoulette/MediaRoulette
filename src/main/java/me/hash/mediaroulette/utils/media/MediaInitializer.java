@@ -44,10 +44,17 @@ public class MediaInitializer {
     /**
      * Schedules periodic cleanup of temporary files
      */
+    private static java.util.concurrent.ScheduledExecutorService cleanupScheduler;
+
     private static void scheduleCleanup() {
         // Run cleanup every 30 minutes
-        java.util.concurrent.Executors.newScheduledThreadPool(1)
-                .scheduleAtFixedRate(() -> {
+        cleanupScheduler = java.util.concurrent.Executors.newScheduledThreadPool(1, r -> {
+            Thread t = new Thread(r, "Media-Cleanup-Thread");
+            t.setDaemon(true);
+            return t;
+        });
+        
+        cleanupScheduler.scheduleAtFixedRate(() -> {
                     try {
                         MediaContainerManager.cleanup();
                     } catch (Exception e) {
@@ -61,7 +68,19 @@ public class MediaInitializer {
      */
     public static void shutdown() {
         try {
+            if (cleanupScheduler != null) {
+                cleanupScheduler.shutdown();
+                try {
+                    if (!cleanupScheduler.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                        cleanupScheduler.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    cleanupScheduler.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+            }
             MediaContainerManager.cleanup();
+            FFmpegDownloader.shutdown();
             logger.info("Media processing cleanup completed.");
         } catch (Exception e) {
             logger.error("Error during media processing shutdown: {}", e.getMessage());
