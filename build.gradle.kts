@@ -42,6 +42,17 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.19.0")
 
     implementation("com.bettercloud:vault-java-driver:5.1.0")
+
+    // Testing
+    testImplementation(platform("org.junit:junit-bom:5.10.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 java {

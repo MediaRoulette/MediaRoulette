@@ -207,7 +207,7 @@ public class Main {
         logger.info("Loaded {} plugins", pluginManager.getPlugins().size());
 
         // Register commands after loading plugins to make sure plugin commands are loaded
-        Bot.registerCommands();
+        bot.registerCommands();
     }
 
     private static void initializeGiveaways() {
@@ -265,10 +265,10 @@ public class Main {
     private static void shutdownBot() {
         if (bot != null) {
             safeShutdown("Bot", () -> {
-                Bot.getShardManager().shutdown();
-                Bot.executor.shutdown();
-                if (!Bot.executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                    Bot.executor.shutdownNow();
+                bot.getShardManager().shutdown();
+                bot.getExecutor().shutdown();
+                if (!bot.getExecutor().awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    bot.getExecutor().shutdownNow();
                 }
             });
         }
@@ -281,8 +281,8 @@ public class Main {
 
         safeShutdown("Giveaway Service", GiveawayManager::shutdown);
 
-        safeShutdown("Image Command Cleanup",
-                me.hash.mediaroulette.bot.commands.images.getRandomImage::shutdownCleanupExecutor
+        safeShutdown("Image Interaction Service",
+                me.hash.mediaroulette.service.ImageInteractionService.getInstance()::shutdown
         );
         
         safeShutdown("Image Memory Manager", 

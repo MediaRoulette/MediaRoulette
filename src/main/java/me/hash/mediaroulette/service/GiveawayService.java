@@ -95,12 +95,12 @@ public class GiveawayService {
             .setTimestamp(Instant.now());
 
         // Send message in the giveaway channel
-        Bot.getShardManager().getTextChannelById(giveaway.getChannelId())
+        Main.getBot().getShardManager().getTextChannelById(giveaway.getChannelId())
             .sendMessage(String.format("<@%s>", winnerId))
             .setEmbeds(embed.build()).queue();
 
         // Send DM to winner
-        Bot.getShardManager().getUserById(winnerId).openPrivateChannel().queue(channel -> {
+        Main.getBot().getShardManager().getUserById(winnerId).openPrivateChannel().queue(channel -> {
             EmbedBuilder dmEmbed = new EmbedBuilder()
                 .setTitle("Congratulations! You Won!")
                 .setDescription(String.format("Congratulations! You won **%s** from the giveaway: **%s**", 
@@ -117,7 +117,7 @@ public class GiveawayService {
             channel.sendMessageEmbeds(dmEmbed.build()).queue();
         }, error -> {
             // If DM fails, send in channel
-            Bot.getShardManager().getTextChannelById(giveaway.getChannelId())
+            Main.getBot().getShardManager().getTextChannelById(giveaway.getChannelId())
                 .sendMessage(String.format("<@%s> I couldn't DM you your prize! Here it is: %s", 
                     winnerId, "discord_nitro".equals(prize.getType()) ? prize.getValue() : 
                     "Won giveaway: " + giveaway.getTitle()))
@@ -132,7 +132,7 @@ public class GiveawayService {
             .setColor(new Color(220, 53, 69))
             .setTimestamp(Instant.now());
 
-        Bot.getShardManager().getTextChannelById(giveaway.getChannelId())
+        Main.getBot().getShardManager().getTextChannelById(giveaway.getChannelId())
             .sendMessageEmbeds(embed.build()).queue();
     }
 

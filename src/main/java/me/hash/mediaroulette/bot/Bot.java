@@ -30,20 +30,22 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class Bot extends ListenerAdapter {
-    private static ShardManager shardManager = null;
-    public static Config config = null;
-    public static final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-            Runtime.getRuntime().availableProcessors() * 4, // core
-            1000,
-            60L, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<>(2000),
-            new ThreadPoolExecutor.AbortPolicy()
-    );
-    private static final List<ListenerAdapter> listeners = new ArrayList<>();
-    private static CooldownManager cooldownManager = null;
+    private final ShardManager shardManager;
+    private final Config config;
+    private final ThreadPoolExecutor executor;
+    private final List<ListenerAdapter> listeners = new ArrayList<>();
+    private final CooldownManager cooldownManager;
 
     public Bot(String token) {
-        shardManager = DefaultShardManagerBuilder.createDefault(token)
+        this.executor = new ThreadPoolExecutor(
+                Runtime.getRuntime().availableProcessors() * 4, // core
+                1000,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(2000),
+                new ThreadPoolExecutor.AbortPolicy()
+        );
+
+        this.shardManager = DefaultShardManagerBuilder.createDefault(token)
                 .setActivity(Activity.playing("Use /support for help! | Alpha :3"))
                 .setStatus(OnlineStatus.ONLINE)
                 .setShardsTotal(-1)
@@ -54,7 +56,7 @@ public class Bot extends ListenerAdapter {
                 )
                 .build();
 
-        cooldownManager = new CooldownManager();
+        this.cooldownManager = new CooldownManager();
 
         addCommands(
                 new FavoritesCommand(),
@@ -68,35 +70,42 @@ public class Bot extends ListenerAdapter {
                 new SupportCommand()
         );
 
-        config = new Config(Main.getDatabase());
+        this.config = new Config(Main.getDatabase());
     }
 
-    public static void addCommands(ListenerAdapter... commands) {
+    public void addCommands(ListenerAdapter... commands) {
         listeners.addAll(Arrays.asList(commands));
     }
 
-    public static void registerCommands() {
+    public void registerCommands() {
         List<CommandData> commandData = listeners.stream()
                 .map(cmd -> ((CommandHandler) cmd).getCommandData())
                 .collect(Collectors.toList());
 
         listeners.forEach(cooldownManager::registerListener);
 
-        Bot.getShardManager().getShards().forEach(jda ->
+        shardManager.getShards().forEach(jda ->
                 jda.updateCommands().addCommands(commandData).queue());
 
-        Bot.getShardManager().addEventListener(cooldownManager);
+        shardManager.addEventListener(cooldownManager);
 
-        listeners.forEach(Bot.getShardManager()::addEventListener);
+        listeners.forEach(shardManager::addEventListener);
     }
 
-    /**
-     * Public method to obtain the ShardManager instance.
-     *
-     * @return ShardManager instance.
-     */
-    public static ShardManager getShardManager() {
+    public ShardManager getShardManager() {
         return shardManager;
+    }
+
+    public ThreadPoolExecutor getExecutor() {
+        return executor;
+    }
+
+    public Config getConfig() {
+        return config;
+    }
+
+    public CooldownManager getCooldownManager() {
+        return cooldownManager;
     }
 
     @Override

@@ -51,7 +51,7 @@ public class InfoCommand extends BaseCommand {
         if (!event.getName().equals("info")) return;
 
         event.deferReply().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             Container container = "bot".equals(event.getSubcommandName())
                     ? createBotInfo()
                     : createUserInfo(event.getUser().getId(), event.getUser().getName(), event.getUser().getAvatarUrl());
@@ -65,7 +65,7 @@ public class InfoCommand extends BaseCommand {
         if (!id.startsWith("refresh_")) return;
 
         event.deferEdit().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             Container container = id.equals("refresh_stats") ? createBotInfo() 
                     : createUserInfo(event.getUser().getId(), event.getUser().getName(), event.getUser().getAvatarUrl());
             event.getHook().editOriginalComponents(container).useComponentsV2().queue();
@@ -73,7 +73,7 @@ public class InfoCommand extends BaseCommand {
     }
 
     private Container createBotInfo() {
-        JDA shard = Bot.getShardManager().getShards().getFirst();
+        JDA shard = Main.getBot().getShardManager().getShards().getFirst();
         long totalImages = Main.getUserService().getTotalImagesGenerated();
         long totalUsers = Main.getUserService().getTotalUsers();
         long uptime = System.currentTimeMillis() - Main.START_TIME;

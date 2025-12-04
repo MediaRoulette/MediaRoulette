@@ -79,7 +79,7 @@ public class SettingsCommand extends BaseCommand {
         if (!event.getName().equals("settings")) return;
         
         event.deferReply().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
             
@@ -100,7 +100,7 @@ public class SettingsCommand extends BaseCommand {
         
         if (componentId.startsWith("settings:setconfig:")) {
             event.deferReply(true).queue(); // Ephemeral response
-            Bot.executor.execute(() -> handleApplyConfig(event, componentId));
+            Main.getBot().getExecutor().execute(() -> handleApplyConfig(event, componentId));
         }
     }
     

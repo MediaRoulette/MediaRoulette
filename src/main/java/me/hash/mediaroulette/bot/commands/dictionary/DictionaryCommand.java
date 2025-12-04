@@ -69,7 +69,7 @@ public class DictionaryCommand extends BaseCommand {
         if (!event.getName().equals("dictionary")) return;
         
         event.deferReply().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
             
@@ -216,7 +216,7 @@ public class DictionaryCommand extends BaseCommand {
         String dictId = parts.length > 1 ? parts[1] : null;
         String userId = event.getUser().getId();
         
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
             LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
 
@@ -247,7 +247,7 @@ public class DictionaryCommand extends BaseCommand {
         if (!event.getModalId().startsWith("dict_")) return;
         
         event.deferReply().setEphemeral(true).queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             String[] parts = event.getModalId().split(":");
             String action = parts[0];
             String dictId = parts.length > 1 ? parts[1] : null;

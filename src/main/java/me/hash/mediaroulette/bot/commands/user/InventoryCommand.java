@@ -53,7 +53,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         if (!event.getName().equals("inventory")) return;
 
         event.deferReply().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
 
@@ -72,7 +72,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         
         if (componentId.startsWith("inventory:")) {
             event.deferEdit().queue();
-            Bot.executor.execute(() -> handleInventoryButton(event, componentId));
+            Main.getBot().getExecutor().execute(() -> handleInventoryButton(event, componentId));
         }
     }
 

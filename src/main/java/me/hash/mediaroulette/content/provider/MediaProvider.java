@@ -6,6 +6,14 @@ import java.io.IOException;
 
 public interface MediaProvider {
     MediaResult getRandomMedia(String query) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException;
+    
+    /**
+     * Get random media with user context (useful for error reporting)
+     */
+    default MediaResult getRandomMedia(String query, String userId) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException {
+        return getRandomMedia(query);
+    }
+
     boolean supportsQuery();
     String getProviderName();
 }

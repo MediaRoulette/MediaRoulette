@@ -244,7 +244,7 @@ public class GiveawayCommand extends BaseCommand {
     private void handleList(SlashCommandInteractionEvent event) {
         event.deferReply(true).queue();
         
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             List<Giveaway> activeGiveaways = giveawayService.getActiveGiveaways();
             
             EmbedBuilder embed = new EmbedBuilder()
@@ -371,7 +371,7 @@ public class GiveawayCommand extends BaseCommand {
 
     private void updateGiveawayMessage(Giveaway giveaway, boolean isEnded) {
         try {
-            TextChannel channel = Bot.getShardManager().getTextChannelById(giveaway.getChannelId());
+            TextChannel channel = Main.getBot().getShardManager().getTextChannelById(giveaway.getChannelId());
             if (channel == null) return;
 
             channel.retrieveMessageById(giveaway.getMessageId()).queue(message -> {
@@ -429,7 +429,7 @@ public class GiveawayCommand extends BaseCommand {
 
     private void sendWinnerNotification(Giveaway giveaway, String winnerId, boolean isReroll) {
         try {
-            TextChannel channel = Bot.getShardManager().getTextChannelById(giveaway.getChannelId());
+            TextChannel channel = Main.getBot().getShardManager().getTextChannelById(giveaway.getChannelId());
             if (channel == null) return;
 
             EmbedBuilder embed = new EmbedBuilder()
@@ -445,7 +445,7 @@ public class GiveawayCommand extends BaseCommand {
                 embed.addField("🎁 Your Prize", "Check your DMs for your Discord Nitro gift link!", false);
                 
                 // Send DM with nitro link
-                Bot.getShardManager().retrieveUserById(winnerId).queue(user -> {
+                Main.getBot().getShardManager().retrieveUserById(winnerId).queue(user -> {
                     user.openPrivateChannel().queue(dm -> {
                         EmbedBuilder dmEmbed = new EmbedBuilder()
                                 .setTitle("🎉 Congratulations! You Won Discord Nitro!")

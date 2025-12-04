@@ -238,7 +238,7 @@ public class AdminCommand extends BaseCommand {
     private void handleViewInventory(SlashCommandInteractionEvent event) {
         event.deferReply(true).queue();
         
-        Bot.executor.submit(() -> {
+        Main.getBot().getExecutor().submit(() -> {
             List<BotInventoryItem> items = botInventoryService.getAllItems();
             
             if (items.isEmpty()) {
@@ -285,7 +285,7 @@ public class AdminCommand extends BaseCommand {
         
         event.deferReply(true).queue();
         
-        Bot.executor.submit(() -> {
+        Main.getBot().getExecutor().submit(() -> {
             boolean removed = botInventoryService.removeItem(itemId);
             
             if (removed) {
@@ -308,7 +308,7 @@ public class AdminCommand extends BaseCommand {
         
         event.deferReply(true).queue();
         
-        Bot.executor.submit(() -> {
+        Main.getBot().getExecutor().submit(() -> {
             try {
                 User user = Main.getUserService().getOrCreateUser(targetUser.getId());
                 user.setCoins(user.getCoins() + amount);
@@ -336,7 +336,7 @@ public class AdminCommand extends BaseCommand {
         
         event.deferReply(true).queue();
         
-        Bot.executor.submit(() -> {
+        Main.getBot().getExecutor().submit(() -> {
             try {
                 User user = Main.getUserService().getOrCreateUser(targetUser.getId());
                 user.setPremium(premium);
@@ -360,7 +360,7 @@ public class AdminCommand extends BaseCommand {
     private void handleStats(SlashCommandInteractionEvent event) {
         event.deferReply(true).queue();
         
-        Bot.executor.submit(() -> {
+        Main.getBot().getExecutor().submit(() -> {
             long totalUsers = Main.getUserService().getTotalUsers();
             long totalImages = Main.getUserService().getTotalImagesGenerated();
             List<BotInventoryItem> botItems = botInventoryService.getAllItems();
@@ -385,8 +385,8 @@ public class AdminCommand extends BaseCommand {
             embed.addField("Nitro Items", String.valueOf(nitroItems), true);
 
             // Bot statistics
-            embed.addField("Guilds", String.valueOf(Bot.getShardManager().getGuilds().size()), true);
-            embed.addField("Shards", String.valueOf(Bot.getShardManager().getShards().size()), true);
+            embed.addField("Guilds", String.valueOf(Main.getBot().getShardManager().getGuilds().size()), true);
+            embed.addField("Shards", String.valueOf(Main.getBot().getShardManager().getShards().size()), true);
             embed.addField("Uptime", getUptimeString(), true);
 
             // Giveaway statistics
@@ -402,7 +402,7 @@ public class AdminCommand extends BaseCommand {
     private void handleCleanup(SlashCommandInteractionEvent event) {
         event.deferReply(true).queue();
         
-        Bot.executor.submit(() -> {
+        Main.getBot().getExecutor().submit(() -> {
             try {
                 // Clean up expired items
                 List<BotInventoryItem> expiredItems = botInventoryService.getAllItems().stream()
@@ -452,7 +452,7 @@ public class AdminCommand extends BaseCommand {
     }
 
     private String getUptimeString() {
-        long uptime = System.currentTimeMillis() - Bot.getShardManager().getShards().get(0).getGatewayPing();
+        long uptime = System.currentTimeMillis() - Main.getBot().getShardManager().getShards().get(0).getGatewayPing();
         long seconds = uptime / 1000;
         long minutes = seconds / 60;
         long hours = minutes / 60;
@@ -643,11 +643,11 @@ public class AdminCommand extends BaseCommand {
             config.setMaintenanceMode(enabled);
             
             if (enabled) {
-                Bot.getShardManager().setActivity(Activity.playing("🔧 Under Maintenance"));
-                Bot.getShardManager().setStatus(OnlineStatus.DO_NOT_DISTURB);
+                Main.getBot().getShardManager().setActivity(Activity.playing("🔧 Under Maintenance"));
+                Main.getBot().getShardManager().setStatus(OnlineStatus.DO_NOT_DISTURB);
             } else {
-                Bot.getShardManager().setActivity(Activity.playing("Use /support for help! | Alpha :3"));
-                Bot.getShardManager().setStatus(OnlineStatus.ONLINE);
+                Main.getBot().getShardManager().setActivity(Activity.playing("Use /support for help! | Alpha :3"));
+                Main.getBot().getShardManager().setStatus(OnlineStatus.ONLINE);
             }
             
             String status = enabled ? "DO_NOT_DISTURB" : "ONLINE";
@@ -656,7 +656,7 @@ public class AdminCommand extends BaseCommand {
             EmbedBuilder embed = MediaContainerManager.createSuccess(
                 enabled ? "Maintenance Mode Enabled" : "Maintenance Mode Disabled",
                 String.format("**Status:** %s\n**Activity:** %s\n**Shards:** %d\n**Saved to:** config.json", 
-                        status, activity, Bot.getShardManager().getShards().size()));
+                        status, activity, Main.getBot().getShardManager().getShards().size()));
             
             event.replyEmbeds(embed.build()).setEphemeral(true).queue();
             

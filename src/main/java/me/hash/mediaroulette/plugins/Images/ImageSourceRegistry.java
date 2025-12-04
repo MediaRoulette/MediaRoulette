@@ -38,20 +38,27 @@ public class ImageSourceRegistry {
      * Initialize built-in image source providers
      */
     private void initializeBuiltInProviders() {
-        // Create providers for all built-in sources
-        String[] builtInSources = {
-            ImageSource.TENOR, ImageSource._4CHAN, ImageSource.GOOGLE, ImageSource.IMGUR,
-            ImageSource.PICSUM, ImageSource.RULE34XXX, ImageSource.MOVIE, ImageSource.TVSHOW,
-            ImageSource.URBAN, ImageSource.YOUTUBE, ImageSource.SHORT
-            // Note: ALL is handled specially and doesn't need a provider
-        };
+        me.hash.mediaroulette.content.factory.MediaServiceFactory factory = new me.hash.mediaroulette.content.factory.MediaServiceFactory();
         
-        for (String sourceName : builtInSources) {
-            BuiltInImageSourceProvider provider = new BuiltInImageSourceProvider(sourceName);
-            builtInProviders.put(sourceName, provider);
-            providers.put(sourceName, provider);
-        }
+        registerBuiltIn(ImageSource.GOOGLE, factory.createGoogleProvider(), 85);
+        registerBuiltIn(ImageSource.IMGUR, factory.createImgurProvider(), 80);
+        registerBuiltIn(ImageSource.YOUTUBE, factory.createYouTubeProvider(), 75);
+        registerBuiltIn(ImageSource.TENOR, factory.createTenorProvider(), 70);
+        registerBuiltIn(ImageSource._4CHAN, factory.createFourChanProvider(), 65);
+        registerBuiltIn(ImageSource.PICSUM, factory.createPicsumProvider(), 60);
+        registerBuiltIn(ImageSource.RULE34XXX, factory.createRule34Provider(), 55);
+        registerBuiltIn(ImageSource.MOVIE, factory.createTMDBMovieProvider(), 50);
+        registerBuiltIn(ImageSource.TVSHOW, factory.createTMDBTvProvider(), 50);
+        registerBuiltIn(ImageSource.URBAN, factory.createUrbanDictionaryProvider(), 45);
+        registerBuiltIn(ImageSource.SHORT, factory.createYouTubeShortsProvider(), 40);
+        
         logger.info("Initialized {} built-in image source providers", builtInProviders.size());
+    }
+    
+    private void registerBuiltIn(String name, me.hash.mediaroulette.content.provider.MediaProvider provider, int priority) {
+        BuiltInImageSourceProvider builtIn = new BuiltInImageSourceProvider(name, provider, priority);
+        builtInProviders.put(name, builtIn);
+        providers.put(name, builtIn);
     }
     
     /**

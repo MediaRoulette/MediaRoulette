@@ -6,16 +6,14 @@ import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.utils.errorHandler;
+import me.hash.mediaroulette.model.MessageData;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.plugins.Images.ImageSource;
+import me.hash.mediaroulette.plugins.Images.ImageSourceRegistry;
+import me.hash.mediaroulette.service.ImageInteractionService;
+import me.hash.mediaroulette.service.ImageRequestService;
 import me.hash.mediaroulette.utils.LocaleManager;
 import me.hash.mediaroulette.utils.MaintenanceChecker;
 import me.hash.mediaroulette.utils.QuestGenerator;
-import net.dv8tion.jda.api.components.Component;
-import net.dv8tion.jda.api.components.buttons.Button;
-import net.dv8tion.jda.api.components.replacer.ComponentReplacer;
-import net.dv8tion.jda.api.components.tree.MessageComponentTree;
-import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.IntegrationType;
@@ -24,99 +22,45 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import java.awt.Color;
-import java.time.Instant;
+
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class getRandomImage extends BaseCommand {
 
+    private final ImageRequestService requestService;
+    private final ImageInteractionService interactionService;
+
+    public getRandomImage() {
+        this.requestService = ImageRequestService.getInstance();
+        this.interactionService = ImageInteractionService.getInstance();
+    }
+
     @Override
     public CommandData getCommandData() {
-        return Commands.slash("random", "Sends a random image")
-                .addSubcommands(
-                        new SubcommandData("all", "Sends images from all sources")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("picsum", "Sends a random image from picsum")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("imgur", "Sends a random image from imgur")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("rulee34xxx", "Sends a random image from rulee34 website")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("google", "Sends a random image from google")
-                                .addOption(OptionType.STRING, "query", "What image should be searched for?", false, true)
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("reddit", "Sends a random image from reddit")
-                                .addOption(OptionType.STRING, "query", "Which subreddit should the image be retrieved from?", false, true)
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("tenor", "Sends a random gif from tenor")
-                                .addOption(OptionType.STRING, "query", "What gif should be searched for?", false, true)
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the gif keep generating?"),
-                        new SubcommandData("4chan", "Sends a random image from 4chan")
-                                .addOption(OptionType.STRING, "query", "Which board to retrieve image from?", false, true)
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("movie", "Sends a random movie from TMDB")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("tvshow", "Sends a random TV Show from TMDB")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("youtube", "Sends a random YouTube video")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("short", "Sends a random Short from YouTube")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the image keep generating?"),
-                        new SubcommandData("urban", "Sends a random word from The Urban Dictionary")
-                                .addOption(OptionType.STRING, "query", "What word should be defined?")
-                                .addOption(OptionType.BOOLEAN, "shouldcontinue",
-                                        "Should the word keep generating?")
-                ).setIntegrationTypes(IntegrationType.ALL)
-                .setContexts(InteractionContextType.ALL);
-    }
+        var command = Commands.slash("random", "Sends a random image");
 
-    private static final Map<Long, MessageData> ACTIVE_MESSAGES = new ConcurrentHashMap<>();
-    private static final ScheduledExecutorService CLEANUP_EXECUTOR = Executors.newSingleThreadScheduledExecutor();
+        command.addSubcommands(new SubcommandData("all", "Sends images from all sources")
+                .addOption(OptionType.BOOLEAN, "shouldcontinue", "Should the image keep generating?"));
 
-    /**
-     * Shutdown the cleanup executor service
-     */
-    public static void shutdownCleanupExecutor() {
-        CLEANUP_EXECUTOR.shutdown();
-        try {
-            if (!CLEANUP_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
-                CLEANUP_EXECUTOR.shutdownNow();
+        ImageSourceRegistry.getInstance().getProvidersByPriority().forEach(provider -> {
+            String name = provider.getName().toLowerCase();
+            String description = provider.getDescription();
+            if (description.length() > 100) {
+                description = description.substring(0, 97) + "...";
             }
-        } catch (InterruptedException e) {
-            CLEANUP_EXECUTOR.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-    }
-    private static final long INACTIVITY_TIMEOUT = TimeUnit.MINUTES.toMillis(3);
+            
+            SubcommandData subcommand = new SubcommandData(name, description)
+                    .addOption(OptionType.BOOLEAN, "shouldcontinue", "Should the image keep generating?");
 
-    static {
-        CLEANUP_EXECUTOR.scheduleAtFixedRate(() -> {
-            long now = Instant.now().toEpochMilli();
-            ACTIVE_MESSAGES.entrySet().removeIf(entry -> {
-                MessageData data = entry.getValue();
-                if (now - data.getLastInteractionTime() > INACTIVITY_TIMEOUT) {
-                    data.disableButtons();
-                    return true;
-                }
-                return false;
-            });
-        }, 1, 1, TimeUnit.MINUTES);
+            if (provider.supportsSearch()) {
+                subcommand.addOption(OptionType.STRING, "query", "Search query for " + provider.getDisplayName(), false, true);
+            }
+            
+            command.addSubcommands(subcommand);
+        });
+        
+        return command.setIntegrationTypes(IntegrationType.ALL)
+                .setContexts(InteractionContextType.ALL);
     }
 
     @Override
@@ -129,7 +73,6 @@ public class getRandomImage extends BaseCommand {
             return;
         }
 
-
         event.deferReply().queue();
 
         String userId = event.getUser().getId();
@@ -137,16 +80,17 @@ public class getRandomImage extends BaseCommand {
         String query = event.getOption("query") != null ? event.getOption("query").getAsString() : null;
 
         Main.getUserService().trackCommandUsage(userId, "random");
-        trackSourceUsage(userId, subcommand, query);
+        requestService.trackSourceUsage(userId, subcommand, query);
 
         User user = Main.getUserService().getOrCreateUser(userId);
 
-        if (!validateChannelAccess(event, user)) return;
+        if (!requestService.validateChannelAccess(event, user)) return;
 
         Main.getUserService().updateUser(user);
 
-        event.getHook().sendMessageComponents(createLoadingContainer(event.getUser().getEffectiveAvatarUrl())).useComponentsV2().queue(hook ->
-                Bot.executor.execute(() -> processImageRequest(event, user, subcommand, query, event.getHook())));
+        event.getHook().sendMessageComponents(interactionService.createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
+                .useComponentsV2()
+                .queue(msg -> Main.getBot().getExecutor().execute(() -> processImageRequest(event, user, subcommand, query, event.getHook())));
     }
 
     private void processImageRequest(SlashCommandInteractionEvent event, User user, String subcommand, String query, net.dv8tion.jda.api.interactions.InteractionHook hook) {
@@ -155,28 +99,32 @@ public class getRandomImage extends BaseCommand {
         try {
             boolean shouldContinue = event.getOption("shouldcontinue") != null && event.getOption("shouldcontinue").getAsBoolean();
 
-            try {
-                Map<String, String> image = ImageSource.handle(subcommand.toUpperCase(), event, query);
-                if (image == null || image.get("image") == null) {
-                    errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
-                    return;
-                }
+            requestService.fetchImage(subcommand, event, query)
+                    .thenAccept(image -> {
+                        if (image == null || image.get("image") == null) {
+                            errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
+                            return;
+                        }
 
-                trackStats(user.getUserId(), subcommand, user);
+                        requestService.trackStats(user.getUserId(), subcommand, user);
 
-                MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
-                        .thenAccept(msg -> {
-                            ACTIVE_MESSAGES.put(msg.getIdLong(), new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
-                            QuestGenerator.onImageGenerated(user, subcommand);
-                            Main.getUserService().updateUser(user);
-                        })
-                        .exceptionally(ex -> {
-                            errorHandler.handleException(event, localeManager.get("error.unexpected_error"), localeManager.get("error.failed_to_send_image"), ex);
-                            return null;
-                        });
-            } catch (Exception e) {
-                errorHandler.sendErrorEmbed(event, localeManager.get("error.generic_title"), e.getMessage());
-            }
+                        MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
+                                .thenAccept(msg -> {
+                                    interactionService.registerMessage(msg.getIdLong(), 
+                                            new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
+                                    QuestGenerator.onImageGenerated(user, subcommand);
+                                    Main.getUserService().updateUser(user);
+                                })
+                                .exceptionally(ex -> {
+                                    errorHandler.handleException(event, localeManager.get("error.unexpected_error"), localeManager.get("error.failed_to_send_image"), ex);
+                                    return null;
+                                });
+                    })
+                    .exceptionally(e -> {
+                        errorHandler.sendErrorEmbed(event, localeManager.get("error.generic_title"), e.getMessage());
+                        return null;
+                    });
+
             user.incrementImagesGenerated();
             Main.getUserService().updateUser(user);
         } catch (Exception e) {
@@ -186,401 +134,6 @@ public class getRandomImage extends BaseCommand {
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
-        long messageId = event.getMessageIdLong();
-
-        if (!ACTIVE_MESSAGES.containsKey(messageId)) {
-            return;
-        }
-
-        if (MaintenanceChecker.isMaintenanceBlocked(event)) {
-            MaintenanceChecker.sendMaintenanceMessage(event);
-            return;
-        }
-
-        event.deferEdit().queue();
-        Bot.executor.execute(() -> {
-            MessageData data = ACTIVE_MESSAGES.get(messageId);
-
-            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-            LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
-
-            data.updateLastInteractionTime();
-
-            if (!data.isUserAllowed(event.getUser().getIdLong())) {
-                event.getHook().sendMessage(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
-                return;
-            }
-
-            String buttonId = event.getButton().getCustomId();
-
-            switch (buttonId) {
-                case "nsfw:continue":
-                case "safe:continue":
-                    handleContinue(event, data);
-                    break;
-                case "favorite":
-                    handleFavorite(event);
-                    break;
-                case "nsfw":
-                case "safe":
-                    QuestGenerator.onImageRated(user);
-                    Main.getUserService().updateUser(user);
-                    disableAllButtonsInContainer(event);
-                    break;
-                case "exit":
-                    disableAllButtonsInContainer(event);
-                    break;
-                case null:
-                default:
-                    showErrorContainer(event, localeManager.get("error.unknown_button_title"),
-                            localeManager.get("error.unknown_button_description"));
-            }
-        });
+        Main.getBot().getExecutor().execute(() -> interactionService.handleButtonInteraction(event));
     }
-
-    private void handleContinue(ButtonInteractionEvent event, MessageData data) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
-
-        event.getHook().editOriginalComponents(createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
-                .useComponentsV2()
-                .queue(success -> {
-                    // Use the new unified ImageSource.handle method
-                    try {
-                        Map<String, String> image = ImageSource.handle(data.getSubcommand().toUpperCase(), event, data.getQuery());
-                        if (image == null || image.get("image") == null) {
-                            showErrorContainer(event, localeManager.get("error.no_more_images_title"),
-                                    localeManager.get("error.no_more_images_description"));
-                            return;
-                        }
-                        MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
-
-                        user.incrementImagesGenerated();
-                        QuestGenerator.onImageGenerated(user, data.getSubcommand());
-                        Main.getUserService().updateUser(user);
-                    } catch (Exception e) {
-                        showErrorContainer(event, localeManager.get("error.title"), e.getMessage());
-                    }
-                });
-    }
-
-    private void handleFavorite(ButtonInteractionEvent event) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
-
-        try {
-            MessageData data = ACTIVE_MESSAGES.get(event.getMessageIdLong());
-            if (data == null) {
-                showErrorContainer(event, localeManager.get("error.no_image_title"),
-                        localeManager.get("error.no_image_description"));
-                return;
-            }
-
-            // Extract container fields: title, description, image URL, and accent color
-            ContainerData containerData = extractContainerData(event.getMessage());
-            String title = containerData.title != null ? containerData.title : ("Random " + data.getSubcommand());
-            String description = containerData.description != null ? containerData.description : ("Random " + data.getSubcommand() + " image");
-            String imageUrl = containerData.imageUrl;
-            Integer accentColor = containerData.accentColor;
-
-            // Validate that we have an image URL
-            if (imageUrl == null || imageUrl.isBlank() || "none".equals(imageUrl)) {
-                showErrorContainer(event, localeManager.get("error.no_image_title"),
-                        "Cannot favorite: No image found in this container");
-                return;
-            }
-
-            // Save a deep-copy favorite (no buttons included in storage)
-            Main.getUserService().addFavorite(user.getUserId(), title, description, imageUrl, "image", accentColor);
-            QuestGenerator.onImageFavorited(user);
-            Main.getUserService().updateUser(user);
-            disableButtonInContainer(event, "favorite");
-        } catch (Exception e) {
-            showErrorContainer(event, localeManager.get("error.title"), e.getMessage());
-        }
-    }
-
-    private static class ContainerData {
-        String title;
-        String description;
-        String imageUrl;
-        Integer accentColor;
-
-        ContainerData(String title, String description, String imageUrl, Integer accentColor) {
-            this.title = title;
-            this.description = description;
-            this.imageUrl = imageUrl;
-            this.accentColor = accentColor;
-        }
-    }
-
-    private static ContainerData extractContainerData(net.dv8tion.jda.api.entities.Message message) {
-        String title = null;
-        String description = null;
-        String imageUrl = null;
-        Integer accentColor = null;
-
-        try {
-            var components = message.getComponents();
-            if (components.isEmpty()) {
-                return new ContainerData(null, null, null, null);
-            }
-
-            var container = components.getFirst().asContainer();
-            var containerComponents = container.getComponents();
-
-            // Extract accent color from container
-            try {
-                java.awt.Color color = container.getAccentColor();
-                if (color != null) {
-                    accentColor = color.getRGB();
-                }
-            } catch (Exception ignored) { }
-
-            // Process all components in the container
-            for (var comp : containerComponents) {
-                try {
-                    // Handle Section components (which contain TextDisplay elements)
-                    if (comp.getType() == Component.Type.SECTION) {
-                        var section = comp.asSection();
-                        var sectionComponents = section.getContentComponents();
-
-                        for (var sectionComp : sectionComponents) {
-                            try {
-                                if (sectionComp.getType() == Component.Type.TEXT_DISPLAY) {
-                                    var textDisplay = sectionComp.asTextDisplay();
-                                    String text = textDisplay.getContent();
-                                    String trimmed = text.trim();
-
-                                    if (trimmed.startsWith("## ")) {
-                                        // Header title (remove the ## markdown)
-                                        title = trimmed.substring(3).trim();
-                                    } else if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.length() >= 4) {
-                                        // Bold description (remove the ** markdown)
-                                        description = trimmed.substring(2, trimmed.length() - 2).trim();
-                                    }
-                                }
-                            } catch (Exception ignored) { }
-                        }
-                    }
-                    // Handle MediaGallery components
-                    else if (comp.getType() == Component.Type.MEDIA_GALLERY) {
-                        var gallery = comp.asMediaGallery();
-                        if (!gallery.getItems().isEmpty()) {
-                            String url = gallery.getItems().getFirst().getUrl();
-                            if (!url.isBlank() && !url.startsWith("attachment://")) {
-                                imageUrl = url;
-                            }
-                        }
-                    }
-                } catch (Exception ignored) { }
-            }
-
-            // Fallback: if gallery URL is an attachment or not found, try message attachments (Discord CDN URL)
-            if ((imageUrl == null || imageUrl.startsWith("attachment://")) && !message.getAttachments().isEmpty()) {
-                String attachUrl = message.getAttachments().getFirst().getUrl();
-                if (attachUrl != null && !attachUrl.isBlank()) {
-                    imageUrl = attachUrl;
-                }
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error extracting container data: " + e.getMessage());
-            e.printStackTrace();
-        }
-
-        return new ContainerData(title, description, imageUrl, accentColor);
-    }
-
-    private void showImageContainer(ButtonInteractionEvent event, Map<String, String> image, String query, String subcommand, User user) {
-        MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
-    }
-
-    private static class MessageData {
-        private final long messageId;
-        private final String subcommand, query;
-        private final boolean shouldContinue;
-        private final long userId;
-        private final long channelId;
-        private long lastInteractionTime;
-
-        public MessageData(long messageId, String subcommand, String query, boolean shouldContinue, long userId, long channelId) {
-            this.messageId = messageId;
-            this.subcommand = subcommand;
-            this.query = query;
-            this.shouldContinue = shouldContinue;
-            this.userId = userId;
-            this.channelId = channelId;
-            this.lastInteractionTime = Instant.now().toEpochMilli();
-        }
-
-        public String getQuery() {
-            return query;
-        }
-
-        public String getSubcommand() {
-            return subcommand;
-        }
-
-        public boolean isShouldContinue() {
-            return shouldContinue;
-        }
-
-        public boolean isUserAllowed(long userId) {
-            return this.userId == userId;
-        }
-
-        public long getLastInteractionTime() {
-            return lastInteractionTime;
-        }
-
-        public void updateLastInteractionTime() {
-            this.lastInteractionTime = Instant.now().toEpochMilli();
-        }
-
-        public void disableButtons() {
-            Bot.getShardManager().getTextChannelById(channelId).retrieveMessageById(messageId).queue(message -> {
-                MessageComponentTree components = message.getComponentTree();
-                if (components.getComponents().isEmpty()) return;
-                ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> true, Button::asDisabled);
-                MessageComponentTree updated = components.replace(replacer);
-                message.editMessageComponents(updated).useComponentsV2().queue(
-                    success -> {}, // Success callback - do nothing
-                    failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
-                );
-            }, failure -> {}); // Failure callback for retrieveMessageById - silently ignore if message doesn't exist
-        }
-    }
-
-    private static void disableButtonInContainer(ButtonInteractionEvent event, String buttonId) {
-        updateButtonInContainer(event, buttonId);
-    }
-
-    private static void disableAllButtonsInContainer(ButtonInteractionEvent event) {
-        updateAllButtonsInContainer(event);
-    }
-
-    private static void updateButtonInContainer(ButtonInteractionEvent event, String buttonId) {
-        try {
-            MessageComponentTree components = event.getMessage().getComponentTree();
-            ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> buttonId.equals(button.getCustomId()), Button::asDisabled);
-            MessageComponentTree updated = components.replace(replacer);
-            event.getHook().editOriginalComponents(updated).useComponentsV2().queue(
-                success -> {}, // Success callback - do nothing
-                failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
-            );
-        } catch (Exception e) {
-            // Silently ignore any exceptions during button updates
-        }
-    }
-
-    private static void updateAllButtonsInContainer(ButtonInteractionEvent event) {
-        try {
-            MessageComponentTree components = event.getMessage().getComponentTree();
-            ComponentReplacer replacer = ComponentReplacer.of(Button.class, button -> true, Button::asDisabled);
-            MessageComponentTree updated = components.replace(replacer);
-            event.getHook().editOriginalComponents(updated).useComponentsV2().queue(
-                success -> {}, // Success callback - do nothing
-                failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
-            );
-        } catch (Exception e) {
-            // Silently ignore any exceptions during button updates
-        }
-    }
-
-    private static void showErrorContainer(ButtonInteractionEvent event, String title, String description) {
-        try {
-            net.dv8tion.jda.api.components.container.Container errorContainer = net.dv8tion.jda.api.components.container.Container.of(
-                    net.dv8tion.jda.api.components.section.Section.of(
-                            net.dv8tion.jda.api.components.thumbnail.Thumbnail.fromUrl(event.getUser().getEffectiveAvatarUrl()),
-                            net.dv8tion.jda.api.components.textdisplay.TextDisplay.of("## ❌ " + title),
-                            net.dv8tion.jda.api.components.textdisplay.TextDisplay.of("**" + description + "**"),
-                            net.dv8tion.jda.api.components.textdisplay.TextDisplay.of("*Please try again*")
-                    )
-            ).withAccentColor(Color.RED);
-            event.getHook().editOriginalComponents(errorContainer).useComponentsV2().queue(
-                success -> {}, // Success callback - do nothing
-                failure -> {} // Failure callback - silently ignore errors like "Unknown Message" or "Explicit content"
-            );
-        } catch (Exception e) {
-            // Silently ignore any exceptions during error container creation
-        }
-    }
-
-
-    private void trackSourceUsage(String userId, String subcommand, String query) {
-        if (query != null) {
-            switch (subcommand) {
-                case "reddit" -> {
-                    Main.getUserService().addCustomSubreddit(userId, query);
-                    Main.getUserService().trackSourceUsage(userId, "reddit");
-                }
-                case "google" -> {
-                    Main.getUserService().addCustomQuery(userId, "google", query);
-                    Main.getUserService().trackSourceUsage(userId, "google");
-                }
-                case "tenor" -> {
-                    Main.getUserService().addCustomQuery(userId, "tenor", query);
-                    Main.getUserService().trackSourceUsage(userId, "tenor");
-                }
-                case "4chan" -> {
-                    Main.getUserService().addCustomQuery(userId, "4chan", query);
-                    Main.getUserService().trackSourceUsage(userId, "4chan");
-                }
-            }
-        } else {
-            switch (subcommand) {
-                case "all" -> Main.getUserService().trackSourceUsage(userId, "all");
-                case "picsum" -> Main.getUserService().trackSourceUsage(userId, "picsum");
-                case "imgur" -> Main.getUserService().trackSourceUsage(userId, "imgur");
-                case "rulee34xxx" -> Main.getUserService().trackSourceUsage(userId, "rule34");
-                case "movie" -> Main.getUserService().trackSourceUsage(userId, "tmdb-movie");
-                case "tvshow" -> Main.getUserService().trackSourceUsage(userId, "tmdb-tv");
-                case "youtube" -> Main.getUserService().trackSourceUsage(userId, "youtube");
-                case "short" -> Main.getUserService().trackSourceUsage(userId, "youtube-shorts");
-                case "urban" -> Main.getUserService().trackSourceUsage(userId, "urban-dictionary");
-            }
-        }
-    }
-
-    private boolean validateChannelAccess(SlashCommandInteractionEvent event, User user) {
-        boolean isPrivateChannel = event.getChannelType() == ChannelType.PRIVATE;
-        boolean isTextChannel = event.getChannelType() == ChannelType.TEXT;
-        boolean isNsfwChannel = isTextChannel && event.getChannel().asTextChannel().isNSFW();
-
-        if (isPrivateChannel && !user.isNsfw()) {
-            errorHandler.sendErrorEmbed(event, "NSFW not enabled", "Please use the bot in an NSFW channel first");
-            return false;
-        }
-
-        if (isTextChannel) {
-            if (!user.isNsfw() && isNsfwChannel) {
-                user.setNsfw(true);
-            } else if (user.isNsfw() && !isNsfwChannel) {
-                errorHandler.sendErrorEmbed(event, "Use in NSFW channel/DMs!", "Please use the bot in an NSFW channel or DMs!");
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void trackStats(String userId, String subcommand, User user) {
-        if (Main.getStatsService() != null) {
-            Main.getStatsService().trackImageGenerated(userId, subcommand, user.isNsfw(), user.isPremium());
-            Main.getStatsService().trackCommandUsed(userId, "random", user.isPremium());
-            Main.getStatsService().trackUserActivity(userId, user.isPremium());
-        }
-    }
-
-    private net.dv8tion.jda.api.components.container.Container createLoadingContainer(String avatarUrl) {
-        return net.dv8tion.jda.api.components.container.Container.of(
-                net.dv8tion.jda.api.components.section.Section.of(
-                        net.dv8tion.jda.api.components.thumbnail.Thumbnail.fromUrl(avatarUrl),
-                        net.dv8tion.jda.api.components.textdisplay.TextDisplay.of("## <a:loading:1350829863157891094> Generating Image..."),
-                        net.dv8tion.jda.api.components.textdisplay.TextDisplay.of("**Please wait while we fetch your random image...**"),
-                        net.dv8tion.jda.api.components.textdisplay.TextDisplay.of("*This may take a few seconds*")
-                )
-        ).withAccentColor(new Color(88, 101, 242));
-    }
-
 }

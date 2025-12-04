@@ -1,5 +1,6 @@
 package me.hash.mediaroulette.bot.commands.bot;
 
+import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
@@ -32,7 +33,7 @@ public class SupportCommand extends BaseCommand {
         if (!event.getName().equals("support")) return;
 
         event.deferReply().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             EmbedBuilder embed = new EmbedBuilder()
                 .setTitle("🆘 MediaRoulette Support")
                 .setDescription("Need help with MediaRoulette? Join our support server!")

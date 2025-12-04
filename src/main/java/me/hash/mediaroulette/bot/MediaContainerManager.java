@@ -256,6 +256,99 @@ public class MediaContainerManager {
         }
     }
 
+    // ===== CONTAINER EXTRACTION =====
+
+    public static class ContainerData {
+        public final String title;
+        public final String description;
+        public final String imageUrl;
+        public final Integer accentColor;
+
+        public ContainerData(String title, String description, String imageUrl, Integer accentColor) {
+            this.title = title;
+            this.description = description;
+            this.imageUrl = imageUrl;
+            this.accentColor = accentColor;
+        }
+    }
+
+    public static ContainerData extractContainerData(net.dv8tion.jda.api.entities.Message message) {
+        String title = null;
+        String description = null;
+        String imageUrl = null;
+        Integer accentColor = null;
+
+        try {
+            var components = message.getComponents();
+            if (components.isEmpty()) {
+                return new ContainerData(null, null, null, null);
+            }
+
+            var container = components.getFirst().asContainer();
+            var containerComponents = container.getComponents();
+
+            // Extract accent color from container
+            try {
+                java.awt.Color color = container.getAccentColor();
+                if (color != null) {
+                    accentColor = color.getRGB();
+                }
+            } catch (Exception ignored) { }
+
+            // Process all components in the container
+            for (var comp : containerComponents) {
+                try {
+                    // Handle Section components (which contain TextDisplay elements)
+                    if (comp.getType() == net.dv8tion.jda.api.components.Component.Type.SECTION) {
+                        var section = comp.asSection();
+                        var sectionComponents = section.getContentComponents();
+
+                        for (var sectionComp : sectionComponents) {
+                            try {
+                                if (sectionComp.getType() == net.dv8tion.jda.api.components.Component.Type.TEXT_DISPLAY) {
+                                    var textDisplay = sectionComp.asTextDisplay();
+                                    String text = textDisplay.getContent();
+                                    String trimmed = text.trim();
+
+                                    if (trimmed.startsWith("## ")) {
+                                        // Header title (remove the ## markdown)
+                                        title = trimmed.substring(3).trim();
+                                    } else if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.length() >= 4) {
+                                        // Bold description (remove the ** markdown)
+                                        description = trimmed.substring(2, trimmed.length() - 2).trim();
+                                    }
+                                }
+                            } catch (Exception ignored) { }
+                        }
+                    }
+                    // Handle MediaGallery components
+                    else if (comp.getType() == net.dv8tion.jda.api.components.Component.Type.MEDIA_GALLERY) {
+                        var gallery = comp.asMediaGallery();
+                        if (!gallery.getItems().isEmpty()) {
+                            String url = gallery.getItems().getFirst().getUrl();
+                            if (!url.isBlank() && !url.startsWith("attachment://")) {
+                                imageUrl = url;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) { }
+            }
+
+            // Fallback: if gallery URL is an attachment or not found, try message attachments (Discord CDN URL)
+            if ((imageUrl == null || imageUrl.startsWith("attachment://")) && !message.getAttachments().isEmpty()) {
+                String attachUrl = message.getAttachments().getFirst().getUrl();
+                if (attachUrl != null && !attachUrl.isBlank()) {
+                    imageUrl = attachUrl;
+                }
+            }
+
+        } catch (Exception e) {
+            logger.error("Error extracting container data: {}", e.getMessage());
+        }
+
+        return new ContainerData(title, description, imageUrl, accentColor);
+    }
+
     // ===== PRIVATE IMPLEMENTATION =====
 
     private static CompletableFuture<Message> processContainer(Interaction event, Map<String, String> map,

@@ -111,7 +111,7 @@ public class ImageSource {
     }
 
     private static boolean isOptionDisabled(String option) {
-        return !Bot.config.getOrDefault(option, true, Boolean.class);
+        return !Main.getBot().getConfig().getOrDefault(option, true, Boolean.class);
     }
     
     /**

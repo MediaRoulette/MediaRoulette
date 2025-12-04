@@ -62,14 +62,14 @@ public class QuestNotificationManager {
      * Sends a DM notification about quest completion, falls back to ephemeral message if DM fails
      */
     private static void sendQuestCompletionNotification(String userId, List<Quest> completedQuests, long totalReward) {
-        if (Bot.getShardManager() == null) {
+        if (Main.getBot().getShardManager() == null) {
             return;
         }
         
         MessageEmbed embed = createQuestCompletionEmbed(completedQuests, totalReward);
         
         // Try to send DM first
-        Bot.getShardManager().retrieveUserById(userId).queue(
+        Main.getBot().getShardManager().retrieveUserById(userId).queue(
             user -> {
                 user.openPrivateChannel().queue(
                     privateChannel -> {

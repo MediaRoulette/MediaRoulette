@@ -2,6 +2,7 @@ package me.hash.mediaroulette.bot.commands.admin;
 
 import java.io.IOException;
 
+import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.utils.errorHandler;
@@ -33,7 +34,7 @@ public class ChannelNuke extends BaseCommand {
             return;
 
         event.deferReply().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             if (!event.getMember().hasPermission(Permission.MANAGE_CHANNEL)) {
                 errorHandler.sendErrorEmbed(event, "Sorry dude...", "You do not have the Manage Channel permission.");
                 return;

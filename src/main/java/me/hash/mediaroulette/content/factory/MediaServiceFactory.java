@@ -10,6 +10,8 @@ import me.hash.mediaroulette.content.provider.impl.videos.TMDBTvProvider;
 import me.hash.mediaroulette.content.provider.impl.videos.YouTubeProvider;
 import me.hash.mediaroulette.content.provider.impl.videos.YouTubeShortsProvider;
 
+import me.hash.mediaroulette.content.provider.impl.text.UrbanDictionaryProvider;
+
 public class MediaServiceFactory {
     private static final HttpClientWrapper SHARED_HTTP_CLIENT = new HttpClientWrapper();
     
@@ -17,6 +19,10 @@ public class MediaServiceFactory {
     
     public MediaServiceFactory() {
         this.httpClient = SHARED_HTTP_CLIENT;
+    }
+    
+    public MediaProvider createUrbanDictionaryProvider() {
+        return new UrbanDictionaryProvider(httpClient);
     }
 
     public MediaProvider createFourChanProvider() {

@@ -53,7 +53,7 @@ public class ChancesCommand extends BaseCommand {
         if (!event.getName().equals("chances")) return;
 
         event.deferReply().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             long userId = event.getUser().getIdLong();
 
             User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
@@ -92,7 +92,7 @@ public class ChancesCommand extends BaseCommand {
         
         // Handle edit actions differently (no defer, direct modal reply)
         if (action.startsWith("edit_")) {
-            Bot.executor.execute(() -> {
+            Main.getBot().getExecutor().execute(() -> {
                 ChancesSession session = USER_SESSIONS.get(userId);
                 
                 if (session == null) {
@@ -111,7 +111,7 @@ public class ChancesCommand extends BaseCommand {
 
         // For all other actions, defer edit first
         event.deferEdit().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             ChancesSession session = USER_SESSIONS.get(userId);
             
             if (session == null) {
@@ -142,7 +142,7 @@ public class ChancesCommand extends BaseCommand {
         if (!event.getComponentId().startsWith("chances:")) return;
 
         event.deferEdit().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             long userId = event.getUser().getIdLong();
 
             User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
@@ -178,7 +178,7 @@ public class ChancesCommand extends BaseCommand {
         if (!event.getModalId().startsWith("chances:edit:")) return;
 
         event.deferEdit().queue();
-        Bot.executor.execute(() -> {
+        Main.getBot().getExecutor().execute(() -> {
             long userId = event.getUser().getIdLong();
             ChancesSession session = USER_SESSIONS.get(userId);
             
