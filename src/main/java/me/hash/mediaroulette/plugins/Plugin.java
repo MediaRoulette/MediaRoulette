@@ -1,5 +1,12 @@
 package me.hash.mediaroulette.plugins;
 
+import me.hash.mediaroulette.bot.Bot;
+import me.hash.mediaroulette.service.DictionaryService;
+import me.hash.mediaroulette.service.StatsTrackingService;
+import me.hash.mediaroulette.utils.Database;
+import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.utils.user.UserService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,5 +176,35 @@ public abstract class Plugin {
 
     public final void setDataFolder(File dataFolder) {
         this.dataFolder = dataFolder;
+    }
+
+    // ==================== Plugin API Helpers ====================
+
+    protected final UserService getUserService() {
+        return PluginAPI.getUserService();
+    }
+
+    protected final DictionaryService getDictionaryService() {
+        return PluginAPI.getDictionaryService();
+    }
+
+    protected final StatsTrackingService getStatsService() {
+        return PluginAPI.getStatsService();
+    }
+
+    protected final Bot getBot() {
+        return PluginAPI.getBot();
+    }
+
+    protected final Database getDatabase() {
+        return PluginAPI.getDatabase();
+    }
+
+    protected final LocalConfig getConfig() {
+        return PluginAPI.getConfig();
+    }
+
+    protected final String getEnv(String key) {
+        return PluginAPI.getEnv(key);
     }
 }
