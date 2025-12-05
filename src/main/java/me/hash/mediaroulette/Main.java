@@ -98,14 +98,9 @@ public class Main {
             vaultSecretManager = VaultSecretManager.getInstance();
             
             if (vaultSecretManager.isVaultEnabled()) {
-                logger.info("Vault integration enabled and ready");
-                if (vaultSecretManager.testConnection()) {
-                    logger.info("Vault connection test successful");
-                } else {
-                    logger.warn("Vault connection test failed - check configuration");
-                }
+                logger.info("Vault enabled - secrets loaded from Vault");
             } else {
-                logger.info("Vault integration disabled - using fallback to .env and environment variables");
+                logger.info("Vault disabled - using .env and environment variables");
             }
         } catch (Exception e) {
             logger.error("Failed to initialize Vault: {}", e.getMessage());
@@ -126,7 +121,15 @@ public class Main {
 
     private static void initializeDatabase() {
         logger.info("Initializing database connection...");
-        database = new Database(getEnv("MONGODB_CONNECTION"), "MediaRoulette");
+        String connectionString = getEnv("MONGODB_CONNECTION");
+        
+        if (connectionString == null || connectionString.isEmpty()) {
+            logger.error("MONGODB_CONNECTION is not set. Please configure it in Vault, .env file, or environment variables.");
+            throw new IllegalStateException("MONGODB_CONNECTION is required but not configured");
+        }
+        
+        database = new Database(connectionString, "MediaRoulette");
+        logger.info("Database connection initialized successfully");
     }
 
     private static void initializeServices() {
@@ -188,7 +191,15 @@ public class Main {
 
     private static void initializeBot() {
         logger.info("Initializing Discord bot...");
-        bot = new Bot(getEnv("DISCORD_TOKEN"));
+        String discordToken = getEnv("DISCORD_TOKEN");
+        
+        if (discordToken == null || discordToken.isEmpty()) {
+            logger.error("DISCORD_TOKEN is not set. Please configure it in Vault, .env file, or environment variables.");
+            throw new IllegalStateException("DISCORD_TOKEN is required but not configured");
+        }
+        
+        bot = new Bot(discordToken);
+        logger.info("Discord bot initialized successfully");
     }
 
     private static void initializePlugins() {

@@ -113,7 +113,7 @@
       <td>Social Media</td>
     </tr>
     <tr>
-      <td>🔞 <strong>Rule34xxx</strong></td>
+      <td>🔞 <strong>Rule34</strong></td>
       <td>✅ Active</td>
       <td>NSFW Content</td>
     </tr>

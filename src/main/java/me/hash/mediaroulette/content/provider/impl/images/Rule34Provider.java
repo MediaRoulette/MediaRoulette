@@ -71,7 +71,7 @@ public class Rule34Provider implements MediaProvider {
             }
 
             String description = "Source: Rule34 - NSFW Content\nURL: " + (finalUrl != null ? finalUrl : "N/A");
-            String title = "Here is your random Rule34xxx (NSFW) picture!";
+            String title = "Here is your random Rule34 (NSFW) picture!";
 
             return new MediaResult(imageUrl, title, description, MediaSource.RULE34);
         } catch (Exception e) {
@@ -81,11 +81,11 @@ public class Rule34Provider implements MediaProvider {
 
     @Override
     public boolean supportsQuery() {
-        return false; // Rule34xxx random endpoint doesn't support queries
+        return false; // Rule34 random endpoint doesn't support queries
     }
 
     @Override
     public String getProviderName() {
-        return "Rule34xxx";
+        return "Rule34";
     }
 }

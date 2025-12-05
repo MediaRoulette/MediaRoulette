@@ -12,17 +12,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Manages secret retrieval from HashiCorp Vault.
- *
- * Features:
- *  - Optional Vault integration (can fall back to environment variables)
- *  - Caching of secrets with periodic refresh
- *  - Simple write/delete helpers for KV v2
- *
- * Expects KV v2 mounted at vault.secret.engine (e.g. "secret") and
- * secrets stored at vault.secret.path (e.g. "mediaroulette"):
- *
- *   vault kv put secret/mediaroulette DISCORD_TOKEN=your_token ...
+ * Manages secrets from HashiCorp Vault with fallback to environment variables.
+ * Vault is disabled by default. Caches secrets for 5 minutes.
  */
 public class VaultSecretManager {
     private static final Logger logger = LoggerFactory.getLogger(VaultSecretManager.class);
@@ -79,22 +70,16 @@ public class VaultSecretManager {
         } else {
             this.vaultEnabled = false;
             this.vault = null;
-            logger.info("Vault integration disabled - using environment variables only");
+            logger.info("Vault is disabled - using .env and environment variables");
         }
     }
 
-    /**
-     * Initialize the VaultSecretManager singleton.
-     */
     public static synchronized void initialize(VaultConfig config) {
         if (instance == null) {
             instance = new VaultSecretManager(config);
         }
     }
 
-    /**
-     * Get the VaultSecretManager singleton instance.
-     */
     public static VaultSecretManager getInstance() {
         if (instance == null) {
             throw new IllegalStateException("VaultSecretManager not initialized. Call initialize() first.");
@@ -102,31 +87,21 @@ public class VaultSecretManager {
         return instance;
     }
 
-    /**
-     * Get a secret value by key.
-     * Falls back to system environment if Vault is not enabled or secret is not found.
-     */
     public String getSecret(String key) {
         return getSecret(key, null);
     }
 
-    /**
-     * Get a secret value by key with a default value.
-     */
     public String getSecret(String key, String defaultValue) {
-        // If Vault is off, use environment variables only
         if (!vaultEnabled) {
             String value = System.getenv(key);
             return value != null ? value : defaultValue;
         }
 
-        // First try cache
         String cached = secretCache.get(key);
         if (cached != null) {
             return cached;
         }
 
-        // Maybe refresh cache if stale
         if (shouldRefreshCache()) {
             refreshSecrets();
             cached = secretCache.get(key);
@@ -135,18 +110,10 @@ public class VaultSecretManager {
             }
         }
 
-        // Fallback: environment variable
         String envValue = System.getenv(key);
-        if (envValue != null) {
-            return envValue;
-        }
-
-        return defaultValue;
+        return envValue != null ? envValue : defaultValue;
     }
 
-    /**
-     * Refresh all secrets from Vault (KV v2).
-     */
     public synchronized void refreshSecrets() {
         if (!vaultEnabled) {
             return;
@@ -181,10 +148,6 @@ public class VaultSecretManager {
         }
     }
 
-    /**
-     * Write or update a single secret key in Vault KV v2.
-     * This merges with existing cached secrets and writes the combined map.
-     */
     public boolean writeSecret(String key, String value) {
         if (!vaultEnabled) {
             logger.warn("Cannot write secret - Vault is not enabled");
@@ -207,10 +170,6 @@ public class VaultSecretManager {
         }
     }
 
-    /**
-     * Delete a single secret key from Vault KV v2.
-     * Effectively rewrites the path without that key.
-     */
     public boolean deleteSecret(String key) {
         if (!vaultEnabled) {
             logger.warn("Cannot delete secret - Vault is not enabled");
@@ -233,23 +192,14 @@ public class VaultSecretManager {
         }
     }
 
-    /**
-     * Check if the secret cache should be refreshed.
-     */
     private boolean shouldRefreshCache() {
         return (System.currentTimeMillis() - lastRefreshTime) > CACHE_REFRESH_INTERVAL_MS;
     }
 
-    /**
-     * Check if Vault is enabled and operational.
-     */
     public boolean isVaultEnabled() {
         return vaultEnabled;
     }
 
-    /**
-     * Get all cached secrets (for debugging / diagnostics).
-     */
     public Map<String, String> getAllSecrets() {
         if (!vaultEnabled) {
             logger.warn("Vault is not enabled, returning empty secret map");
@@ -258,19 +208,12 @@ public class VaultSecretManager {
         return new HashMap<>(secretCache);
     }
 
-    /**
-     * Clear the secret cache.
-     */
     public void clearCache() {
         secretCache.clear();
         lastRefreshTime = 0L;
         logger.info("Secret cache cleared");
     }
 
-    /**
-     * Test Vault connection by attempting to read the configured path.
-     * This method is primarily for testing/diagnostics - not called during normal startup.
-     */
     public boolean testConnection() {
         if (!vaultEnabled) {
             return false;

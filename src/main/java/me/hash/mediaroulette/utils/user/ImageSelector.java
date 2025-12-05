@@ -5,7 +5,6 @@ import me.hash.mediaroulette.content.http.HttpClientWrapper;
 import me.hash.mediaroulette.model.ImageOptions;
 import me.hash.mediaroulette.exceptions.InvalidChancesException;
 import me.hash.mediaroulette.exceptions.NoEnabledOptionsException;
-import me.hash.mediaroulette.content.RandomText;
 import me.hash.mediaroulette.utils.LocalConfig;
 
 import java.io.IOException;
@@ -122,7 +121,7 @@ public class ImageSelector {
             case "tvshow" -> new MediaServiceFactory().createTMDBTvProvider().getRandomMedia(null).toMap();
             case "youtube" -> new MediaServiceFactory().createYouTubeProvider().getRandomMedia(null).toMap();
             case "short" -> new MediaServiceFactory().createYouTubeShortsProvider().getRandomMedia(null).toMap();
-            case "urban" -> RandomText.getRandomUrbanWord(null);
+            case "urban" -> new MediaServiceFactory().createUrbanDictionaryProvider().getRandomMedia(null).toMap();
             default -> throw new IllegalArgumentException("Unknown image type: " + imageType);
         };
     }
@@ -145,7 +144,7 @@ public class ImageSelector {
             case "picsum" -> "picsum";
             case "imgur" -> "imgur";
             case "reddit" -> "reddit";
-            case "rule34xxx" -> "rule34";
+            case "rule34xxx" -> "rule34xxx";
             case "tenor" -> "tenor";
             case "google" -> "google";
             case "movies" -> "tmdb_movie";

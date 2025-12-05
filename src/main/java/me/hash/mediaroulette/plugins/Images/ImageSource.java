@@ -3,9 +3,6 @@ package me.hash.mediaroulette.plugins.Images;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.utils.errorHandler;
-import me.hash.mediaroulette.content.RandomText;
-import me.hash.mediaroulette.content.factory.MediaServiceFactory;
-import me.hash.mediaroulette.content.provider.impl.images.FourChanProvider;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.model.ImageOptions;
@@ -23,7 +20,7 @@ public class ImageSource {
     public static final String GOOGLE = "GOOGLE";
     public static final String IMGUR = "IMGUR";
     public static final String PICSUM = "PICSUM";
-    public static final String RULE34XXX = "RULEE34XXX";
+    public static final String RULE34XXX = "RULE34XXX";
     public static final String MOVIE = "MOVIE";
     public static final String TVSHOW = "TVSHOW";
     public static final String URBAN = "URBAN";
@@ -71,57 +68,6 @@ public class ImageSource {
         return null;
     }
 
-    private static Map<String, String> handle4Chan(Interaction event, String option) throws Exception {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
-
-        FourChanProvider provider = (FourChanProvider) new MediaServiceFactory().createFourChanProvider();
-
-        if (option != null && !provider.isValidBoard(option)) {
-            String errorMessage = localeManager.get("error.4chan_invalid_board_description").replace("{0}", option);
-            errorHandler.sendErrorEmbed(event, localeManager.get("error.4chan_invalid_board_title"), errorMessage);
-            throw new Exception("Board doesn't exist: " + option);
-        }
-        
-        try {
-            return provider.getRandomMedia(option, event.getUser().getId()).toMap();
-        } catch (Exception e) {
-            // Check if it's a board validation error
-            if (e.getMessage().contains("No valid 4chan boards found") || e.getMessage().contains("No images available for board")) {
-                errorHandler.sendErrorEmbed(event, localeManager.get("error.title"), "No valid 4chan boards available. Please use /support for help.");
-                throw new Exception("No valid 4chan boards available");
-            } else {
-                errorHandler.sendErrorEmbed(event, localeManager.get("error.title"), "Error fetching 4chan data. Please use /support for help.");
-                throw new Exception("Error fetching 4chan data: " + e.getMessage());
-            }
-        }
-    }
-
-    private static Map<String, String> handleUrban(Interaction event, String option) throws Exception {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
-
-        Map<String, String> map = RandomText.getRandomUrbanWord(option);
-        if (map.containsKey("error")) {
-            errorHandler.sendErrorEmbed(event, localeManager.get("error.title"), map.get("error"));
-            throw new Exception(map.get("error"));
-        }
-
-        return map;
-    }
-
-    private static boolean isOptionDisabled(String option) {
-        return !Main.getBot().getConfig().getOrDefault(option, true, Boolean.class);
-    }
-    
-    /**
-     * Check if this source is enabled in LocalConfig (admin toggle system)
-     */
-    private static boolean isSourceEnabledInLocalConfig(String sourceName) {
-        LocalConfig config = LocalConfig.getInstance();
-        String configKey = mapSourceToConfigKey(sourceName);
-        return config.isSourceEnabled(configKey);
-    }
     
     /**
      * Map source names to their corresponding LocalConfig keys
@@ -133,7 +79,7 @@ public class ImageSource {
             case GOOGLE -> "google";
             case IMGUR -> "imgur";
             case PICSUM -> "picsum";
-            case RULE34XXX -> "rule34";
+            case RULE34XXX -> "rule34xxx";
             case MOVIE -> "tmdb_movie";
             case TVSHOW -> "tmdb_tv";
             case URBAN -> "urban_dictionary";
@@ -360,7 +306,7 @@ public class ImageSource {
             case "picsum" -> "picsum";
             case "imgur" -> "imgur";
             case "reddit" -> "reddit";
-            case "rule34xxx" -> "rule34";
+            case "rule34xxx" -> "rule34xxx";
             case "tenor" -> "tenor";
             case "google" -> "google";
             case "movies" -> "tmdb_movie";

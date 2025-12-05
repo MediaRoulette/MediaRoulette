@@ -545,7 +545,7 @@ public class ChancesCommand extends BaseCommand {
                 case "All Sources" -> true;
                 case "Images" -> List.of("reddit", "imgur", "4chan", "picsum", "google").contains(imageType);
                 case "Media" -> List.of("movies", "tvshow", "youtube", "short", "tenor").contains(imageType);
-                case "NSFW" -> List.of("rule34xxx").contains(imageType);
+                case "NSFW" -> List.of("rule34").contains(imageType);
                 case "Text" -> List.of("urban").contains(imageType);
                 default -> true;
             };

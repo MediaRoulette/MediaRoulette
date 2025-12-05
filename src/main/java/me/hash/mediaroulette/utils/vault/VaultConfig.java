@@ -10,13 +10,8 @@ import java.io.IOException;
 import java.util.Properties;
 
 /**
- * Configuration class for HashiCorp Vault integration.
- * Manages Vault connection settings and authentication credentials.
- *
- * Loads configuration from:
- *  1) External file: ./vault-config.properties
- *  2) Classpath:     /vault-config.properties
- *  3) Default values (and writes them to ./vault-config.properties)
+ * Configuration for HashiCorp Vault integration.
+ * Auto-creates vault-config.properties template on first run (disabled by default).
  */
 public class VaultConfig {
     private static final Logger logger = LoggerFactory.getLogger(VaultConfig.class);
@@ -43,43 +38,27 @@ public class VaultConfig {
     }
 
     /**
-     * Load Vault configuration from file / classpath / defaults.
+     * Load configuration. Creates template if missing.
      */
     public static VaultConfig load() {
-        Properties props = new Properties();
-
-        // 1) External file
         File configFile = new File(CONFIG_FILE);
-        if (configFile.exists()) {
-            try (FileInputStream fis = new FileInputStream(configFile)) {
-                props.load(fis);
-                logger.info("Loaded Vault configuration from external file: {}", CONFIG_FILE);
-                return buildFromProperties(props);
-            } catch (IOException e) {
-                logger.error("Failed to load external Vault configuration: {}", e.getMessage());
-            }
-        } else {
-            logger.info("External Vault configuration file not found: {}", CONFIG_FILE);
+        
+        if (!configFile.exists()) {
+            logger.info("Creating config template: {}", CONFIG_FILE);
+            VaultConfig template = createDefaultConfig();
+            template.save();
+            return template;
         }
 
-        // 2) Classpath resource
-        try (var is = VaultConfig.class.getClassLoader().getResourceAsStream(CONFIG_FILE)) {
-            if (is != null) {
-                props.load(is);
-                logger.info("Loaded Vault configuration from classpath resource: {}", CONFIG_FILE);
-                return buildFromProperties(props);
-            } else {
-                logger.warn("Classpath Vault configuration resource '{}' not found", CONFIG_FILE);
-            }
+        try (FileInputStream fis = new FileInputStream(configFile)) {
+            Properties props = new Properties();
+            props.load(fis);
+            logger.info("Loaded config from: {}", CONFIG_FILE);
+            return buildFromProperties(props);
         } catch (IOException e) {
-            logger.error("Failed to load Vault configuration from classpath: {}", e.getMessage());
+            logger.error("Failed to load config: {}", e.getMessage());
+            return createDefaultConfig();
         }
-
-        // 3) Default configuration
-        logger.info("Using default Vault configuration");
-        VaultConfig defaultConfig = createDefaultConfig();
-        defaultConfig.save();
-        return defaultConfig;
     }
 
     private static VaultConfig buildFromProperties(Properties props) {
@@ -109,84 +88,47 @@ public class VaultConfig {
     }
 
     /**
-     * Save current configuration to external properties file.
+     * Save config file with comments.
      */
     public void save() {
-        Properties props = new Properties();
-        props.setProperty("vault.enabled", String.valueOf(enabled));
-        props.setProperty("vault.address", vaultAddress);
-        props.setProperty("vault.token", vaultToken);
-        props.setProperty("vault.namespace", vaultNamespace);
-        props.setProperty("vault.secret.path", secretPath);
-        props.setProperty("vault.secret.engine", secretEngine);
-        props.setProperty("vault.ssl.verify", String.valueOf(sslVerify));
-        props.setProperty("vault.timeout", String.valueOf(timeoutSeconds));
-
         try (FileOutputStream fos = new FileOutputStream(CONFIG_FILE)) {
-            props.store(fos, "HashiCorp Vault Configuration for MediaRoulette");
-            logger.info("Saved Vault configuration to external file: {}", CONFIG_FILE);
+            StringBuilder sb = new StringBuilder();
+            sb.append("# HashiCorp Vault Configuration\n");
+            sb.append("# Vault is DISABLED by default. Set vault.enabled=true to enable.\n");
+            sb.append("# If disabled, secrets are loaded from .env and environment variables.\n\n");
+            
+            sb.append("vault.enabled=").append(enabled).append("\n");
+            sb.append("vault.address=").append(vaultAddress).append("\n");
+            sb.append("vault.token=").append(vaultToken).append("\n");
+            sb.append("vault.namespace=").append(vaultNamespace).append("\n");
+            sb.append("vault.secret.path=").append(secretPath).append("\n");
+            sb.append("vault.secret.engine=").append(secretEngine).append("\n");
+            sb.append("vault.ssl.verify=").append(sslVerify).append("\n");
+            sb.append("vault.timeout=").append(timeoutSeconds).append("\n");
+            
+            fos.write(sb.toString().getBytes());
+            logger.info("Created config template: {} (disabled by default)", CONFIG_FILE);
         } catch (IOException e) {
-            logger.error("Failed to save Vault configuration: {}", e.getMessage());
+            logger.error("Failed to save config: {}", e.getMessage());
         }
     }
 
-    // Basic getters
-
-    public String getVaultAddress() {
-        return vaultAddress;
-    }
-
-    public String getVaultToken() {
-        return vaultToken;
-    }
-
-    public String getVaultNamespace() {
-        return vaultNamespace;
-    }
-
-    public String getSecretPath() {
-        return secretPath;
-    }
-
-    public String getSecretEngine() {
-        return secretEngine;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public boolean isSslVerify() {
-        return sslVerify;
-    }
-
-    public int getTimeoutSeconds() {
-        return timeoutSeconds;
-    }
+    public String getVaultAddress() { return vaultAddress; }
+    public String getVaultToken() { return vaultToken; }
+    public String getVaultNamespace() { return vaultNamespace; }
+    public String getSecretPath() { return secretPath; }
+    public String getSecretEngine() { return secretEngine; }
+    public boolean isEnabled() { return enabled; }
+    public boolean isSslVerify() { return sslVerify; }
+    public int getTimeoutSeconds() { return timeoutSeconds; }
 
     /**
-     * Logical path for KV v2 when using BetterCloud with engineVersion(2).
-     *
-     * IMPORTANT: When using engineVersion(2), the BetterCloud SDK automatically
-     * adds /data/ for reads/writes and /metadata/ for metadata operations.
-     * We should NOT include /data/ in the path ourselves.
-     *
-     * Example:
-     *  secretEngine = "secret"
-     *  secretPath   = "mediaroulette"
-     *  => "secret/mediaroulette"
-     *
-     * The SDK converts this to "secret/data/mediaroulette" internally.
-     *
-     * Your CLI usage:
-     *  vault kv put secret/mediaroulette DISCORD_TOKEN=...
-     * matches this path.
+     * Returns the KV v2 path (SDK automatically adds /data/ internally).
+     * Example: "secret/mediaroulette" -> SDK converts to "secret/data/mediaroulette"
      */
     public String getKvV2LogicalPath() {
         return secretEngine + "/" + secretPath;
     }
-
-    // Builder
 
     public static class Builder {
         private String vaultAddress = "http://localhost:8200";
