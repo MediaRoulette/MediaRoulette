@@ -1,0 +1,82 @@
+# HashiCorp Vault Configuration for MediaRoulette
+# 
+# This file configures the connection to HashiCorp Vault for secure secret management.
+# Copy this file to vault-config.properties and configure with your Vault settings.
+#
+# Quick Start (Development):
+# 1. Start Vault in dev mode: docker run --cap-add=IPC_LOCK -p 8200:8200 -e 'VAULT_DEV_ROOT_TOKEN_ID=myroot' vault
+# 2. Set vault.enabled=true
+# 3. Set vault.token=myroot
+# 4. Store secrets in Vault: vault kv put secret/mediaroulette DISCORD_TOKEN=your_token ...
+#
+# See VAULT_SETUP.md for complete documentation.
+
+# ==================== Basic Configuration ====================
+
+# Enable or disable Vault integration
+# When disabled, the bot falls back to .env file and environment variables
+vault.enabled=false
+
+# Vault server address (include protocol and port)
+# Examples:
+#   - Development: http://localhost:8200
+#   - Production: https://vault.company.com:8200
+#   - HCP Vault: https://your-cluster.vault.hashicorp.cloud:8200
+vault.address=http://localhost:8200
+
+# Vault authentication token
+# - Development: Use root token (e.g., 'myroot')
+# - Production: Use AppRole, AWS IAM, or other secure auth method
+# WARNING: Keep this file secure and never commit it to version control!
+vault.token=
+
+# ==================== Advanced Configuration ====================
+
+# Vault namespace (required for Vault Enterprise multi-tenancy)
+# Leave empty for Vault OSS or if not using namespaces
+vault.namespace=
+
+# Path to secrets in Vault (without engine prefix)
+# The full path will be: {secret.engine}/data/{secret.path}
+# Example: secret/data/mediaroulette
+vault.secret.path=mediaroulette
+
+# Secret engine mount point
+# Default 'secret' for KV v2 engine
+vault.secret.engine=secret
+
+# ==================== Security Configuration ====================
+
+# Enable SSL certificate verification
+# - Production: true (always verify SSL)
+# - Development with self-signed certs: false
+vault.ssl.verify=true
+
+# Connection timeout in seconds
+vault.timeout=5
+
+# ==================== Notes ====================
+#
+# Secret Priority:
+# 1. Vault (if enabled and available)
+# 2. .env file (fallback)
+# 3. System environment variables (final fallback)
+#
+# Required Secrets in Vault:
+# - DISCORD_TOKEN
+# - MONGODB_CONNECTION
+# - GOOGLE_API_KEY
+# - GOOGLE_CX
+# - TENOR_API
+# - TMDB_API
+# - ERROR_WEBHOOK
+# - DISCORD_NSFW_WEBHOOK (optional)
+# - DISCORD_SAFE_WEBHOOK (optional)
+# - HASTEBIN_TOKEN (optional)
+# - ADMIN_COMMAND_GUILD_ID (optional)
+#
+# Store secrets using Vault CLI:
+#   vault kv put secret/mediaroulette KEY=value KEY2=value2 ...
+#
+# Or using Vault UI:
+#   http://localhost:8200 -> secret/ -> Create secret -> Path: mediaroulette

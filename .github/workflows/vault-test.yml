@@ -1,0 +1,94 @@
+name: Vault Integration Test
+
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/me/hash/mediaroulette/utils/vault/**'
+      - 'build.gradle.kts'
+  workflow_dispatch:
+
+jobs:
+  test-vault-integration:
+    runs-on: ubuntu-latest
+    
+    services:
+      vault:
+        image: vault:latest
+        env:
+          VAULT_DEV_ROOT_TOKEN_ID: testtoken
+          VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+        ports:
+          - 8200:8200
+        options: >-
+          --cap-add=IPC_LOCK
+          --health-cmd="vault status"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Setup Vault test data
+      env:
+        VAULT_ADDR: http://localhost:8200
+        VAULT_TOKEN: testtoken
+      run: |
+        # Wait for Vault to be ready
+        sleep 5
+        
+        # Write test secrets
+        curl -X POST \
+          -H "X-Vault-Token: testtoken" \
+          -H "Content-Type: application/json" \
+          -d '{"data":{"DISCORD_TOKEN":"test_token","MONGODB_CONNECTION":"mongodb://localhost:27017"}}' \
+          http://localhost:8200/v1/secret/data/mediaroulette
+        
+        # Verify secrets
+        curl -H "X-Vault-Token: testtoken" \
+          http://localhost:8200/v1/secret/data/mediaroulette
+
+    - name: Build with Gradle
+      run: ./gradlew build -x test
+
+    - name: Run Vault integration tests
+      env:
+        VAULT_TEST_ENABLED: true
+        VAULT_TEST_TOKEN: testtoken
+      run: |
+        echo "Running Vault integration tests..."
+        ./gradlew test --tests "me.hash.mediaroulette.utils.vault.*" --info
+
+    - name: Test Vault configuration
+      env:
+        VAULT_ADDR: http://localhost:8200
+        VAULT_TOKEN: testtoken
+      run: |
+        # Verify secrets are accessible
+        echo "Verifying Vault secrets..."
+        curl -H "X-Vault-Token: testtoken" \
+          http://localhost:8200/v1/secret/data/mediaroulette | jq .
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: vault-test-results
+        path: build/test-results/test/*.xml
+
+    - name: Summary
+      run: |
+        echo "✅ Vault integration build successful"
+        echo "✅ Test secrets configured"
+        echo "✅ Vault integration tests executed"
