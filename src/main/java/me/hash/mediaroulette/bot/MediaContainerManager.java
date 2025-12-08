@@ -1,10 +1,12 @@
 package me.hash.mediaroulette.bot;
 
 import me.hash.mediaroulette.Main;
+import me.hash.mediaroulette.bot.utils.EmbedFactory;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.utils.media.image_generation.ImageGenerator;
-import me.hash.mediaroulette.utils.media.ffmpeg.FFmpegService;
+import me.hash.mediaroulette.utils.ColorExtractor;
 import me.hash.mediaroulette.utils.media.FFmpegDownloader;
+import me.hash.mediaroulette.utils.media.ffmpeg.FFmpegService;
+import me.hash.mediaroulette.utils.media.image_generation.ImageGenerator;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -26,170 +28,105 @@ import net.dv8tion.jda.api.utils.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Unified manager for Discord embeds and containers.
- * Replaces both Embeds.java and LoadingEmbeds.java with optimized, non-duplicated code.
+ * Optimized with timeout handling and delegation to helper classes.
  */
 public class MediaContainerManager {
     private static final Logger logger = LoggerFactory.getLogger(MediaContainerManager.class);
 
     private static final FFmpegService ffmpegService = new FFmpegService();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static boolean ffmpegInitialized = false;
 
-    // ===== COLOR CONSTANTS =====
-    public static final Color SUCCESS_COLOR = new Color(87, 242, 135);
-    public static final Color ERROR_COLOR = new Color(255, 107, 107);
-    public static final Color WARNING_COLOR = new Color(255, 193, 7);
-    public static final Color INFO_COLOR = new Color(52, 152, 219);
-    public static final Color PRIMARY_COLOR = new Color(114, 137, 218);
-    public static final Color PREMIUM_COLOR = new Color(138, 43, 226);
-    public static final Color COIN_COLOR = new Color(255, 215, 0);
-    public static final Color COOLDOWN_COLOR = new Color(255, 107, 107);
-
-    // ===== EMBED BUILDERS =====
+    // ===== DELEGATED EMBED BUILDERS =====
 
     public static EmbedBuilder createBase() {
-        return new EmbedBuilder().setTimestamp(Instant.now());
+        return EmbedFactory.createBase();
     }
 
     public static EmbedBuilder createSuccess(String title, String description) {
-        return createBase()
-                .setTitle("✅ " + title)
-                .setDescription(description)
-                .setColor(SUCCESS_COLOR);
+        return EmbedFactory.createSuccess(title, description);
     }
 
     public static EmbedBuilder createError(String title, String description) {
-        return createBase()
-                .setTitle("❌ " + title)
-                .setDescription(description)
-                .setColor(ERROR_COLOR);
+        return EmbedFactory.createError(title, description);
     }
 
     public static EmbedBuilder createWarning(String title, String description) {
-        return createBase()
-                .setTitle("⚠️ " + title)
-                .setDescription(description)
-                .setColor(WARNING_COLOR);
+        return EmbedFactory.createWarning(title, description);
     }
 
     public static EmbedBuilder createInfo(String title, String description) {
-        return createBase()
-                .setTitle("ℹ️ " + title)
-                .setDescription(description)
-                .setColor(INFO_COLOR);
+        return EmbedFactory.createInfo(title, description);
     }
 
     public static EmbedBuilder createCooldown(String duration) {
-        return createBase()
-                .setTitle("⏰ Slow Down!")
-                .setDescription("Please wait **" + duration + "** before using this command again.")
-                .setColor(COOLDOWN_COLOR);
+        return EmbedFactory.createCooldown(duration);
     }
 
     public static EmbedBuilder createLoading(String title, String description) {
-        return createBase()
-                .setTitle("⏳ " + title)
-                .setDescription(description)
-                .setColor(INFO_COLOR);
+        return EmbedFactory.createLoading(title, description);
     }
 
     public static EmbedBuilder createEconomy(String title, String description, boolean isPremium) {
-        return createBase()
-                .setTitle("💰 " + title)
-                .setDescription(description)
-                .setColor(isPremium ? PREMIUM_COLOR : COIN_COLOR);
+        return EmbedFactory.createEconomy(title, description, isPremium);
     }
 
     public static EmbedBuilder createUserEmbed(String title, String description,
                                                net.dv8tion.jda.api.entities.User discordUser,
                                                User botUser) {
-        EmbedBuilder embed = createBase()
-                .setTitle(title)
-                .setDescription(description)
-                .setColor(botUser != null && botUser.isPremium() ? PREMIUM_COLOR : PRIMARY_COLOR);
-
-        if (discordUser.getAvatarUrl() != null) {
-            embed.setThumbnail(discordUser.getAvatarUrl());
-        }
-
-        return embed;
+        return EmbedFactory.createUserEmbed(title, description, discordUser, botUser);
     }
 
     public static EmbedBuilder createWithAuthor(String title, String description, Color color,
                                                 net.dv8tion.jda.api.entities.User user) {
-        return createBase()
-                .setTitle(title)
-                .setDescription(description)
-                .setColor(color)
-                .setAuthor(user.getName(), null, user.getEffectiveAvatarUrl());
+        return EmbedFactory.createWithAuthor(title, description, color, user);
     }
 
-    // ===== EMBED FIELD HELPERS =====
+    // ===== DELEGATED FIELD HELPERS =====
 
     public static EmbedBuilder addCodeField(EmbedBuilder embed, String name, String value, boolean inline) {
-        return embed.addField(name, "```" + value + "```", inline);
+        return EmbedFactory.addCodeField(embed, name, value, inline);
     }
 
     public static EmbedBuilder addEmojiField(EmbedBuilder embed, String emoji, String name,
                                              String value, boolean inline) {
-        return embed.addField(emoji + " " + name, value, inline);
+        return EmbedFactory.addEmojiField(embed, emoji, name, value, inline);
     }
 
     public static EmbedBuilder addCoinField(EmbedBuilder embed, String name, long amount, boolean inline) {
-        return addCodeField(embed, name, String.format("💰 %,d coins", amount), inline);
+        return EmbedFactory.addCoinField(embed, name, amount, inline);
     }
 
     public static EmbedBuilder addCountField(EmbedBuilder embed, String name, long count,
                                              String unit, boolean inline) {
-        return addCodeField(embed, name, String.format("%,d %s", count, unit), inline);
+        return EmbedFactory.addCountField(embed, name, count, unit, inline);
     }
 
-    // ===== PAGINATION HELPERS =====
+    // ===== DELEGATED PAGINATION HELPERS =====
 
     public static ActionRow createPaginationButtons(String baseId, int currentPage, int totalPages,
                                                     String additionalData) {
-        String data = additionalData != null ? ":" + additionalData : "";
-
-        return ActionRow.of(
-                Button.primary(baseId + ":prev:" + (currentPage - 1) + data, "◀ Previous")
-                        .withDisabled(currentPage <= 1),
-                Button.primary(baseId + ":next:" + (currentPage + 1) + data, "Next ▶")
-                        .withDisabled(currentPage >= totalPages),
-                Button.secondary(baseId + ":refresh:" + currentPage + data, "🔄 Refresh")
-        );
+        return EmbedFactory.createPaginationButtons(baseId, currentPage, totalPages, additionalData);
     }
 
     public static EmbedBuilder addPaginationFooter(EmbedBuilder embed, int currentPage, int totalPages,
                                                    int totalItems) {
-        return embed.setFooter(String.format("Page %d/%d • %d items total",
-                currentPage, totalPages, totalItems), null);
+        return EmbedFactory.addPaginationFooter(embed, currentPage, totalPages, totalItems);
     }
 
     // ===== CONTAINER OPERATIONS =====
 
-    /**
-     * Sends a new image container (with automatic GIF conversion for supported videos)
-     */
     public static CompletableFuture<Message> sendImageContainer(Interaction event, Map<String, String> map, boolean shouldContinue) {
         String imageUrl = map.get("image");
         
-        // Check if we should convert video to GIF for better display
         if (ffmpegService.shouldConvertToGif(imageUrl) && isFFmpegReady()) {
             return sendVideoContainerWithGif(event, map, shouldContinue);
         }
@@ -197,27 +134,17 @@ public class MediaContainerManager {
         return processContainer(event, map, shouldContinue, false);
     }
 
-    /**
-     * Edits an existing container from button interaction
-     */
     public static void editImageContainer(ButtonInteractionEvent event, Map<String, String> map) {
         processContainer(event, map, true, true);
     }
 
-    /**
-     * Sends a new image container from hook
-     */
     public static CompletableFuture<Message> sendImageContainer(InteractionHook hook, Map<String, String> map, boolean shouldContinue) {
         return processContainerFromHook(hook, map, shouldContinue, false);
     }
 
-    /**
-     * Edits loading message to show final image container
-     */
     public static CompletableFuture<Message> editLoadingToImageContainer(InteractionHook hook, Map<String, String> map, boolean shouldContinue) {
         String imageUrl = map.get("image");
         
-        // Check if we should convert video to GIF for better display
         if (ffmpegService.shouldConvertToGif(imageUrl) && isFFmpegReady()) {
             return editLoadingToVideoContainerWithGif(hook, map, shouldContinue);
         }
@@ -225,9 +152,6 @@ public class MediaContainerManager {
         return processContainerFromHook(hook, map, shouldContinue, true);
     }
 
-    /**
-     * Edits loading message to show final image container (void version)
-     */
     public static void editLoadingToImageContainerFromHook(InteractionHook hook, Map<String, String> map, boolean shouldContinue) {
         processContainerFromHook(hook, map, shouldContinue, true);
     }
@@ -287,7 +211,6 @@ public class MediaContainerManager {
             var container = components.getFirst().asContainer();
             var containerComponents = container.getComponents();
 
-            // Extract accent color from container
             try {
                 java.awt.Color color = container.getAccentColor();
                 if (color != null) {
@@ -295,10 +218,8 @@ public class MediaContainerManager {
                 }
             } catch (Exception ignored) { }
 
-            // Process all components in the container
             for (var comp : containerComponents) {
                 try {
-                    // Handle Section components (which contain TextDisplay elements)
                     if (comp.getType() == net.dv8tion.jda.api.components.Component.Type.SECTION) {
                         var section = comp.asSection();
                         var sectionComponents = section.getContentComponents();
@@ -311,17 +232,14 @@ public class MediaContainerManager {
                                     String trimmed = text.trim();
 
                                     if (trimmed.startsWith("## ")) {
-                                        // Header title (remove the ## markdown)
                                         title = trimmed.substring(3).trim();
                                     } else if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.length() >= 4) {
-                                        // Bold description (remove the ** markdown)
                                         description = trimmed.substring(2, trimmed.length() - 2).trim();
                                     }
                                 }
                             } catch (Exception ignored) { }
                         }
                     }
-                    // Handle MediaGallery components
                     else if (comp.getType() == net.dv8tion.jda.api.components.Component.Type.MEDIA_GALLERY) {
                         var gallery = comp.asMediaGallery();
                         if (!gallery.getItems().isEmpty()) {
@@ -334,7 +252,6 @@ public class MediaContainerManager {
                 } catch (Exception ignored) { }
             }
 
-            // Fallback: if gallery URL is an attachment or not found, try message attachments (Discord CDN URL)
             if ((imageUrl == null || imageUrl.startsWith("attachment://")) && !message.getAttachments().isEmpty()) {
                 String attachUrl = message.getAttachments().getFirst().getUrl();
                 if (attachUrl != null && !attachUrl.isBlank()) {
@@ -355,54 +272,62 @@ public class MediaContainerManager {
                                                                boolean shouldContinue, boolean isEdit) {
         CompletableFuture<Message> future = new CompletableFuture<>();
 
-        extractDominantColor(map).thenAccept(color -> {
-            Container container = createImageContainer(event.getUser(), map, color, shouldContinue);
+        ColorExtractor.extractDominantColor(map.get("image"))
+            .orTimeout(30, TimeUnit.SECONDS)
+            .thenAccept(color -> {
+                Container container = createImageContainer(event.getUser(), map, color, shouldContinue);
 
-            if ("create".equals(map.get("image_type"))) {
-                handleGeneratedImageContainer(event, container, map, isEdit, future);
-            } else if (isEdit) {
-                editMessageContainer((ButtonInteractionEvent) event, container, future);
-            } else {
-                sendMessageContainer(event, container, future);
-            }
-        }).exceptionally(throwable -> {
-            Container container = createImageContainer(event.getUser(), map, Color.CYAN, shouldContinue);
-            if (isEdit) {
-                editMessageContainer((ButtonInteractionEvent) event, container, future);
-            } else {
-                sendMessageContainer(event, container, future);
-            }
-            return null;
-        });
+                if ("create".equals(map.get("image_type"))) {
+                    handleGeneratedImageContainer(event, container, map, isEdit, future);
+                } else if (isEdit) {
+                    editMessageContainer((ButtonInteractionEvent) event, container, future);
+                } else {
+                    sendMessageContainer(event, container, future);
+                }
+            })
+            .exceptionally(throwable -> {
+                logger.error("Error or timeout processing container: {}", throwable.getMessage());
+                Container container = createImageContainer(event.getUser(), map, Color.CYAN, shouldContinue);
+                if (isEdit) {
+                    editMessageContainer((ButtonInteractionEvent) event, container, future);
+                } else {
+                    sendMessageContainer(event, container, future);
+                }
+                return null;
+            });
 
-        return future;
+        return future.orTimeout(45, TimeUnit.SECONDS);
     }
 
     private static CompletableFuture<Message> processContainerFromHook(InteractionHook hook, Map<String, String> map,
                                                                        boolean shouldContinue, boolean isEdit) {
         CompletableFuture<Message> future = new CompletableFuture<>();
 
-        extractDominantColor(map).thenAccept(color -> {
-            Container container = createImageContainer(hook.getInteraction().getUser(), map, color, shouldContinue);
+        ColorExtractor.extractDominantColor(map.get("image"))
+            .orTimeout(30, TimeUnit.SECONDS)
+            .thenAccept(color -> {
+                Container container = createImageContainer(hook.getInteraction().getUser(), map, color, shouldContinue);
 
-            if ("create".equals(map.get("image_type"))) {
-                handleGeneratedImageContainerFromHook(hook, container, map, isEdit, future);
-            } else if (isEdit) {
-                editMessageContainerFromHook(hook, container, future);
-            } else {
-                sendMessageContainerFromHook(hook, container, future);
-            }
-        }).exceptionally(throwable -> {
-            Container container = createImageContainer(hook.getInteraction().getUser(), map, Color.CYAN, shouldContinue);
-            if (isEdit) {
-                editMessageContainerFromHook(hook, container, future);
-            } else {
-                sendMessageContainerFromHook(hook, container, future);
-            }
-            return null;
-        });
+                if ("create".equals(map.get("image_type"))) {
+                    handleGeneratedImageContainerFromHook(hook, container, map, isEdit, future);
+                } else if (isEdit) {
+                    editMessageContainerFromHook(hook, container, future);
+                } else {
+                    sendMessageContainerFromHook(hook, container, future);
+                }
+            })
+            .exceptionally(throwable -> {
+                logger.error("Error or timeout processing container from hook: {}", throwable.getMessage());
+                Container container = createImageContainer(hook.getInteraction().getUser(), map, Color.CYAN, shouldContinue);
+                if (isEdit) {
+                    editMessageContainerFromHook(hook, container, future);
+                } else {
+                    sendMessageContainerFromHook(hook, container, future);
+                }
+                return null;
+            });
 
-        return future;
+        return future.orTimeout(45, TimeUnit.SECONDS);
     }
 
     private static Container createImageContainer(net.dv8tion.jda.api.entities.User user, Map<String, String> map, 
@@ -584,9 +509,6 @@ public class MediaContainerManager {
 
     // ===== FFMPEG INITIALIZATION =====
 
-    /**
-     * Initializes FFmpeg by downloading it if necessary
-     */
     public static CompletableFuture<Void> initializeFFmpeg() {
         if (ffmpegInitialized) {
             return CompletableFuture.completedFuture(null);
@@ -601,16 +523,10 @@ public class MediaContainerManager {
         });
     }
 
-    /**
-     * Checks if FFmpeg is available and ready to use
-     */
     public static boolean isFFmpegReady() {
         return ffmpegInitialized && FFmpegDownloader.isFFmpegAvailable();
     }
     
-    /**
-     * Checks if both FFmpeg and FFprobe are available for full video processing
-     */
     public static CompletableFuture<Boolean> isVideoProcessingReady() {
         if (!isFFmpegReady()) {
             return CompletableFuture.completedFuture(false);
@@ -618,9 +534,6 @@ public class MediaContainerManager {
         return FFmpegDownloader.isFFprobeAvailable();
     }
 
-    /**
-     * Gets video information for display in containers
-     */
     public static CompletableFuture<String> getVideoInfoText(String videoUrl) {
         return isVideoProcessingReady().thenCompose(ready -> {
             if (!ready) {
@@ -637,9 +550,6 @@ public class MediaContainerManager {
         });
     }
 
-    /**
-     * Creates a video thumbnail for use in containers
-     */
     public static CompletableFuture<byte[]> createVideoThumbnail(String videoUrl) {
         return isVideoProcessingReady().thenCompose(ready -> {
             if (!ready) {
@@ -647,7 +557,6 @@ public class MediaContainerManager {
             }
 
             return ffmpegService.getVideoInfo(videoUrl).thenCompose(info -> {
-                // Extract thumbnail from 25% into the video
                 double thumbnailTime = info.getDuration() * 0.25;
                 return ffmpegService.extractThumbnail(videoUrl, thumbnailTime);
             }).thenApply(thumbnail -> {
@@ -655,7 +564,6 @@ public class MediaContainerManager {
                     javax.imageio.ImageIO.write(thumbnail, "jpg", baos);
                     baos.flush();
                     byte[] result = baos.toByteArray();
-                    // Clean up thumbnail image
                     if (thumbnail != null) {
                         thumbnail.flush();
                     }
@@ -674,23 +582,19 @@ public class MediaContainerManager {
         });
     }
 
-    /**
-     * Enhanced container creation that includes video information and GIF conversion
-     */
     public static CompletableFuture<Container> createEnhancedVideoContainer(net.dv8tion.jda.api.entities.User user, 
                                                                             Map<String, String> map, 
                                                                             boolean shouldContinue) {
         String imageUrl = map.get("image");
         
-        if (!isVideoUrl(imageUrl)) {
-            // Not a video, use regular container creation
-            return extractDominantColor(map).thenApply(color -> 
-                createImageContainer(user, map, color, shouldContinue));
+        if (!ffmpegService.isVideoUrl(imageUrl)) {
+            return ColorExtractor.extractDominantColor(imageUrl)
+                .orTimeout(30, TimeUnit.SECONDS)
+                .thenApply(color -> createImageContainer(user, map, color, shouldContinue));
         }
 
-        // Enhanced video container with additional info
         return getVideoInfoText(imageUrl).thenCombine(
-            extractDominantColor(map), 
+            ColorExtractor.extractDominantColor(imageUrl).orTimeout(30, TimeUnit.SECONDS),
             (videoInfo, color) -> {
                 String userAvatarUrl = user.getEffectiveAvatarUrl();
                 String title = map.get("title");
@@ -700,7 +604,7 @@ public class MediaContainerManager {
                         Thumbnail.fromUrl(userAvatarUrl),
                         TextDisplay.of("## " + title),
                         TextDisplay.of("**" + description + "**"),
-                        TextDisplay.of(videoInfo), // Add video info
+                        TextDisplay.of(videoInfo),
                         TextDisplay.of("*Generated by " + user.getName() + "*")
                 );
 
@@ -717,107 +621,94 @@ public class MediaContainerManager {
         );
     }
     
-    /**
-     * Creates a container with direct video URL (MP4/M4S) instead of GIF conversion
-     */
     public static CompletableFuture<Message> sendVideoContainerWithGif(Interaction event, Map<String, String> map, boolean shouldContinue) {
         String imageUrl = map.get("image");
         
         if (!ffmpegService.shouldConvertToGif(imageUrl)) {
-            // Use regular container if not a convertible video
             return sendImageContainer(event, map, shouldContinue);
         }
         
-        // Try to get direct video URL instead of creating GIF
         return ffmpegService.resolveVideoUrl(imageUrl)
+            .orTimeout(30, TimeUnit.SECONDS)
             .thenCompose(resolvedUrl -> {
                 if (resolvedUrl.equals(imageUrl) || !isDirectVideoUrl(resolvedUrl)) {
-                    // No resolution happened or not a direct video URL, fallback to regular container
                     return processContainer(event, map, shouldContinue, false);
                 }
                 
-                // Use the direct video URL in the container
                 Map<String, String> updatedMap = new java.util.HashMap<>(map);
-                updatedMap.put("image", resolvedUrl); // Use direct MP4/M4S URL
-                updatedMap.put("original_video_url", imageUrl); // Keep original for reference
+                updatedMap.put("image", resolvedUrl);
+                updatedMap.put("original_video_url", imageUrl);
 
                 logger.info("Using direct video URL: {}", resolvedUrl);
                 
-                return extractDominantColor(map).thenApply(color -> {
-                    Container container = createImageContainer(event.getUser(), updatedMap, color, shouldContinue);
-                    
-                    CompletableFuture<Message> future = new CompletableFuture<>();
-                    
-                    if (event instanceof net.dv8tion.jda.api.interactions.callbacks.IReplyCallback replyCallback) {
-                        if (replyCallback.isAcknowledged()) {
-                            replyCallback.getHook().sendMessageComponents(container)
-                                    .useComponentsV2()
-                                    .queue(future::complete, future::completeExceptionally);
-                        } else {
-                            replyCallback.replyComponents(container)
-                                    .useComponentsV2()
-                                    .queue(hook -> hook.retrieveOriginal().queue(future::complete), future::completeExceptionally);
+                return ColorExtractor.extractDominantColor(map.get("image"))
+                    .orTimeout(30, TimeUnit.SECONDS)
+                    .thenApply(color -> {
+                        Container container = createImageContainer(event.getUser(), updatedMap, color, shouldContinue);
+                        
+                        CompletableFuture<Message> future = new CompletableFuture<>();
+                        
+                        if (event instanceof net.dv8tion.jda.api.interactions.callbacks.IReplyCallback replyCallback) {
+                            if (replyCallback.isAcknowledged()) {
+                                replyCallback.getHook().sendMessageComponents(container)
+                                        .useComponentsV2()
+                                        .queue(future::complete, future::completeExceptionally);
+                            } else {
+                                replyCallback.replyComponents(container)
+                                        .useComponentsV2()
+                                        .queue(hook -> hook.retrieveOriginal().queue(future::complete), future::completeExceptionally);
+                            }
                         }
-                    }
-                    
-                    return future;
-                }).thenCompose(f -> f);
+                        
+                        return future;
+                    }).thenCompose(f -> f);
             })
             .exceptionallyCompose(throwable -> {
-                // If video resolution fails, fallback to regular container
                 logger.error("Video resolution failed, falling back to regular container: {}", throwable.getMessage());
                 return processContainer(event, map, shouldContinue, false);
             });
     }
     
-    /**
-     * Edits loading message to show video container with direct video URL
-     */
     public static CompletableFuture<Message> editLoadingToVideoContainerWithGif(InteractionHook hook, Map<String, String> map, boolean shouldContinue) {
         String imageUrl = map.get("image");
         
         if (!ffmpegService.shouldConvertToGif(imageUrl)) {
-            // Use regular container if not a convertible video
             return editLoadingToImageContainer(hook, map, shouldContinue);
         }
         
-        // Try to get direct video URL instead of creating GIF
         return ffmpegService.resolveVideoUrl(imageUrl)
+            .orTimeout(30, TimeUnit.SECONDS)
             .thenCompose(resolvedUrl -> {
                 if (resolvedUrl.equals(imageUrl) || !isDirectVideoUrl(resolvedUrl)) {
-                    // No resolution happened or not a direct video URL, fallback to regular container
                     return processContainerFromHook(hook, map, shouldContinue, true);
                 }
                 
-                // Use the direct video URL in the container
                 Map<String, String> updatedMap = new java.util.HashMap<>(map);
-                updatedMap.put("image", resolvedUrl); // Use direct MP4/M4S URL
-                updatedMap.put("original_video_url", imageUrl); // Keep original for reference
+                updatedMap.put("image", resolvedUrl);
+                updatedMap.put("original_video_url", imageUrl);
 
                 logger.error("Using direct video URL: {}", resolvedUrl);
                 
-                return extractDominantColor(map).thenApply(color -> {
-                    Container container = createImageContainer(hook.getInteraction().getUser(), updatedMap, color, shouldContinue);
-                    
-                    CompletableFuture<Message> future = new CompletableFuture<>();
-                    
-                    hook.editOriginalComponents(container)
-                            .useComponentsV2()
-                            .queue(future::complete, future::completeExceptionally);
-                    
-                    return future;
-                }).thenCompose(f -> f);
+                return ColorExtractor.extractDominantColor(map.get("image"))
+                    .orTimeout(30, TimeUnit.SECONDS)
+                    .thenApply(color -> {
+                        Container container = createImageContainer(hook.getInteraction().getUser(), updatedMap, color, shouldContinue);
+                        
+                        CompletableFuture<Message> future = new CompletableFuture<>();
+                        
+                        hook.editOriginalComponents(container)
+                                .useComponentsV2()
+                                .queue(future::complete, future::completeExceptionally);
+                        
+                        return future;
+                    }).thenCompose(f -> f);
             })
             .exceptionallyCompose(throwable -> {
-                // If video resolution fails, fallback to regular container
                 logger.error("Video resolution failed, falling back to regular container: {}", throwable.getMessage());
                 return processContainerFromHook(hook, map, shouldContinue, true);
             });
     }
 
-    /**
-     * Checks if a URL is a direct video file that Discord can display
-     */
     private static boolean isDirectVideoUrl(String url) {
         if (url == null || url.isEmpty()) {
             return false;
@@ -831,154 +722,7 @@ public class MediaContainerManager {
                lowerUrl.contains(".mov");
     }
 
-    /**
-     * Cleanup method for FFmpeg temporary files
-     */
     public static void cleanup() {
         ffmpegService.cleanupTempFiles();
-    }
-
-    // ===== COLOR EXTRACTION =====
-
-    private static CompletableFuture<Color> extractDominantColor(Map<String, String> map) {
-        String imageUrl = map.get("image");
-        if ("none".equals(imageUrl) || imageUrl.startsWith("attachment://")) {
-            return CompletableFuture.completedFuture(Color.CYAN);
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (isVideoUrl(imageUrl)) {
-                    return extractColorFromVideo(imageUrl);
-                } else if (isGifUrl(imageUrl)) {
-                    return extractColorFromGif(imageUrl);
-                } else {
-                    return extractColorFromImage(imageUrl);
-                }
-            } catch (Exception e) {
-                logger.error("Failed to extract color from: {} - {}", imageUrl, e.getMessage());
-                return Color.CYAN;
-            }
-        });
-    }
-
-    private static boolean isVideoUrl(String url) {
-        return ffmpegService.isVideoUrl(url);
-    }
-
-    private static boolean isGifUrl(String url) {
-        return url.matches(".*\\.gif$");
-    }
-
-    private static Color extractColorFromVideo(String url) {
-        // Try to get a preview image first (faster)
-        String previewUrl = ffmpegService.getVideoPreviewUrl(url);
-        if (previewUrl != null) {
-            try {
-                return extractColorFromImage(previewUrl);
-            } catch (Exception e) {
-                logger.error("Failed to extract color from preview, falling back to FFmpeg: {}", e.getMessage());
-            }
-        }
-        
-        // Fallback to FFmpeg extraction
-        try {
-            return ffmpegService.extractDominantColor(url).get();
-        } catch (Exception e) {
-            logger.error("FFmpeg color extraction failed: {}", e.getMessage());
-            return Color.CYAN;
-        }
-    }
-
-    private static Color extractColorFromGif(String url) throws Exception {
-        return extractColorFromImage(url);
-    }
-
-    private static Color extractColorFromImage(String url) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                .build();
-
-        HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
-
-        if (response.statusCode() != 200) {
-            throw new IOException("Failed to fetch image: " + response.statusCode());
-        }
-
-        BufferedImage image = null;
-        try {
-            image = ImageIO.read(new ByteArrayInputStream(response.body()));
-            if (image == null) {
-                throw new IOException("Could not decode image");
-            }
-
-            return getDominantColor(image);
-        } finally {
-            // Clean up image
-            if (image != null) {
-                image.flush();
-            }
-        }
-    }
-
-    private static Color getDominantColor(BufferedImage image) {
-        int width = Math.min(image.getWidth(), 100);
-        int height = Math.min(image.getHeight(), 100);
-
-        BufferedImage scaled = null;
-        Graphics2D g2d = null;
-        
-        try {
-            scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-            g2d = scaled.createGraphics();
-            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g2d.drawImage(image, 0, 0, width, height, null);
-
-            long redSum = 0, greenSum = 0, blueSum = 0;
-            int pixelCount = 0;
-
-            for (int x = 0; x < width; x += 2) {
-                for (int y = 0; y < height; y += 2) {
-                    int rgb = scaled.getRGB(x, y);
-                    int r = (rgb >> 16) & 0xFF;
-                    int g = (rgb >> 8) & 0xFF;
-                    int b = rgb & 0xFF;
-
-                    int brightness = (r + g + b) / 3;
-                    if (brightness > 30 && brightness < 225) {
-                        redSum += r;
-                        greenSum += g;
-                        blueSum += b;
-                        pixelCount++;
-                    }
-                }
-            }
-
-            if (pixelCount == 0) {
-                return Color.CYAN;
-            }
-
-            int avgRed = (int) (redSum / pixelCount);
-            int avgGreen = (int) (greenSum / pixelCount);
-            int avgBlue = (int) (blueSum / pixelCount);
-
-            return enhanceSaturation(new Color(avgRed, avgGreen, avgBlue));
-        } finally {
-            // Clean up resources
-            if (g2d != null) {
-                g2d.dispose();
-            }
-            if (scaled != null) {
-                scaled.flush();
-            }
-        }
-    }
-
-    private static Color enhanceSaturation(Color color) {
-        float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), null);
-        float saturation = Math.min(1.0f, hsb[1] * 1.3f);
-        float brightness = Math.min(1.0f, hsb[2] * 1.1f);
-        return Color.getHSBColor(hsb[0], saturation, brightness);
     }
 }

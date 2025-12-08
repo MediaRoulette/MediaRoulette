@@ -26,8 +26,8 @@ import java.lang.management.MemoryMXBean;
 import java.lang.management.OperatingSystemMXBean;
 import java.util.concurrent.TimeUnit;
 
-import static me.hash.mediaroulette.bot.MediaContainerManager.PREMIUM_COLOR;
-import static me.hash.mediaroulette.bot.MediaContainerManager.PRIMARY_COLOR;
+import static me.hash.mediaroulette.bot.utils.EmbedFactory.PREMIUM_COLOR;
+import static me.hash.mediaroulette.bot.utils.EmbedFactory.PRIMARY_COLOR;
 
 public class InfoCommand extends BaseCommand {
     private static final Color ACCENT_COLOR = new Color(114, 137, 218);

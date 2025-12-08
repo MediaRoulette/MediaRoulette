@@ -22,8 +22,8 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import java.time.Instant;
 import java.util.List;
 
-import static me.hash.mediaroulette.bot.MediaContainerManager.PRIMARY_COLOR;
-import static me.hash.mediaroulette.bot.MediaContainerManager.SUCCESS_COLOR;
+import static me.hash.mediaroulette.bot.utils.EmbedFactory.PRIMARY_COLOR;
+import static me.hash.mediaroulette.bot.utils.EmbedFactory.SUCCESS_COLOR;
 
 public class InventoryCommand extends ListenerAdapter implements CommandHandler {
 
