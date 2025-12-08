@@ -27,7 +27,8 @@ public class TMDBMovieProvider implements MediaProvider {
 
     @Override
     public MediaResult getRandomMedia(String query) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException {
-        int year = random.nextInt(2023 - 1900) + 1900;
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        int year = random.nextInt(currentYear - 1900 + 1) + 1900; // inclusive of current year
         Queue<MediaResult> cache = yearCache.computeIfAbsent(year, k -> new LinkedList<>());
 
         if (cache.isEmpty()) {
@@ -42,9 +43,16 @@ public class TMDBMovieProvider implements MediaProvider {
     }
 
     private void populateCache(int year) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException {
-        String url = String.format("%s/discover/movie?primary_release_year=%d&api_key=%s",
-                BASE_URL, year, apiKey);
+        Map<String, String> params = buildRandomDiscoverParams(year);
+        // First request to get total pages for the chosen filter set
+        String firstPageUrl = buildDiscoverUrl(params, 1);
+        String firstResponse = httpClient.getBody(firstPageUrl);
+        JSONObject firstJson = new JSONObject(firstResponse);
+        int totalPages = Math.max(1, firstJson.optInt("total_pages", 1));
+        int maxPages = Math.min(totalPages, 500); // TMDB caps at 500
+        int randomPage = 1 + random.nextInt(maxPages);
 
+        String url = buildDiscoverUrl(params, randomPage);
         String response = httpClient.getBody(url);
         JSONObject jsonObject = new JSONObject(response);
         JSONArray results = jsonObject.getJSONArray("results");
@@ -55,8 +63,76 @@ public class TMDBMovieProvider implements MediaProvider {
             movies.add(parseMedia(item));
         }
 
+        Collections.shuffle(movies, random);
+
         Queue<MediaResult> cache = yearCache.get(year);
         cache.addAll(movies);
+    }
+
+    private Map<String, String> buildRandomDiscoverParams(int suggestedYear) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("api_key", apiKey);
+        params.put("include_adult", "false");
+
+        // Maybe include a year (about 60% chance)
+        if (random.nextDouble() < 0.6) {
+            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+            int year = suggestedYear > 0 ? suggestedYear : (1900 + random.nextInt(currentYear - 1900 + 1));
+            params.put("primary_release_year", String.valueOf(year));
+        }
+
+        // Maybe include one or two random genres (about 50% chance)
+        if (random.nextDouble() < 0.5) {
+            int[] genrePool = new int[]{28,12,16,35,80,99,18,10751,14,36,27,10402,9648,10749,878,10770,53,10752,37};
+            int picks = 1 + (random.nextDouble() < 0.3 ? 1 : 0); // 70% pick 1, 30% pick 2
+            Set<Integer> chosen = new LinkedHashSet<>();
+            while (chosen.size() < picks) {
+                chosen.add(genrePool[random.nextInt(genrePool.length)]);
+            }
+            StringBuilder sb = new StringBuilder();
+            for (int g : chosen) {
+                if (sb.length() > 0) sb.append(",");
+                sb.append(g);
+            }
+            params.put("with_genres", sb.toString());
+        }
+
+        // Maybe restrict by original language (about 50% chance)
+        if (random.nextDouble() < 0.5) {
+            String[] langs = new String[]{"en","es","fr","de","ja","ko","hi","it","pt","ru","zh"};
+            params.put("with_original_language", langs[random.nextInt(langs.length)]);
+        }
+
+        // Maybe restrict by minimum vote count to include lesser-known titles (about 70% chance)
+        if (random.nextDouble() < 0.7) {
+            int[] thresholds = new int[]{0,1,2,3,5,10,20,30,50,75,100};
+            // Bias toward lower thresholds
+            int idx = (int)Math.floor(Math.pow(random.nextDouble(), 2) * thresholds.length);
+            if (idx >= thresholds.length) idx = thresholds.length - 1;
+            params.put("vote_count.gte", String.valueOf(thresholds[idx]));
+        }
+
+        // Random sort to further diversify ordering
+        String[] sorts = new String[]{
+                "popularity.asc","popularity.desc",
+                "primary_release_date.asc","primary_release_date.desc",
+                "vote_average.asc","vote_average.desc"
+        };
+        params.put("sort_by", sorts[random.nextInt(sorts.length)]);
+
+        return params;
+    }
+
+    private String buildDiscoverUrl(Map<String, String> params, int page) {
+        StringBuilder sb = new StringBuilder(BASE_URL).append("/discover/movie?");
+        boolean first = true;
+        for (Map.Entry<String, String> e : params.entrySet()) {
+            if (!first) sb.append("&");
+            first = false;
+            sb.append(e.getKey()).append("=").append(e.getValue());
+        }
+        sb.append("&page=").append(page);
+        return sb.toString();
     }
 
     private MediaResult parseMedia(JSONObject item) {

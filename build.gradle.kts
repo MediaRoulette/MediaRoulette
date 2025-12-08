@@ -1,10 +1,15 @@
 plugins {
     application
+    `java-library`
+    `maven-publish`
     id("com.gradleup.shadow") version "9.0.0"
 }
 
+group = "me.hash"
+version = "1.0.0"
+
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
-    archiveClassifier.set("all")
+    archiveClassifier.set("")  // Remove classifier so it replaces the main jar
 
     mergeServiceFiles()
 
@@ -63,4 +68,20 @@ java {
 
 application {
     mainClass.set("me.hash.mediaroulette.Main")
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("shadow") {
+            groupId = "me.hash"
+            artifactId = "mediaroulette"
+            version = project.version.toString()
+            
+            // Publish only the shadow jar
+            artifact(tasks["shadowJar"])
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
 }

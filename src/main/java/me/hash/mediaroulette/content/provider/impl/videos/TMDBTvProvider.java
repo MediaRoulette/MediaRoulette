@@ -27,7 +27,8 @@ public class TMDBTvProvider implements MediaProvider {
 
     @Override
     public MediaResult getRandomMedia(String query) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException {
-        int year = random.nextInt(2023 - 1900) + 1900;
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        int year = random.nextInt(currentYear - 1900 + 1) + 1900; // inclusive
         Queue<MediaResult> cache = yearCache.computeIfAbsent(year, k -> new LinkedList<>());
 
         if (cache.isEmpty()) {
@@ -42,9 +43,17 @@ public class TMDBTvProvider implements MediaProvider {
     }
 
     private void populateCache(int year) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException {
-        String url = String.format("%s/discover/tv?primary_release_year=%d&api_key=%s",
-                BASE_URL, year, apiKey);
+        Map<String, String> params = buildRandomDiscoverParams(year);
 
+        // First request to get total pages for the chosen filter set
+        String firstPageUrl = buildDiscoverUrl(params, 1);
+        String firstResponse = httpClient.getBody(firstPageUrl);
+        JSONObject firstJson = new JSONObject(firstResponse);
+        int totalPages = Math.max(1, firstJson.optInt("total_pages", 1));
+        int maxPages = Math.min(totalPages, 500);
+        int randomPage = 1 + random.nextInt(maxPages);
+
+        String url = buildDiscoverUrl(params, randomPage);
         String response = httpClient.getBody(url);
         JSONObject jsonObject = new JSONObject(response);
         JSONArray results = jsonObject.getJSONArray("results");
@@ -55,8 +64,74 @@ public class TMDBTvProvider implements MediaProvider {
             tvShows.add(parseMedia(item));
         }
 
+        Collections.shuffle(tvShows, random);
+
         Queue<MediaResult> cache = yearCache.get(year);
         cache.addAll(tvShows);
+    }
+
+    private Map<String, String> buildRandomDiscoverParams(int suggestedYear) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("api_key", apiKey);
+        params.put("include_adult", "false");
+
+        // Maybe include a year (about 60% chance)
+        if (random.nextDouble() < 0.6) {
+            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+            int year = suggestedYear > 0 ? suggestedYear : (1900 + random.nextInt(currentYear - 1900 + 1));
+            params.put("first_air_date_year", String.valueOf(year));
+        }
+
+        // Maybe include random genres (TV genre IDs)
+        if (random.nextDouble() < 0.5) {
+            int[] genrePool = new int[]{10759,16,35,80,99,18,10751,10762,9648,10763,10764,10765,10766,10767,10768};
+            int picks = 1 + (random.nextDouble() < 0.3 ? 1 : 0);
+            Set<Integer> chosen = new LinkedHashSet<>();
+            while (chosen.size() < picks) {
+                chosen.add(genrePool[random.nextInt(genrePool.length)]);
+            }
+            StringBuilder sb = new StringBuilder();
+            for (int g : chosen) {
+                if (sb.length() > 0) sb.append(",");
+                sb.append(g);
+            }
+            params.put("with_genres", sb.toString());
+        }
+
+        // Maybe restrict by original language
+        if (random.nextDouble() < 0.5) {
+            String[] langs = new String[]{"en","es","fr","de","ja","ko","hi","it","pt","ru","zh"};
+            params.put("with_original_language", langs[random.nextInt(langs.length)]);
+        }
+
+        // Maybe restrict by minimum vote count
+        if (random.nextDouble() < 0.7) {
+            int[] thresholds = new int[]{0,1,2,3,5,10,20,30,50,75,100};
+            int idx = (int)Math.floor(Math.pow(random.nextDouble(), 2) * thresholds.length);
+            if (idx >= thresholds.length) idx = thresholds.length - 1;
+            params.put("vote_count.gte", String.valueOf(thresholds[idx]));
+        }
+
+        String[] sorts = new String[]{
+                "popularity.asc","popularity.desc",
+                "first_air_date.asc","first_air_date.desc",
+                "vote_average.asc","vote_average.desc"
+        };
+        params.put("sort_by", sorts[random.nextInt(sorts.length)]);
+
+        return params;
+    }
+
+    private String buildDiscoverUrl(Map<String, String> params, int page) {
+        StringBuilder sb = new StringBuilder(BASE_URL).append("/discover/tv?");
+        boolean first = true;
+        for (Map.Entry<String, String> e : params.entrySet()) {
+            if (!first) sb.append("&");
+            first = false;
+            sb.append(e.getKey()).append("=").append(e.getValue());
+        }
+        sb.append("&page=").append(page);
+        return sb.toString();
     }
 
     private MediaResult parseMedia(JSONObject item) {

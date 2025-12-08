@@ -733,7 +733,7 @@ public class MediaContainerManager {
             .thenCompose(resolvedUrl -> {
                 if (resolvedUrl.equals(imageUrl) || !isDirectVideoUrl(resolvedUrl)) {
                     // No resolution happened or not a direct video URL, fallback to regular container
-                    return sendImageContainer(event, map, shouldContinue);
+                    return processContainer(event, map, shouldContinue, false);
                 }
                 
                 // Use the direct video URL in the container
@@ -763,14 +763,10 @@ public class MediaContainerManager {
                     return future;
                 }).thenCompose(f -> f);
             })
-            .exceptionally(throwable -> {
+            .exceptionallyCompose(throwable -> {
                 // If video resolution fails, fallback to regular container
                 logger.error("Video resolution failed, falling back to regular container: {}", throwable.getMessage());
-                try {
-                    return sendImageContainer(event, map, shouldContinue).get();
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to send fallback container", e);
-                }
+                return processContainer(event, map, shouldContinue, false);
             });
     }
     
@@ -790,7 +786,7 @@ public class MediaContainerManager {
             .thenCompose(resolvedUrl -> {
                 if (resolvedUrl.equals(imageUrl) || !isDirectVideoUrl(resolvedUrl)) {
                     // No resolution happened or not a direct video URL, fallback to regular container
-                    return editLoadingToImageContainer(hook, map, shouldContinue);
+                    return processContainerFromHook(hook, map, shouldContinue, true);
                 }
                 
                 // Use the direct video URL in the container
@@ -812,25 +808,10 @@ public class MediaContainerManager {
                     return future;
                 }).thenCompose(f -> f);
             })
-            .exceptionally(throwable -> {
+            .exceptionallyCompose(throwable -> {
                 // If video resolution fails, fallback to regular container
                 logger.error("Video resolution failed, falling back to regular container: {}", throwable.getMessage());
-                
-                try {
-                    // Create a fallback container with just the video URL (no direct video)
-                    Color color = extractDominantColor(map).get();
-                    Container container = createImageContainer(hook.getInteraction().getUser(), map, color, shouldContinue);
-                    
-                    CompletableFuture<Message> future = new CompletableFuture<>();
-                    
-                    hook.editOriginalComponents(container)
-                            .useComponentsV2()
-                            .queue(future::complete, future::completeExceptionally);
-                    
-                    return future.get();
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to send fallback container", e);
-                }
+                return processContainerFromHook(hook, map, shouldContinue, true);
             });
     }
 
