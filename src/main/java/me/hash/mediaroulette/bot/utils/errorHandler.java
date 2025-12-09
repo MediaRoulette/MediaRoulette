@@ -15,8 +15,8 @@ import java.awt.Color;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-public class errorHandler {
-    private static final Logger logger = LoggerFactory.getLogger(errorHandler.class);
+public class ErrorHandler {
+    private static final Logger logger = LoggerFactory.getLogger(ErrorHandler.class);
 
     /**
      * Sends an error embed when an exception occurs.

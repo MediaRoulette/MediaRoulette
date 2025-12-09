@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.plugins.Images;
+package me.hash.mediaroulette.plugins.images;
 
 import java.util.List;
 

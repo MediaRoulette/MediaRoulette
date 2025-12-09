@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.plugins.Images;
+package me.hash.mediaroulette.plugins.images;
 
 import me.hash.mediaroulette.bot.commands.images.BuiltInImageSourceProvider;
 import org.slf4j.Logger;

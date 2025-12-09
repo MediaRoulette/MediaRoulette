@@ -1,13 +1,13 @@
-package me.hash.mediaroulette.plugins.Images;
+package me.hash.mediaroulette.plugins.images;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
-import me.hash.mediaroulette.bot.utils.errorHandler;
+import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.model.content.MediaResult;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.model.ImageOptions;
-import me.hash.mediaroulette.utils.LocaleManager;
-import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.locale.LocaleManager;
+import me.hash.mediaroulette.config.LocalConfig;
 import net.dv8tion.jda.api.interactions.Interaction;
 
 import java.util.*;
@@ -53,7 +53,7 @@ public class ImageSource {
         if (provider != null) {
             // Check if provider is enabled
             if (!provider.isEnabled()) {
-                errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
+                ErrorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
 
             }
             
