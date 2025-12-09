@@ -4,8 +4,8 @@ import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.service.DictionaryService;
 import me.hash.mediaroulette.service.StatsTrackingService;
-import me.hash.mediaroulette.utils.Database;
-import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.database.Database;
+import me.hash.mediaroulette.config.LocalConfig;
 import me.hash.mediaroulette.utils.user.UserService;
 import me.hash.mediaroulette.utils.vault.VaultSecretManager;
 

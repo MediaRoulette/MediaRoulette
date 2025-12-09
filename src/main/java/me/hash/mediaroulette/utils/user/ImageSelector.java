@@ -5,7 +5,7 @@ import me.hash.mediaroulette.content.http.HttpClientWrapper;
 import me.hash.mediaroulette.model.ImageOptions;
 import me.hash.mediaroulette.exceptions.InvalidChancesException;
 import me.hash.mediaroulette.exceptions.NoEnabledOptionsException;
-import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.config.LocalConfig;
 
 import java.io.IOException;
 import java.util.*;

@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.utils;
+package me.hash.mediaroulette.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,5 +1,6 @@
 package me.hash.mediaroulette.utils;
 
+import me.hash.mediaroulette.config.LocalConfig;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.model.User;
 import net.dv8tion.jda.api.EmbedBuilder;

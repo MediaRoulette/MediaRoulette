@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.utils;
+package me.hash.mediaroulette.locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,9 +61,9 @@ public class LocaleManager {
             // Parse locale string (e.g., "en_US" -> language="en", country="US")
             String[] parts = localeName.split("_");
             if (parts.length >= 2) {
-                this.locale = new Locale(parts[0], parts[1]);
+                this.locale = Locale.of(parts[0], parts[1]);
             } else {
-                this.locale = new Locale(parts[0]);
+                this.locale = Locale.of(parts[0]);
             }
 
             this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
@@ -71,7 +71,7 @@ public class LocaleManager {
         } catch (MissingResourceException e) {
             // Fallback to default locale (en_US)
             logger.warn("Locale {} not found, falling back to en_US", localeName);
-            this.locale = new Locale("en", "US");
+            this.locale = Locale.of("en", "US");
             try {
                 this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
             } catch (MissingResourceException fallbackError) {

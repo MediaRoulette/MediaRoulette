@@ -5,15 +5,15 @@ import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.MediaContainerManager;
-import me.hash.mediaroulette.bot.utils.errorHandler;
+import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.model.MessageData;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.plugins.Images.ImageSourceRegistry;
+import me.hash.mediaroulette.plugins.images.ImageSourceRegistry;
 import me.hash.mediaroulette.service.ImageInteractionService;
 import me.hash.mediaroulette.service.ImageRequestService;
-import me.hash.mediaroulette.utils.LocaleManager;
+import me.hash.mediaroulette.locale.LocaleManager;
 import me.hash.mediaroulette.utils.MaintenanceChecker;
-import me.hash.mediaroulette.utils.QuestGenerator;
+import me.hash.mediaroulette.service.QuestGenerator;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.IntegrationType;
@@ -102,7 +102,7 @@ public class getRandomImage extends BaseCommand {
             requestService.fetchImage(subcommand, event, query)
                     .thenAccept(image -> {
                         if (image == null || image.get("image") == null) {
-                            errorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
+                            ErrorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
                             return;
                         }
 
@@ -116,19 +116,19 @@ public class getRandomImage extends BaseCommand {
                                     Main.getUserService().updateUser(user);
                                 })
                                 .exceptionally(ex -> {
-                                    errorHandler.handleException(event, localeManager.get("error.unexpected_error"), localeManager.get("error.failed_to_send_image"), ex);
+                                    ErrorHandler.handleException(event, localeManager.get("error.unexpected_error"), localeManager.get("error.failed_to_send_image"), ex);
                                     return null;
                                 });
                     })
                     .exceptionally(e -> {
-                        errorHandler.sendErrorEmbed(event, localeManager.get("error.generic_title"), e.getMessage());
+                        ErrorHandler.sendErrorEmbed(event, localeManager.get("error.generic_title"), e.getMessage());
                         return null;
                     });
 
             user.incrementImagesGenerated();
             Main.getUserService().updateUser(user);
         } catch (Exception e) {
-            errorHandler.handleException(event, localeManager.get("error.unexpected_error"), e.getMessage(), e);
+            ErrorHandler.handleException(event, localeManager.get("error.unexpected_error"), e.getMessage(), e);
         }
     }
 

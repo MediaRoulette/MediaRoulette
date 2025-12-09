@@ -5,7 +5,7 @@ import java.io.IOException;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
-import me.hash.mediaroulette.bot.utils.errorHandler;
+import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.content.factory.MediaServiceFactory;
 import me.hash.mediaroulette.content.http.HttpClientWrapper;
@@ -36,12 +36,12 @@ public class ChannelNuke extends BaseCommand {
         event.deferReply().queue();
         Main.getBot().getExecutor().execute(() -> {
             if (!event.getMember().hasPermission(Permission.MANAGE_CHANNEL)) {
-                errorHandler.sendErrorEmbed(event, "Sorry dude...", "You do not have the Manage Channel permission.");
+                ErrorHandler.sendErrorEmbed(event, "Sorry dude...", "You do not have the Manage Channel permission.");
                 return;
             }
 
             if (!event.getGuild().getSelfMember().hasPermission(Permission.MANAGE_CHANNEL)) {
-                errorHandler.sendErrorEmbed(event, "Sorry dude...", "I do not have the Manage Channel permission.");
+                ErrorHandler.sendErrorEmbed(event, "Sorry dude...", "I do not have the Manage Channel permission.");
                 return;
             }
 

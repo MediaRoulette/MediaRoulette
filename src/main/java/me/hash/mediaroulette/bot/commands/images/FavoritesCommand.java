@@ -4,11 +4,11 @@ import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
-import me.hash.mediaroulette.bot.utils.errorHandler;
+import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.Favorite;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.utils.LocaleManager;
+import me.hash.mediaroulette.locale.LocaleManager;
 import me.hash.mediaroulette.utils.MaintenanceChecker;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -273,7 +273,7 @@ public class FavoritesCommand extends BaseCommand {
         boolean isNsfwChannel = isTextChannel && event.getChannel().asTextChannel().isNSFW();
 
         if (isPrivateChannel && !user.isNsfw()) {
-            errorHandler.sendErrorEmbed(event, "NSFW not enabled", "Please use the bot in an NSFW channel first");
+            ErrorHandler.sendErrorEmbed(event, "NSFW not enabled", "Please use the bot in an NSFW channel first");
             return false;
         }
 
@@ -281,7 +281,7 @@ public class FavoritesCommand extends BaseCommand {
             if (!user.isNsfw() && isNsfwChannel) {
                 user.setNsfw(true);
             } else if (user.isNsfw() && !isNsfwChannel) {
-                errorHandler.sendErrorEmbed(event, "Use in NSFW channel/DMs!", "Please use the bot in an NSFW channel or DMs!");
+                ErrorHandler.sendErrorEmbed(event, "Use in NSFW channel/DMs!", "Please use the bot in an NSFW channel or DMs!");
                 return false;
             }
         }

@@ -8,7 +8,7 @@ import me.hash.mediaroulette.bot.utils.Emoji;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.ImageOptions;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.utils.LocaleManager;
+import me.hash.mediaroulette.locale.LocaleManager;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;

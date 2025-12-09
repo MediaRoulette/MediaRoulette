@@ -2,7 +2,7 @@ package me.hash.mediaroulette.bot.utils;
 
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.config.LocalConfig;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.Command;

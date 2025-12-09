@@ -9,7 +9,7 @@ import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.model.Dictionary;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.service.DictionaryService;
-import me.hash.mediaroulette.utils.LocaleManager;
+import me.hash.mediaroulette.locale.LocaleManager;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;

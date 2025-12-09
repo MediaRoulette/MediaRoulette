@@ -3,8 +3,8 @@ package me.hash.mediaroulette.plugins;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.service.DictionaryService;
 import me.hash.mediaroulette.service.StatsTrackingService;
-import me.hash.mediaroulette.utils.Database;
-import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.database.Database;
+import me.hash.mediaroulette.config.LocalConfig;
 import me.hash.mediaroulette.utils.user.UserService;
 
 import org.slf4j.Logger;

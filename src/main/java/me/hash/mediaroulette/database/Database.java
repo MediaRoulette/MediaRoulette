@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.utils;
+package me.hash.mediaroulette.database;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;

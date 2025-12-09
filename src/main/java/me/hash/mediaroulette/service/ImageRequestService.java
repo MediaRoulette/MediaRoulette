@@ -1,9 +1,9 @@
 package me.hash.mediaroulette.service;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.utils.errorHandler;
+import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.plugins.Images.ImageSource;
+import me.hash.mediaroulette.plugins.images.ImageSource;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 
@@ -37,7 +37,7 @@ public class ImageRequestService {
         boolean isNsfwChannel = isTextChannel && event.getChannel().asTextChannel().isNSFW();
 
         if (isPrivateChannel && !user.isNsfw()) {
-            errorHandler.sendErrorEmbed(event, "NSFW not enabled", "Please use the bot in an NSFW channel first");
+            ErrorHandler.sendErrorEmbed(event, "NSFW not enabled", "Please use the bot in an NSFW channel first");
             return false;
         }
 
@@ -45,7 +45,7 @@ public class ImageRequestService {
             if (!user.isNsfw() && isNsfwChannel) {
                 user.setNsfw(true);
             } else if (user.isNsfw() && !isNsfwChannel) {
-                errorHandler.sendErrorEmbed(event, "Use in NSFW channel/DMs!", "Please use the bot in an NSFW channel or DMs!");
+                ErrorHandler.sendErrorEmbed(event, "Use in NSFW channel/DMs!", "Please use the bot in an NSFW channel or DMs!");
                 return false;
             }
         }

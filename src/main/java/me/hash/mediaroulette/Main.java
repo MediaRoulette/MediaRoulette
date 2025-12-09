@@ -17,17 +17,15 @@ import me.hash.mediaroulette.plugins.PluginManager;
 import me.hash.mediaroulette.repository.*;
 import me.hash.mediaroulette.service.DictionaryService;
 import me.hash.mediaroulette.service.StatsTrackingService;
-import me.hash.mediaroulette.utils.*;
+import me.hash.mediaroulette.config.LocalConfig;
+import me.hash.mediaroulette.database.Database;
+import me.hash.mediaroulette.service.GiveawayManager;
 import me.hash.mediaroulette.utils.media.MediaInitializer;
 import me.hash.mediaroulette.utils.terminal.TerminalInterface;
 import me.hash.mediaroulette.utils.user.UserService;
 import me.hash.mediaroulette.utils.vault.VaultConfig;
 import me.hash.mediaroulette.utils.vault.VaultSecretManager;
 
-/**
- * Main application entry point for MediaRoulette Discord bot.
- * Handles initialization, configuration, and graceful shutdown of all system components.
- */
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 3;

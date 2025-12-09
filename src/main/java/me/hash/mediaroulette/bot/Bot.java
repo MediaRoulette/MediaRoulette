@@ -17,7 +17,6 @@ import me.hash.mediaroulette.bot.commands.dictionary.DictionaryCommand;
 import me.hash.mediaroulette.bot.commands.dictionary.SettingsCommand;
 import me.hash.mediaroulette.bot.commands.images.FavoritesCommand;
 import me.hash.mediaroulette.bot.commands.images.getRandomImage;
-import me.hash.mediaroulette.utils.Config;
 
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
@@ -31,7 +30,6 @@ import java.util.stream.Collectors;
 
 public class Bot extends ListenerAdapter {
     private final ShardManager shardManager;
-    private final Config config;
     private final ThreadPoolExecutor executor;
     private final List<ListenerAdapter> listeners = new ArrayList<>();
     private final CooldownManager cooldownManager;
@@ -69,8 +67,6 @@ public class Bot extends ListenerAdapter {
                 new InfoCommand(),
                 new SupportCommand()
         );
-
-        this.config = new Config(Main.getDatabase());
     }
 
     public void addCommands(ListenerAdapter... commands) {
@@ -98,10 +94,6 @@ public class Bot extends ListenerAdapter {
 
     public ThreadPoolExecutor getExecutor() {
         return executor;
-    }
-
-    public Config getConfig() {
-        return config;
     }
 
     public CooldownManager getCooldownManager() {

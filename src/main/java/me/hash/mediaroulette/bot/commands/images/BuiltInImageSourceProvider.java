@@ -3,8 +3,8 @@ package me.hash.mediaroulette.bot.commands.images;
 import me.hash.mediaroulette.content.provider.MediaProvider;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.model.content.MediaResult;
-import me.hash.mediaroulette.plugins.Images.ImageSource;
-import me.hash.mediaroulette.plugins.Images.ImageSourceProvider;
+import me.hash.mediaroulette.plugins.images.ImageSource;
+import me.hash.mediaroulette.plugins.images.ImageSourceProvider;
 import net.dv8tion.jda.api.interactions.Interaction;
 
 /**
@@ -40,7 +40,7 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     
     @Override
     public boolean isEnabled() {
-        return !isOptionDisabled(sourceName) && isSourceEnabledInLocalConfig(sourceName);
+        return isSourceEnabledInLocalConfig(sourceName);
     }
     
     @Override
@@ -63,14 +63,8 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
         return priority;
     }
     
-    // --- Legacy/Helper methods ---
-
-    private static boolean isOptionDisabled(String option) {
-        return !me.hash.mediaroulette.Main.getBot().getConfig().getOrDefault(option, true, Boolean.class);
-    }
-    
     private boolean isSourceEnabledInLocalConfig(String sourceName) {
-        me.hash.mediaroulette.utils.LocalConfig config = me.hash.mediaroulette.utils.LocalConfig.getInstance();
+        me.hash.mediaroulette.config.LocalConfig config = me.hash.mediaroulette.config.LocalConfig.getInstance();
         String configKey = ImageSource.getConfigKey(sourceName);
         return config.isSourceEnabled(configKey);
     }

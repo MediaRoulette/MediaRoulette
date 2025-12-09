@@ -5,7 +5,7 @@ import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
-import me.hash.mediaroulette.utils.LocalConfig;
+import me.hash.mediaroulette.config.LocalConfig;
 import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.BotInventoryItem;
