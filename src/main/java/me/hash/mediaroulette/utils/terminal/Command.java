@@ -2,6 +2,8 @@ package me.hash.mediaroulette.utils.terminal;
 
 import java.util.List;
 
+import static me.hash.mediaroulette.utils.terminal.TerminalColors.*;
+
 public abstract class Command {
     protected final String name;
     protected final String description;
@@ -19,6 +21,30 @@ public abstract class Command {
 
     public List<String> getCompletions(String[] args) {
         return List.of(); // Default: no completions
+    }
+
+    /**
+     * Returns detailed help text for this command.
+     * Override this method in subclasses to provide comprehensive help.
+     */
+    public String getDetailedHelp() {
+        StringBuilder help = new StringBuilder();
+        
+        // Command name and description
+        help.append(header("Command: ")).append(command(name)).append("\n");
+        help.append(description).append("\n\n");
+        
+        // Usage
+        help.append(header("Usage:")).append("\n");
+        help.append("  ").append(cyan(usage)).append("\n\n");
+        
+        // Aliases
+        if (!aliases.isEmpty()) {
+            help.append(header("Aliases:")).append("\n");
+            help.append("  ").append(String.join(", ", aliases)).append("\n");
+        }
+        
+        return help.toString();
     }
 
     public String getName() { return name; }

@@ -26,6 +26,7 @@ public class AutoCompleteHandler extends ListenerAdapter {
                 case "google" -> handleGoogleQueryAutocomplete(event, currentInput);
                 case "tenor" -> handleTenorQueryAutocomplete(event, currentInput);
                 case "4chan" -> handleFourChanBoardAutocomplete(event, currentInput);
+                case "urban" -> handleUrbanAutocomplete(event, currentInput);
                 case null -> {}
                 default -> throw new IllegalStateException("Unexpected value: " + subcommandName);
             }
@@ -104,6 +105,22 @@ public class AutoCompleteHandler extends ListenerAdapter {
                 .map(board -> new Command.Choice("/" + board + "/", board))
                 .collect(Collectors.toList());
         
+        event.replyChoices(choices).queue();
+    }
+
+    private void handleUrbanAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
+        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+
+        // Get user's urban dictionary search history
+        List<String> urbanQueries = user.getCustomQueries("urban").stream()
+                .filter(query -> query.toLowerCase().startsWith(currentInput))
+                .limit(25)
+                .toList();
+
+        List<Command.Choice> choices = urbanQueries.stream()
+                .map(query -> new Command.Choice(query, query))
+                .collect(Collectors.toList());
+
         event.replyChoices(choices).queue();
     }
     

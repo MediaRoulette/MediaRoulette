@@ -3,6 +3,8 @@ package me.hash.mediaroulette.utils.terminal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static me.hash.mediaroulette.utils.terminal.TerminalColors.*;
+
 public class CommandSystem {
     private final Map<String, Command> commands = new ConcurrentHashMap<>();
     private final Map<String, String> aliases = new ConcurrentHashMap<>();
@@ -30,7 +32,7 @@ public class CommandSystem {
 
         Command command = commands.get(commandName);
         if (command == null) {
-            return new CommandResult(false, "Unknown command: " + parts[0]);
+            return new CommandResult(false, "Unknown command: " + parts[0] + ". Type 'help' for available commands.");
         }
 
         try {
@@ -38,6 +40,28 @@ public class CommandSystem {
         } catch (Exception e) {
             return new CommandResult(false, "Error executing command: " + e.getMessage());
         }
+    }
+
+    /**
+     * Get a command by name or alias.
+     */
+    public Command getCommand(String name) {
+        if (name == null) return null;
+        String lowerName = name.toLowerCase();
+        
+        // Check if it's an alias first
+        if (aliases.containsKey(lowerName)) {
+            lowerName = aliases.get(lowerName);
+        }
+        
+        return commands.get(lowerName);
+    }
+
+    /**
+     * Get all registered commands.
+     */
+    public Collection<Command> getCommands() {
+        return commands.values();
     }
 
     public List<String> getCompletions(String input) {
@@ -85,17 +109,24 @@ public class CommandSystem {
 
     public String getHelp() {
         StringBuilder help = new StringBuilder();
-        help.append("Available commands:\n");
+        help.append(header("Available Commands")).append("\n");
+        help.append(dim("─".repeat(50))).append("\n\n");
 
-        for (Command command : commands.values()) {
-            help.append("  ").append(command.getName())
-                    .append(" - ").append(command.getDescription()).append("\n");
-            help.append("    Usage: ").append(command.getUsage()).append("\n");
-            if (!command.getAliases().isEmpty()) {
-                help.append("    Aliases: ").append(String.join(", ", command.getAliases())).append("\n");
-            }
-            help.append("\n");
+        // Sort commands by name
+        List<Command> sortedCommands = new ArrayList<>(commands.values());
+        sortedCommands.sort(Comparator.comparing(Command::getName));
+
+        for (Command command : sortedCommands) {
+            help.append("  ").append(command(command.getName()));
+            
+            // Pad command name for alignment
+            int padding = 15 - command.getName().length();
+            help.append(" ".repeat(Math.max(1, padding)));
+            
+            help.append(dim(command.getDescription())).append("\n");
         }
+        
+        help.append("\n").append(dim("Type 'help <command>' for detailed information about a specific command."));
 
         return help.toString();
     }

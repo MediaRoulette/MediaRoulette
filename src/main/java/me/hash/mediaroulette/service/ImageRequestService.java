@@ -32,25 +32,32 @@ public class ImageRequestService {
     }
 
     public boolean validateChannelAccess(SlashCommandInteractionEvent event, User user) {
-        boolean isPrivateChannel = event.getChannelType() == ChannelType.PRIVATE;
-        boolean isTextChannel = event.getChannelType() == ChannelType.TEXT;
-        boolean isNsfwChannel = isTextChannel && event.getChannel().asTextChannel().isNSFW();
+        ChannelType type = event.getChannelType();
 
-        if (isPrivateChannel && !user.isNsfw()) {
-            ErrorHandler.sendErrorEmbed(event, "NSFW not enabled", "Please use the bot in an NSFW channel first");
+        boolean isPrivate = type == ChannelType.PRIVATE;
+        boolean isText = type == ChannelType.TEXT;
+        boolean isNsfwText = isText && event.getChannel().asTextChannel().isNSFW();
+
+        if (isPrivate && !user.isNsfw()) {
+            ErrorHandler.sendErrorEmbed(event, "NSFW not enabled", "Use the bot once in an NSFW channel to enable NSFW access.");
             return false;
         }
 
-        if (isTextChannel) {
-            if (!user.isNsfw() && isNsfwChannel) {
+        if (isText) {
+            if (isNsfwText && !user.isNsfw()) {
                 user.setNsfw(true);
-            } else if (user.isNsfw() && !isNsfwChannel) {
-                ErrorHandler.sendErrorEmbed(event, "Use in NSFW channel/DMs!", "Please use the bot in an NSFW channel or DMs!");
+                return true;
+            }
+
+            if (!isNsfwText) {
+                ErrorHandler.sendErrorEmbed(event, "NSFW Channel Required", "Please use this command in an NSFW channel or DMs.");
                 return false;
             }
         }
+
         return true;
     }
+
 
     public void trackSourceUsage(String userId, String subcommand, String query) {
         if (query != null) {
@@ -70,6 +77,10 @@ public class ImageRequestService {
                 case "4chan" -> {
                     Main.getUserService().addCustomQuery(userId, "4chan", query);
                     Main.getUserService().trackSourceUsage(userId, "4chan");
+                }
+                case "urban" -> {
+                    Main.getUserService().addCustomQuery(userId, "urban", query);
+                    Main.getUserService().trackSourceUsage(userId, "urban-dictionary");
                 }
             }
         } else {

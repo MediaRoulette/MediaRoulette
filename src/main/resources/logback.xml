@@ -8,18 +8,18 @@
     <property name="MAX_HISTORY" value="30"/>
     <property name="TOTAL_SIZE_CAP" value="1GB"/>
     <property name="CONSOLE_LOG_LEVEL" value="INFO"/>
-    <property name="WEBHOOK_URL" value="${WEBHOOK_URL:-}"/>
+    <property name="ERROR_WEBHOOK" value="${ERROR_WEBHOOK:-}"/>
 
     <!-- Simple and reliable pattern with line numbers -->
     <property name="FILE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36}:%L - %msg%n"/>
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="CONSOLE" class="me.hash.mediaroulette.utils.logging.TerminalAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>${CONSOLE_LOG_LEVEL}</level>
         </filter>
         <encoder>
-            <!-- Simple console pattern with line numbers -->
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %logger{36}:%L - %msg%n</pattern>
+            <!-- Simple console pattern with line numbers and colors -->
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}):%L - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -54,11 +54,12 @@
     </appender>
 
     <appender name="DISCORD_WEBHOOK" class="me.hash.mediaroulette.utils.logging.DiscordWebhookAppender">
-        <webhookUrl>${WEBHOOK_URL}</webhookUrl>
-        <username>Application Logger</username>
+        <webhookUrl>${ERROR_WEBHOOK}</webhookUrl>
+        <username>MediaRoulette Logger</username>
         <includeStackTrace>true</includeStackTrace>
+        <maxStackTraceDepth>30</maxStackTraceDepth>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>ERROR</level>
+            <level>WARN</level>
         </filter>
     </appender>
 

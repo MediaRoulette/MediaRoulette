@@ -1,27 +1,21 @@
 package me.hash.mediaroulette.bot.commands.admin;
 
-import com.fasterxml.jackson.databind.ser.Serializers;
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.config.LocalConfig;
 import me.hash.mediaroulette.bot.MediaContainerManager;
-import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.model.BotInventoryItem;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.service.BotInventoryService;
 import me.hash.mediaroulette.service.GiveawayService;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.IntegrationType;
-import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -452,7 +446,7 @@ public class AdminCommand extends BaseCommand {
     }
 
     private String getUptimeString() {
-        long uptime = System.currentTimeMillis() - Main.getBot().getShardManager().getShards().get(0).getGatewayPing();
+        long uptime = System.currentTimeMillis() - Main.getBot().getShardManager().getShards().getFirst().getGatewayPing();
         long seconds = uptime / 1000;
         long minutes = seconds / 60;
         long hours = minutes / 60;
@@ -565,7 +559,7 @@ public class AdminCommand extends BaseCommand {
         var topCommands = targetUser.getCommandUsageCount().entrySet().stream()
                 .sorted(java.util.Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(3)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
         
         if (!topCommands.isEmpty()) {
             commandStats.append("**Top Commands:**\n");
@@ -583,7 +577,7 @@ public class AdminCommand extends BaseCommand {
         var topSources = targetUser.getSourceUsageCount().entrySet().stream()
                 .sorted(java.util.Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(5)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
         
         if (!topSources.isEmpty()) {
             sourceStats.append("**Source Usage:**\n");
@@ -700,11 +694,11 @@ public class AdminCommand extends BaseCommand {
             }
         }
         
-        if (enabledSources.length() > 0) {
+        if (!enabledSources.isEmpty()) {
             embed.addField("🟢 Enabled Sources", enabledSources.toString(), true);
         }
         
-        if (disabledSources.length() > 0) {
+        if (!disabledSources.isEmpty()) {
             embed.addField("🔴 Disabled Sources", disabledSources.toString(), true);
         }
         

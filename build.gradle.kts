@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "me.hash"
-version = "1.0.0"
+version = "1.0.1"
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     archiveClassifier.set("")  // Remove classifier so it replaces the main jar
@@ -41,6 +41,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.19")
     implementation("org.fusesource.jansi:jansi:2.4.0")
     implementation("org.yaml:snakeyaml:2.4")
+    implementation("org.jline:jline:3.27.1")
 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     implementation("com.fasterxml.jackson.core:jackson-core:2.19.0")
