@@ -1,0 +1,104 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": 1767451065548,
+  "generatedAt": "2026-01-03T17:37:45.548380",
+  "baseUrl": "https://raw.githubusercontent.com/MediaRoulette/MediaRoulette/main/resources/",
+  "resources": {
+    "config/randomWeightValues.json": {
+      "sha256": "83e024f3d227a5137679ba884a29d3224be64001708ffce0bfb464f1294b4036",
+      "size": 713,
+      "required": false
+    },
+    "config/themes.json": {
+      "sha256": "5e70f91d586cb1a3c8456e0d39bf02fcccb50e07c90ab95e4d5131f92fbc0789",
+      "size": 5648,
+      "required": true
+    },
+    "data/basic_dictionary.txt": {
+      "sha256": "f87b9c38baeb86314ae9bb976717e493670932c8aa195c3f887ec5eb526055d6",
+      "size": 60,
+      "required": false
+    },
+    "fonts/Montserrat-Italic.ttf": {
+      "sha256": "acaff344a059669be7699d869c923bd5bb194973dc23748074f3f21deb1452dd",
+      "size": 701156,
+      "required": true
+    },
+    "fonts/Montserrat.ttf": {
+      "sha256": "e12288c03e4fa3721aca7ca984f25c042089dc3590e207c43a57199d7b4a5cdb",
+      "size": 688600,
+      "required": true
+    },
+    "fonts/Nunito-Italic.ttf": {
+      "sha256": "2ba9b57ac941060b8ffd42b1f35ead805096b1f2c88ef6c758d5aa60aa81d5ce",
+      "size": 280276,
+      "required": true
+    },
+    "fonts/Nunito.ttf": {
+      "sha256": "835ad546fb68812518b53b6a47d9ec4fdd5fdd7b7b265c60bd0875284d5f1a06",
+      "size": 275644,
+      "required": true
+    },
+    "fonts/Orbitron.ttf": {
+      "sha256": "46eefc7084fd9abffd87547c47f729b6071c7f7a8d5af281266bb09e5461c435",
+      "size": 38548,
+      "required": true
+    },
+    "images/AnimeBackground.png": {
+      "sha256": "2c5ed7f59d31a8079516dc5a5f4dc03f99093d7c630046b98886a3a5121aca69",
+      "size": 14070122,
+      "required": false
+    },
+    "images/Background.jpg": {
+      "sha256": "554b3865accbc1968b6305137f2ca71a4da950724b6dbf634510f75151e518cc",
+      "size": 570052,
+      "required": false
+    },
+    "images/DarkBackground.jpg": {
+      "sha256": "af0511da5d8ce41ea00a280b99ebbc6dd94475599a3fe563a6463885f3ac67b4",
+      "size": 4958472,
+      "required": false
+    },
+    "images/ForestBackground.jpg": {
+      "sha256": "909c0f20593ed11a8434993ba1c43afc024b42abee71bedf5475d57724236c37",
+      "size": 1131038,
+      "required": false
+    },
+    "images/NeonBackground.jpg": {
+      "sha256": "8b0f9ec0094c962eb8f2f9b51d8393757f5e9aae1063b3e77786f0ad216d0c66",
+      "size": 367088,
+      "required": false
+    },
+    "images/OceanBackground.jpg": {
+      "sha256": "8a2973fb98f8facca4374870454db8ac1191b20cf4420459df64ee5dcfffe528",
+      "size": 120737,
+      "required": false
+    },
+    "images/SunsetBackground.jpg": {
+      "sha256": "a498c9cc375f29fe8a55e8df0ba03634a7a6e73776a44b44eb93bff0293e0ef0",
+      "size": 11162771,
+      "required": false
+    },
+    "locales/messages_en_US.properties": {
+      "sha256": "ab94293a850ec45b6284edadc724942c1c4b636beb417c03d4bc43b461d19ad8",
+      "size": 2031,
+      "required": true
+    },
+    "locales/messages_es.properties": {
+      "sha256": "250019d6e962d6829aa6a0c96d1ef09d4f5f616f98d3b954c430f8f0f96fb2e2",
+      "size": 1815,
+      "required": true
+    }
+  },
+  "summary": {
+    "totalFiles": 17,
+    "totalSize": 34374771,
+    "categories": {
+      "config": 2,
+      "data": 1,
+      "font": 5,
+      "image": 7,
+      "locale": 2
+    }
+  }
+}

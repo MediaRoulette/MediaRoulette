@@ -1,6 +1,8 @@
 package me.hash.mediaroulette.utils.media;
 
-import okhttp3.*;
+import me.hash.mediaroulette.utils.download.DownloadManager;
+import me.hash.mediaroulette.utils.download.DownloadManager.DownloadRequest;
+import me.hash.mediaroulette.utils.terminal.ProgressBar;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,13 +25,6 @@ public class FFmpegDownloader {
 
     private static final String FFMPEG_DIR = getJarDirectory() + File.separator + "ffmpeg";
     private static final String FFMPEG_EXECUTABLE_NAME = getExecutableName();
-    private static final OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-            .build();
     
     // FFmpeg download URLs for different platforms and architectures
     private static final String WINDOWS_X64_URL    = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip";
@@ -95,32 +90,29 @@ public class FFmpegDownloader {
     public static CompletableFuture<Path> downloadFFmpeg() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                logger.info("Detecting system information...");
                 SystemInfo systemInfo = detectSystem();
-                logger.info("Detected system: {} {}", systemInfo.os, systemInfo.arch);
+                logger.debug("Detected system: {} {}", systemInfo.os, systemInfo.arch);
                 
-                // Create ffmpeg directory if it doesn't exist
                 Path ffmpegDir = Paths.get(FFMPEG_DIR);
                 Files.createDirectories(ffmpegDir);
-                logger.info("FFmpeg directory: {}", ffmpegDir.toAbsolutePath());
                 
                 // Check if FFmpeg already exists
                 Path existingPath = findExistingFFmpeg(ffmpegDir);
                 if (existingPath != null) {
-                    logger.info("FFmpeg already exists at: {}", existingPath);
+                    logger.debug("FFmpeg already exists at: {}", existingPath);
                     return existingPath;
                 }
                 
                 String downloadUrl = getDownloadUrl(systemInfo);
-                logger.info("Downloading FFmpeg from: {}", downloadUrl);
                 
-                // Download the archive
+                // Download the archive using shared DownloadManager
                 Path downloadedFile = downloadFile(downloadUrl, ffmpegDir);
-                logger.info("Downloaded to: {}", downloadedFile);
                 
                 // Extract the archive
                 Path extractedPath = extractArchive(downloadedFile, ffmpegDir);
-                logger.info("Extracted FFmpeg to: {}", extractedPath);
+                
+                // Clean up downloaded archive
+                Files.deleteIfExists(downloadedFile);
                 
                 // Clean up downloaded archive
                 Files.deleteIfExists(downloadedFile);
@@ -240,106 +232,28 @@ public class FFmpegDownloader {
      * Downloads a file from the given URL with progress tracking
      */
     private static Path downloadFile(String url, Path targetDir) throws IOException {
-        Request request = new Request.Builder()
-                .url(url)
-                .header("User-Agent", "MediaRoulette-Bot/1.0")
-                .build();
-        
         String fileName = getFileNameFromUrl(url);
         Path targetFile = targetDir.resolve(fileName);
-
-        logger.info("Requesting: {}", url);
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            logger.info("Response: HTTP {} {}", response.code(), response.message());
-            if (response.request().url().toString().equals(url)) {
-                logger.info("Direct download (no redirect)");
-            } else {
-                logger.info("Redirected to: {}", response.request().url());
-            }
-            
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to download file: HTTP " + response.code() + " " + response.message() + 
-                                    "\nFinal URL: " + response.request().url());
-            }
-            
-            ResponseBody body = response.body();
-            if (body == null) {
-                throw new IOException("Response body is null");
-            }
-            
-            long contentLength = body.contentLength();
-            
-            try (InputStream inputStream = body.byteStream();
-                 FileOutputStream outputStream = new FileOutputStream(targetFile.toFile())) {
-                
-                byte[] buffer = new byte[8192];
-                long totalBytes = 0;
-                int bytesRead;
-                long lastProgressUpdate = 0;
-
-                logger.info("Downloading FFmpeg... (Size: {})", formatBytes(contentLength));
-                printProgressBar(0, contentLength);
-                
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                    totalBytes += bytesRead;
-                    
-                    // Update progress bar every 100KB or when complete
-                    if (totalBytes - lastProgressUpdate >= 102400 || totalBytes == contentLength) {
-                        printProgressBar(totalBytes, contentLength);
-                        lastProgressUpdate = totalBytes;
-                    }
-                }
-
-                logger.info("\n✅ Download complete: {}", formatBytes(totalBytes));
-            }
-        }
+        
+        // Use shared DownloadManager with fancy progress bar
+        DownloadManager.download(DownloadRequest.builder()
+                .url(url)
+                .target(targetFile)
+                .taskName("FFmpeg")
+                .showProgress(true)
+                .style(ProgressBar.Style.DOWNLOAD)
+                .build());
         
         return targetFile;
     }
     
     /**
-     * Prints a progress bar for download progress
-     */
-    private static void printProgressBar(long downloaded, long total) {
-        if (total <= 0) {
-            System.out.print("\rDownloading... " + formatBytes(downloaded));
-            return;
-        }
-        
-        int barLength = 40;
-        double progress = (double) downloaded / total;
-        int filledLength = (int) (barLength * progress);
-        
-        StringBuilder bar = new StringBuilder();
-        bar.append("\r[");
-        
-        for (int i = 0; i < barLength; i++) {
-            if (i < filledLength) {
-                bar.append("█");
-            } else {
-                bar.append("░");
-            }
-        }
-        
-        bar.append("] ");
-        bar.append(String.format("%.1f%%", progress * 100));
-        bar.append(" (").append(formatBytes(downloaded));
-        bar.append("/").append(formatBytes(total));
-        bar.append(")");
-        
-        System.out.print(bar);
-    }
-    
-    /**
-     * Formats bytes into human-readable format
+     * Formats bytes into human-readable format.
+     * Delegates to ProgressBar.formatBytes() for consistency.
      */
     @NotNull
     public static String formatBytes(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
-        return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+        return ProgressBar.formatBytes(bytes);
     }
 
     /**
@@ -787,15 +701,11 @@ public class FFmpegDownloader {
     }
 
     /**
-     * Shuts down the OkHttpClient resources
+     * Shuts down resources.
+     * Note: HTTP client is now managed by DownloadManager.
      */
     public static void shutdown() {
-        try {
-            HTTP_CLIENT.dispatcher().executorService().shutdown();
-            HTTP_CLIENT.connectionPool().evictAll();
-            // If cache was used, close it here
-        } catch (Exception e) {
-            logger.error("Error shutting down FFmpegDownloader: {}", e.getMessage());
-        }
+        // HTTP client shutdown is now handled by DownloadManager.shutdown()
+        logger.debug("FFmpegDownloader shutdown complete");
     }
 }

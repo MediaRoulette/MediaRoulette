@@ -19,6 +19,14 @@ tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
         attributes["Main-Class"] = "me.hash.mediaroulette.Main"
         attributes["Created-By"] = "Gradle Shadow Plugin"
     }
+    
+    // Exclude external resources (downloaded at runtime from GitHub)
+    exclude("images/**")
+    exclude("fonts/**")
+    exclude("config/**")
+    exclude("locales/**")
+    exclude("subreddits.txt")
+    exclude("basic_dictionary.txt")
 }
 
 repositories {
@@ -30,7 +38,11 @@ repositories {
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("net.dv8tion:JDA:6.1.0")
+    
+    // JDA without audio support (saves ~12 MB - opus-java, tink)
+    implementation("net.dv8tion:JDA:6.1.0") {
+        exclude(module = "opus-java")
+    }
 
     implementation("org.json:json:20250517")
     implementation("org.jsoup:jsoup:1.16.1")

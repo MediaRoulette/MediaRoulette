@@ -20,7 +20,10 @@ import me.hash.mediaroulette.service.StatsTrackingService;
 import me.hash.mediaroulette.config.LocalConfig;
 import me.hash.mediaroulette.database.Database;
 import me.hash.mediaroulette.service.GiveawayManager;
+import me.hash.mediaroulette.utils.download.DownloadManager;
 import me.hash.mediaroulette.utils.media.MediaInitializer;
+import me.hash.mediaroulette.utils.resources.ResourceManager;
+import me.hash.mediaroulette.utils.startup.StartupManager;
 import me.hash.mediaroulette.utils.terminal.TerminalInterface;
 import me.hash.mediaroulette.utils.user.UserService;
 import me.hash.mediaroulette.utils.vault.VaultConfig;
@@ -53,21 +56,27 @@ public class Main {
     // ==================== Initialization ====================
 
     public static void main(String[] args) throws Exception {
-
         registerShutdownHook();
-
-        logger.info("Starting MediaRoulette application...");
-        logger.debug("Debug logging is enabled");
-
         localConfig = LocalConfig.getInstance();
-        initializeVault();
-        initializeInfrastructure();
-        initializeBot();
-        initializePlugins();
-        initializeGiveaways();
+        
+        // Use StartupManager for clean, orchestrated startup
+        StartupManager startup = new StartupManager()
+                .addTask("Configuration", Main::initializeConfig)
+                .addTask("Vault", Main::initializeVaultTask)
+                .addTask("Resources", Main::initializeResources)
+                .addTask("Database", Main::initializeDatabaseTask)
+                .addTask("Services", Main::initializeServicesTask)
+                .addTask("FFmpeg", Main::initializeMediaTask)
+                .addTask("Bot", Main::initializeBotTask)
+                .addTask("Plugins", Main::initializePluginsTask)
+                .addTask("Giveaways", Main::initializeGiveawaysTask);
+        
+        startup.execute();
         startTerminalInterface();
-
-        logger.info("MediaRoulette application started successfully");
+    }
+    
+    private static String initializeConfig() {
+        return localConfig.getMaintenanceMode() ? "Maintenance Mode" : "Ready";
     }
 
     private static Dotenv initializeEnvironment() {
@@ -88,46 +97,48 @@ public class Main {
 
     // ==================== Vault Setup ====================
 
-    private static void initializeVault() {
-        logger.info("Initializing Vault secret management...");
+    private static String initializeVaultTask() {
         try {
             VaultConfig vaultConfig = VaultConfig.load();
             VaultSecretManager.initialize(vaultConfig);
             vaultSecretManager = VaultSecretManager.getInstance();
             
-            if (vaultSecretManager.isVaultEnabled()) {
-                logger.info("Vault enabled - secrets loaded from Vault");
-            } else {
-                logger.info("Vault disabled - using .env and environment variables");
-            }
+            return vaultSecretManager.isVaultEnabled() ? "Enabled" : "Using .env";
         } catch (Exception e) {
-            logger.error("Failed to initialize Vault: {}", e.getMessage());
-            logger.warn("Falling back to .env and environment variables");
-            // Initialize with disabled config to allow fallback
+            logger.debug("Vault init failed: {}", e.getMessage());
             VaultSecretManager.initialize(new VaultConfig.Builder().enabled(false).build());
             vaultSecretManager = VaultSecretManager.getInstance();
+            return "Disabled";
+        }
+    }
+    
+    private static String initializeResources() {
+        try {
+            ResourceManager.getInstance().initialize().get(60, TimeUnit.SECONDS);
+            int count = ResourceManager.getInstance().getResourceCount();
+            return count > 0 ? count + " files" : "Ready";
+        } catch (Exception e) {
+            logger.debug("Resource init failed: {}", e.getMessage());
+            return "Limited";
         }
     }
 
     // ==================== Infrastructure Setup ====================
 
-    private static void initializeInfrastructure() {
-        initializeDatabase();
-        initializeServices();
-        initializeMediaProcessing();
-    }
-
-    private static void initializeDatabase() {
-        logger.info("Initializing database connection...");
+    private static String initializeDatabaseTask() {
         String connectionString = getEnv("MONGODB_CONNECTION");
         
         if (connectionString == null || connectionString.isEmpty()) {
-            logger.error("MONGODB_CONNECTION is not set. Please configure it in Vault, .env file, or environment variables.");
-            throw new IllegalStateException("MONGODB_CONNECTION is required but not configured");
+            throw new IllegalStateException("MONGODB_CONNECTION not set");
         }
         
         database = new Database(connectionString, "MediaRoulette");
-        logger.info("Database connection initialized successfully");
+        return "Connected";
+    }
+    
+    private static String initializeServicesTask() {
+        initializeServices();
+        return "Ready";
     }
 
     private static void initializeServices() {
@@ -174,80 +185,89 @@ public class Main {
         }
     }
 
-    private static void initializeMediaProcessing() {
-        logger.info("Initializing media processing...");
+    private static String initializeMediaTask() {
         try {
             MediaInitializer.initialize().get();
-            logger.info("Media processing ready (FFmpeg available)");
+            return MediaInitializer.isInitialized() ? "Available" : "Limited";
         } catch (Exception e) {
-            logger.warn("Media processing initialization failed: {}", e.getMessage());
-            logger.warn("Video processing features unavailable, bot will continue with limited functionality");
+            logger.debug("Media init failed: {}", e.getMessage());
+            return "Unavailable";
+        }
+    }
+    
+    private static void initializeMediaProcessing() {
+        try {
+            MediaInitializer.initialize().get();
+        } catch (Exception e) {
+            logger.debug("Media processing init failed: {}", e.getMessage());
         }
     }
 
     // ==================== Bot and Plugin Setup ====================
 
-    private static void initializeBot() {
-        logger.info("Initializing Discord bot...");
+    private static String initializeBotTask() {
         String discordToken = getEnv("DISCORD_TOKEN");
         
         if (discordToken == null || discordToken.isEmpty()) {
-            logger.error("DISCORD_TOKEN is not set. Please configure it in Vault, .env file, or environment variables.");
-            throw new IllegalStateException("DISCORD_TOKEN is required but not configured");
+            throw new IllegalStateException("DISCORD_TOKEN not set");
         }
         
         bot = new Bot(discordToken);
-        logger.info("Discord bot initialized successfully");
+        return "Ready";
+    }
+    
+    private static void initializeBot() {
+        String discordToken = getEnv("DISCORD_TOKEN");
+        if (discordToken != null && !discordToken.isEmpty()) {
+            bot = new Bot(discordToken);
+        }
     }
 
-    private static void initializePlugins() {
-        logger.info("Initializing plugin system...");
+    private static String initializePluginsTask() {
         pluginManager = new PluginManager();
 
         File pluginDir = new File("plugins");
         if (!pluginDir.exists()) {
             pluginDir.mkdirs();
-            logger.info("Created plugins directory");
         }
 
         pluginManager.loadPlugins(pluginDir);
         pluginManager.enablePlugins();
 
-        logger.info("Loaded {} plugins", pluginManager.getPlugins().size());
-
-        // Register commands after loading plugins to make sure plugin commands are loaded
+        // Register commands after loading plugins
         bot.registerCommands();
+        
+        int count = pluginManager.getPlugins().size();
+        return count + " loaded";
+    }
+    
+    private static void initializePlugins() {
+        pluginManager = new PluginManager();
+        File pluginDir = new File("plugins");
+        if (!pluginDir.exists()) {
+            pluginDir.mkdirs();
+        }
+        pluginManager.loadPlugins(pluginDir);
+        pluginManager.enablePlugins();
+        if (bot != null) {
+            bot.registerCommands();
+        }
     }
 
+    private static String initializeGiveawaysTask() {
+        GiveawayManager.initialize();
+        return "Ready";
+    }
+    
     private static void initializeGiveaways() {
-        logger.info("Initializing giveaway system...");
         GiveawayManager.initialize();
     }
 
     private static void startTerminalInterface() {
-        printStartupSummary();
-
         terminal = new TerminalInterface();
         Thread terminalThread = new Thread(terminal::start, "Terminal-Interface");
         terminalThread.setDaemon(true);
         terminalThread.start();
-    }
-
-    private static void printStartupSummary() {
-        logger.info("==================================================");
-        logger.info("MediaRoulette Bot Status Summary");
-        logger.info("--------------------------------------------------");
-        logger.info("Bot:              {}", getStatus(bot));
-        logger.info("Database:         {}", getStatus(database));
-        logger.info("Vault:            {}", vaultSecretManager != null && vaultSecretManager.isVaultEnabled() ? "Enabled" : "Disabled");
-        logger.info("Media Processing: {}", MediaInitializer.isInitialized() ? "Ready" : "Limited");
-        logger.info("Maintenance Mode: {}", localConfig.getMaintenanceMode());
-        logger.info("Plugins Loaded:   {}", pluginManager != null ? pluginManager.getPlugins().size() : 0);
-        logger.info("==================================================");
-    }
-
-    private static String getStatus(Object component) {
-        return component != null ? "Initialized" : "Failed";
     }
 
     // ==================== Shutdown Management ====================
