@@ -1,14 +1,9 @@
 {
   "version": "1.0.0",
-  "lastUpdated": 1767453185228,
-  "generatedAt": "2026-01-03T18:13:05.228149",
+  "lastUpdated": 1767453352057,
+  "generatedAt": "2026-01-03T18:15:52.057297",
   "baseUrl": "https://raw.githubusercontent.com/MediaRoulette/MediaRoulette/main/resources/",
   "resources": {
-    "manifest.json": {
-      "sha256": "7b0bef036c07af0914d934222e073d2ef5d25344af2ce45d1be76e45a3924695",
-      "size": 3405,
-      "required": false
-    },
     "config/randomWeightValues.json": {
       "sha256": "83e024f3d227a5137679ba884a29d3224be64001708ffce0bfb464f1294b4036",
       "size": 713,
@@ -101,10 +96,9 @@
     }
   },
   "summary": {
-    "totalFiles": 19,
-    "totalSize": 34406076,
+    "totalFiles": 18,
+    "totalSize": 34402671,
     "categories": {
-      "other": 1,
       "config": 2,
       "data": 2,
       "font": 5,
