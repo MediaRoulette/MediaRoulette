@@ -7,12 +7,17 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ThemeManager {
     private static final Logger logger = LoggerFactory.getLogger(ThemeManager.class);
+    
+    private static final Path THEMES_FILE = Path.of("resources", "config", "themes.json");
+    
     private final Map<String, Theme> themes;
     private final ObjectMapper objectMapper;
 
@@ -31,34 +36,44 @@ public class ThemeManager {
     }
 
     private void loadThemes() {
+        // Try external resources folder first
+        if (Files.exists(THEMES_FILE)) {
+            try (InputStream inputStream = Files.newInputStream(THEMES_FILE)) {
+                loadThemesFromStream(inputStream);
+                logger.info("Loaded {} themes from external resources", themes.size());
+                return;
+            } catch (IOException e) {
+                logger.warn("Failed to load themes from external file: {}", e.getMessage());
+            }
+        }
+        
+        // Fallback to classpath (for development/testing)
         try (InputStream inputStream = getClass().getClassLoader()
                 .getResourceAsStream("config/themes.json")) {
-
-            if (inputStream == null) {
-                logger.error("themes.json not found in resources/config/");
-                throw new IOException("themes.json not found in resources/config/");
+            if (inputStream != null) {
+                loadThemesFromStream(inputStream);
+                logger.info("Loaded {} themes from classpath", themes.size());
+                return;
             }
-
-            TypeFactory typeFactory = objectMapper.getTypeFactory();
-            List<Theme> themeList = objectMapper.readValue(inputStream,
-                    typeFactory.constructCollectionType(List.class, Theme.class));
-
-            // Clear existing themes and load from config
-            themes.clear();
-            for (Theme theme : themeList) {
-                if (theme.getName() != null && !theme.getName().trim().isEmpty()) {
-                    themes.put(theme.getName(), theme);
-                } else {
-                    logger.warn("Skipped theme with null or empty name");
-                }
-            }
-
-            logger.info("Successfully loaded {} themes from config", themes.size());
-
         } catch (IOException e) {
-            logger.error("Failed to load themes from config file", e);
-            // If config loading fails, we'll have an empty themes map
-            // The getTheme method will handle this gracefully
+            logger.warn("Failed to load themes from classpath: {}", e.getMessage());
+        }
+        
+        logger.error("themes.json not found in resources/config/ or classpath");
+    }
+    
+    private void loadThemesFromStream(InputStream inputStream) throws IOException {
+        TypeFactory typeFactory = objectMapper.getTypeFactory();
+        List<Theme> themeList = objectMapper.readValue(inputStream,
+                typeFactory.constructCollectionType(List.class, Theme.class));
+
+        themes.clear();
+        for (Theme theme : themeList) {
+            if (theme.getName() != null && !theme.getName().trim().isEmpty()) {
+                themes.put(theme.getName(), theme);
+            } else {
+                logger.warn("Skipped theme with null or empty name");
+            }
         }
     }
 

@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -624,9 +626,20 @@ public class SettingsCommand extends BaseCommand {
             // Reset all image source chances to default values
             // Load default values from randomWeightValues.json
             try {
-                InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config/randomWeightValues.json");
+                Path externalConfig = Path.of("resources", "config", "randomWeightValues.json");
+                InputStream inputStream = null;
+                
+                // Try external resources folder first
+                if (Files.exists(externalConfig)) {
+                    inputStream = Files.newInputStream(externalConfig);
+                } else {
+                    // Fallback to classpath
+                    inputStream = getClass().getClassLoader().getResourceAsStream("config/randomWeightValues.json");
+                }
+                
                 if (inputStream != null) {
                     String jsonContent = new String(inputStream.readAllBytes());
+                    inputStream.close();
                     JSONArray defaultValues = new JSONArray(jsonContent);
                     
                     // Clear existing image options

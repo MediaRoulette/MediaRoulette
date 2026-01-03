@@ -20,7 +20,6 @@ import me.hash.mediaroulette.service.StatsTrackingService;
 import me.hash.mediaroulette.config.LocalConfig;
 import me.hash.mediaroulette.database.Database;
 import me.hash.mediaroulette.service.GiveawayManager;
-import me.hash.mediaroulette.utils.download.DownloadManager;
 import me.hash.mediaroulette.utils.media.MediaInitializer;
 import me.hash.mediaroulette.utils.resources.ResourceManager;
 import me.hash.mediaroulette.utils.startup.StartupManager;
@@ -194,7 +193,7 @@ public class Main {
             return "Unavailable";
         }
     }
-    
+
     private static void initializeMediaProcessing() {
         try {
             MediaInitializer.initialize().get();
@@ -258,7 +257,7 @@ public class Main {
         GiveawayManager.initialize();
         return "Ready";
     }
-    
+
     private static void initializeGiveaways() {
         GiveawayManager.initialize();
     }

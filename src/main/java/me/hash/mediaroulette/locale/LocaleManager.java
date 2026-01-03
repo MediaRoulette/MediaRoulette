@@ -3,9 +3,13 @@ package me.hash.mediaroulette.locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.MissingResourceException;
+import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -13,6 +17,7 @@ public class LocaleManager {
     private static final Logger logger = LoggerFactory.getLogger(LocaleManager.class);
     private static final ConcurrentHashMap<String, LocaleManager> CACHE = new ConcurrentHashMap<>();
     private static final LocaleManager DEFAULT_INSTANCE = new LocaleManager("en_US", true);
+    private static final Path LOCALES_DIR = Path.of("resources", "locales");
 
     private ResourceBundle bundle;
     private Locale locale;
@@ -57,31 +62,42 @@ public class LocaleManager {
     }
 
     private void initializeLocale(String localeName) {
-        try {
-            // Parse locale string (e.g., "en_US" -> language="en", country="US")
-            String[] parts = localeName.split("_");
-            if (parts.length >= 2) {
-                this.locale = Locale.of(parts[0], parts[1]);
-            } else {
-                this.locale = Locale.of(parts[0]);
+        // Parse locale string (e.g., "en_US" -> language="en", country="US")
+        String[] parts = localeName.split("_");
+        if (parts.length >= 2) {
+            this.locale = Locale.of(parts[0], parts[1]);
+        } else {
+            this.locale = Locale.of(parts[0]);
+        }
+
+        // Try external resources folder first
+        Path externalFile = LOCALES_DIR.resolve("messages_" + localeName + ".properties");
+        if (Files.exists(externalFile)) {
+            try (InputStream is = Files.newInputStream(externalFile)) {
+                this.bundle = new PropertyResourceBundle(is);
+                logger.debug("Loaded locale {} from external resources", localeName);
+                return;
+            } catch (Exception e) {
+                logger.warn("Failed to load external locale file {}: {}", externalFile, e.getMessage());
             }
+        }
 
+        // Fallback to classpath ResourceBundle
+        try {
             this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
-
+            logger.debug("Loaded locale {} from classpath", localeName);
         } catch (MissingResourceException e) {
-            // Fallback to default locale (en_US)
             logger.warn("Locale {} not found, falling back to en_US", localeName);
             this.locale = Locale.of("en", "US");
             try {
                 this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
             } catch (MissingResourceException fallbackError) {
-                // If even the fallback fails, try without locale specification
-                logger.error("Could not load locales.messages bundle for en_US, trying default", fallbackError);
+                logger.error("Could not load locales.messages for en_US", fallbackError);
                 try {
                     this.bundle = ResourceBundle.getBundle("locales.messages");
                 } catch (MissingResourceException finalError) {
                     logger.error("Could not load any locales.messages bundle", finalError);
-                    throw new RuntimeException("Could not initialize LocaleManager - no resource bundles found", finalError);
+                    throw new RuntimeException("Could not initialize LocaleManager", finalError);
                 }
             }
         }

@@ -13,6 +13,8 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -72,11 +74,20 @@ public class ImageRenderer {
 
         // Try to load background image if path is provided and not empty
         if (bgPath != null && !bgPath.trim().isEmpty()) {
-            try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(bgPath)) {
+            InputStream inputStream = null;
+            try {
+                // Try external resources folder first
+                Path externalPath = Path.of("resources", bgPath);
+                if (Files.exists(externalPath)) {
+                    inputStream = Files.newInputStream(externalPath);
+                } else {
+                    // Fallback to classpath
+                    inputStream = getClass().getClassLoader().getResourceAsStream(bgPath);
+                }
+                
                 if (inputStream != null) {
                     background = ImageIO.read(inputStream);
                     if (background != null) {
-                        // Optimized scaling - use TYPE_INT_RGB for better performance
                         scaledBg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
                         bgG2d = scaledBg.createGraphics();
                         bgG2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -92,16 +103,12 @@ public class ImageRenderer {
             } catch (IOException e) {
                 logger.error("Error loading background image '{}': {}", bgPath, e.getMessage());
             } finally {
-                // Clean up temporary images
-                if (background != null) {
-                    background.flush();
+                if (inputStream != null) {
+                    try { inputStream.close(); } catch (IOException ignored) {}
                 }
-                if (scaledBg != null) {
-                    scaledBg.flush();
-                }
-                if (bgG2d != null) {
-                    bgG2d.dispose();
-                }
+                if (background != null) { background.flush(); }
+                if (scaledBg != null) { scaledBg.flush(); }
+                if (bgG2d != null) { bgG2d.dispose(); }
             }
         } else {
             logger.warn("No background image specified, using gradient background");
@@ -247,14 +254,29 @@ public class ImageRenderer {
         Theme.TextStyle textStyle = theme.getTextStyle();
         int fontSize = (int) (textStyle.getFontSize() * scaleFactor);
         String fontWeight = textStyle.getFontWeight();
+        String fontFamily = textStyle.getFontFamily();
 
-        // Try to load custom font
-        try (InputStream fontStream = getClass().getClassLoader()
-                .getResourceAsStream("fonts/" + textStyle.getFontFamily() + ".ttf")) {
+        // Try to load custom font from external resources first
+        try {
+            Path externalFontPath = Path.of("resources", "fonts", fontFamily + ".ttf");
+            InputStream fontStream = null;
+            
+            if (Files.exists(externalFontPath)) {
+                fontStream = Files.newInputStream(externalFontPath);
+            } else {
+                // Fallback to classpath
+                fontStream = getClass().getClassLoader()
+                        .getResourceAsStream("fonts/" + fontFamily + ".ttf");
+            }
+            
             if (fontStream != null) {
-                Font baseFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
-                int style = getFontStyle(fontWeight);
-                return baseFont.deriveFont(style, (float) fontSize);
+                try {
+                    Font baseFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+                    int style = getFontStyle(fontWeight);
+                    return baseFont.deriveFont(style, (float) fontSize);
+                } finally {
+                    fontStream.close();
+                }
             }
         } catch (Exception e) {
             logger.error("Failed to load custom font, using system font: {}", e.getMessage());
