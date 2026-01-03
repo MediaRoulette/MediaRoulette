@@ -16,8 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LocaleManager {
     private static final Logger logger = LoggerFactory.getLogger(LocaleManager.class);
     private static final ConcurrentHashMap<String, LocaleManager> CACHE = new ConcurrentHashMap<>();
-    private static final LocaleManager DEFAULT_INSTANCE = new LocaleManager("en_US", true);
     private static final Path LOCALES_DIR = Path.of("resources", "locales");
+    private static final LocaleManager DEFAULT_INSTANCE = new LocaleManager("en_US", true);
 
     private ResourceBundle bundle;
     private Locale locale;

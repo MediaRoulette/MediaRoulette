@@ -9,12 +9,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 
 public class RandomDictionaryLineFetcher {
     private static final int CHUNK_SIZE = 4096;
+    private static final Path DATA_DIR = Path.of("resources", "data");
     private final OkHttpClient client;
     private final String source;
     private final boolean isLocal;
@@ -42,17 +45,33 @@ public class RandomDictionaryLineFetcher {
 
     /**
      * Loads the local dictionary from the resource file into memory.
+     * Tries external resources/data folder first, falls back to classpath.
      * @throws IOException If the resource cannot be found or read.
      */
     private void loadLocalDictionary() throws IOException {
-        ClassLoader classLoader = getClass().getClassLoader();
-        try (InputStream is = classLoader.getResourceAsStream(source)) {
+        InputStream is = null;
+        
+        // Try external resources/data folder first
+        Path externalPath = DATA_DIR.resolve(source);
+        if (Files.exists(externalPath)) {
+            is = Files.newInputStream(externalPath);
+        } else {
+            // Fallback to classpath (check both root and data folder)
+            ClassLoader classLoader = getClass().getClassLoader();
+            is = classLoader.getResourceAsStream("data/" + source);
             if (is == null) {
-                throw new IOException("Resource not found: " + source);
+                is = classLoader.getResourceAsStream(source);
             }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                localLines = reader.lines().collect(Collectors.toList());
-            }
+        }
+        
+        if (is == null) {
+            throw new IOException("Resource not found: " + source);
+        }
+        
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            localLines = reader.lines().collect(Collectors.toList());
+        } finally {
+            is.close();
         }
     }
 
