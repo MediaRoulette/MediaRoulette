@@ -141,7 +141,6 @@ public class Main {
     }
 
     private static void initializeServices() {
-        logger.info("Initializing services...");
 
         MongoCollection<Document> userCollection = database.getCollection("user");
         MongoCollection<Document> dictionaryCollection = database.getCollection("dictionary");
@@ -177,7 +176,7 @@ public class Main {
                 );
                 basicDict.addWords(defaultWords);
 
-                logger.info("Default dictionary initialized with {} words", defaultWords.size());
+                // logger.info("Default dictionary initialized with {} words", defaultWords.size());
             }
         } catch (Exception e) {
             logger.error("Failed to initialize default dictionaries", e);
@@ -233,8 +232,9 @@ public class Main {
         pluginManager.loadPlugins(pluginDir);
         pluginManager.enablePlugins();
 
-        // Register commands after loading plugins
-        bot.registerCommands();
+        if (bot != null) {
+        	bot.registerCommands();
+        }
         
         int count = pluginManager.getPlugins().size();
         return count + " loaded";

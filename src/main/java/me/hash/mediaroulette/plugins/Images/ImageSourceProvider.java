@@ -1,9 +1,11 @@
 package me.hash.mediaroulette.plugins.images;
 
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.model.PreferenceSetting;
 import me.hash.mediaroulette.model.content.MediaResult;
 import net.dv8tion.jda.api.interactions.Interaction;
 
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -79,5 +81,25 @@ public interface ImageSourceProvider {
      */
     default int getPriority() {
         return 50;
+    }
+    
+    /**
+     * Get the schema of configurable settings for this source.
+     * Providers can override this to expose user-configurable options.
+     * 
+     * Example for Reddit:
+     * <pre>
+     * return Map.of(
+     *     "sortMethod", PreferenceSetting.choice("sortMethod", "Sort Method", 
+     *         "How posts are sorted", "hot", "hot", "top", "new", "rising"),
+     *     "timeRange", PreferenceSetting.choice("timeRange", "Time Range",
+     *         "Time period for top posts", "week", "hour", "day", "week", "month", "year", "all")
+     * );
+     * </pre>
+     * 
+     * @return Map of setting key → PreferenceSetting definition, empty by default
+     */
+    default Map<String, PreferenceSetting> getPreferencesSchema() {
+        return Collections.emptyMap();
     }
 }

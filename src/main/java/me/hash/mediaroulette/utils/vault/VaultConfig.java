@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.Properties;
 
 /**
- * Configuration for HashiCorp Vault integration.
+ * Configuration for HashiCorp Vault integration with AppRole authentication.
  * Auto-creates vault-config.properties template on first run (disabled by default).
  */
 public class VaultConfig {
@@ -18,7 +18,8 @@ public class VaultConfig {
     private static final String CONFIG_FILE = "vault-config.properties";
 
     private final String vaultAddress;
-    private final String vaultToken;
+    private final String roleId;
+    private final String secretId;
     private final String vaultNamespace;
     private final String secretPath;    // e.g. "mediaroulette"
     private final String secretEngine;  // e.g. "secret"
@@ -28,7 +29,8 @@ public class VaultConfig {
 
     private VaultConfig(Builder builder) {
         this.vaultAddress = builder.vaultAddress;
-        this.vaultToken = builder.vaultToken;
+        this.roleId = builder.roleId;
+        this.secretId = builder.secretId;
         this.vaultNamespace = builder.vaultNamespace;
         this.secretPath = builder.secretPath;
         this.secretEngine = builder.secretEngine;
@@ -62,10 +64,18 @@ public class VaultConfig {
     }
 
     private static VaultConfig buildFromProperties(Properties props) {
+        String enabledStr = props.getProperty("vault.enabled", "false");
+        String roleId = props.getProperty("vault.approle.role_id", "");
+        String secretId = props.getProperty("vault.approle.secret_id", "");
+        
+        logger.info("Vault Config Debug: enabled={}, roleId='{}', secretId (length)={}", 
+                enabledStr, roleId, secretId.length());
+
         return new Builder()
-                .enabled(Boolean.parseBoolean(props.getProperty("vault.enabled", "false")))
+                .enabled(Boolean.parseBoolean(enabledStr))
                 .vaultAddress(props.getProperty("vault.address", "http://localhost:8200"))
-                .vaultToken(props.getProperty("vault.token", ""))
+                .roleId(roleId)
+                .secretId(secretId)
                 .vaultNamespace(props.getProperty("vault.namespace", ""))
                 .secretPath(props.getProperty("vault.secret.path", "mediaroulette"))
                 .secretEngine(props.getProperty("vault.secret.engine", "secret"))
@@ -78,7 +88,8 @@ public class VaultConfig {
         return new Builder()
                 .enabled(false)
                 .vaultAddress("http://localhost:8200")
-                .vaultToken("")
+                .roleId("")
+                .secretId("")
                 .vaultNamespace("")
                 .secretPath("mediaroulette")
                 .secretEngine("secret")
@@ -93,13 +104,20 @@ public class VaultConfig {
     public void save() {
         try (FileOutputStream fos = new FileOutputStream(CONFIG_FILE)) {
             StringBuilder sb = new StringBuilder();
-            sb.append("# HashiCorp Vault Configuration\n");
+            sb.append("# HashiCorp Vault Configuration (AppRole Authentication)\n");
             sb.append("# Vault is DISABLED by default. Set vault.enabled=true to enable.\n");
-            sb.append("# If disabled, secrets are loaded from .env and environment variables.\n\n");
+            sb.append("# If disabled, secrets are loaded from .env and environment variables.\n");
+            sb.append("#\n");
+            sb.append("# AppRole Setup:\n");
+            sb.append("#   1. Enable AppRole: vault auth enable approle\n");
+            sb.append("#   2. Create role: vault write auth/approle/role/mediaroulette policies=\"mediaroulette-policy\"\n");
+            sb.append("#   3. Get role_id: vault read auth/approle/role/mediaroulette/role-id\n");
+            sb.append("#   4. Get secret_id: vault write -f auth/approle/role/mediaroulette/secret-id\n\n");
             
             sb.append("vault.enabled=").append(enabled).append("\n");
             sb.append("vault.address=").append(vaultAddress).append("\n");
-            sb.append("vault.token=").append(vaultToken).append("\n");
+            sb.append("vault.approle.role_id=").append(roleId).append("\n");
+            sb.append("vault.approle.secret_id=").append(secretId).append("\n");
             sb.append("vault.namespace=").append(vaultNamespace).append("\n");
             sb.append("vault.secret.path=").append(secretPath).append("\n");
             sb.append("vault.secret.engine=").append(secretEngine).append("\n");
@@ -114,7 +132,8 @@ public class VaultConfig {
     }
 
     public String getVaultAddress() { return vaultAddress; }
-    public String getVaultToken() { return vaultToken; }
+    public String getRoleId() { return roleId; }
+    public String getSecretId() { return secretId; }
     public String getVaultNamespace() { return vaultNamespace; }
     public String getSecretPath() { return secretPath; }
     public String getSecretEngine() { return secretEngine; }
@@ -132,7 +151,8 @@ public class VaultConfig {
 
     public static class Builder {
         private String vaultAddress = "http://localhost:8200";
-        private String vaultToken = "";
+        private String roleId = "";
+        private String secretId = "";
         private String vaultNamespace = "";
         private String secretPath = "mediaroulette";
         private String secretEngine = "secret";
@@ -145,8 +165,13 @@ public class VaultConfig {
             return this;
         }
 
-        public Builder vaultToken(String vaultToken) {
-            this.vaultToken = vaultToken;
+        public Builder roleId(String roleId) {
+            this.roleId = roleId;
+            return this;
+        }
+
+        public Builder secretId(String secretId) {
+            this.secretId = secretId;
             return this;
         }
 

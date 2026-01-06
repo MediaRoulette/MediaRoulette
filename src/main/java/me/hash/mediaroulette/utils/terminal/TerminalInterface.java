@@ -61,6 +61,7 @@ public class TerminalInterface {
         commandSystem.registerCommand(new PluginCommand());
         commandSystem.registerCommand(new AnalyticsCommand());
         commandSystem.registerCommand(new VaultCommand());
+        commandSystem.registerCommand(new ResourceCommand());
     }
 
     public void start() {

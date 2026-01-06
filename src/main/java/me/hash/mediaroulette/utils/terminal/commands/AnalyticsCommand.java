@@ -345,32 +345,39 @@ public class AnalyticsCommand extends Command {
     }
 
     private String getHelpText() {
-        return """
-                Analytics Command Usage:
-                
-                GENERATION:
-                  analytics generate current               - Generate report for current month
-                  analytics generate previous             - Generate report for previous month
-                  analytics generate month <YYYY-MM>      - Generate report for specific month
-                  analytics generate multi <months...>    - Generate reports for multiple months
-                
-                MANAGEMENT:
-                  analytics list [--detailed]            - List all available reports
-                  analytics clean [--confirm]            - Clean old reports (6+ months)
-                  analytics open <month|index>           - Get file path for report or index
-                  analytics status                       - Show analytics system status
-                  analytics check <YYYY-MM>              - Check data availability for month
-                
-                EXAMPLES:
-                  analytics generate current
-                  analytics generate month 2024-01
-                  analytics generate multi 2024-01 2024-02 2024-03
-                  analytics list --detailed
-                  analytics open 2024-01
-                  analytics open index
-                  analytics check 2024-01
-                  analytics clean --confirm
-                """;
+        return getDetailedHelp();
+    }
+
+    @Override
+    public String getDetailedHelp() {
+        StringBuilder help = new StringBuilder();
+        
+        help.append(me.hash.mediaroulette.utils.terminal.TerminalColors.header("Command: "));
+        help.append(me.hash.mediaroulette.utils.terminal.TerminalColors.command("analytics")).append("\n");
+        help.append("Generate and manage analytics reports and dashboards.\n\n");
+        
+        help.append(me.hash.mediaroulette.utils.terminal.TerminalColors.header("Generation:")).append("\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("generate current")).append("           - Report for current month\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("generate previous")).append("          - Report for previous month\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("generate month <YYYY-MM>")).append("   - Report for specific month\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("generate multi <months>")).append("    - Multiple months at once\n\n");
+        
+        help.append(me.hash.mediaroulette.utils.terminal.TerminalColors.header("Management:")).append("\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("list [--detailed]")).append("          - List available reports\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("status")).append("                     - Show system status\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("check <YYYY-MM>")).append("            - Check data availability\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("open <month|index>")).append("         - Get report file path\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.cyan("clean [--confirm]")).append("          - Clean old reports (6+ months)\n\n");
+        
+        help.append(me.hash.mediaroulette.utils.terminal.TerminalColors.header("Examples:")).append("\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.dim("analytics generate current")).append("\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.dim("analytics generate month 2024-01")).append("\n");
+        help.append("  ").append(me.hash.mediaroulette.utils.terminal.TerminalColors.dim("analytics open index")).append("\n\n");
+        
+        help.append(me.hash.mediaroulette.utils.terminal.TerminalColors.header("Aliases:")).append("\n");
+        help.append("  stats, reports\n");
+        
+        return help.toString();
     }
 
     @Override

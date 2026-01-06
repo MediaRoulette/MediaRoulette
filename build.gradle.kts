@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "me.hash"
-version = "1.0.1"
+version = "1.0.2"
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     archiveClassifier.set("")  // Remove classifier so it replaces the main jar
@@ -96,5 +96,12 @@ publishing {
     }
     repositories {
         mavenLocal()
+    }
+}
+
+tasks.processResources {
+    val props = mapOf("version" to project.version)
+    filesMatching("version.properties") {
+        expand(props)
     }
 }

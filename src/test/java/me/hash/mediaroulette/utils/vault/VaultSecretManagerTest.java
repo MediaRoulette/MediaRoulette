@@ -10,10 +10,10 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration tests for VaultSecretManager.
+ * Integration tests for VaultSecretManager with AppRole authentication.
  * 
- * These tests require a running Vault instance.
- * Set VAULT_TEST_ENABLED=true and VAULT_TEST_TOKEN to run these tests.
+ * These tests require a running Vault instance with AppRole enabled.
+ * Set VAULT_TEST_ENABLED=true, VAULT_ROLE_ID, and VAULT_SECRET_ID to run these tests.
  * 
  * To run locally with Docker:
  *   docker run --rm --cap-add=IPC_LOCK -p 8200:8200 \
@@ -21,14 +21,24 @@ import static org.junit.jupiter.api.Assertions.*;
  *     -e VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200 \
  *     vault:latest
  * 
- * Then set environment variables:
+ * Then configure AppRole:
+ *   export VAULT_ADDR=http://localhost:8200
+ *   export VAULT_TOKEN=testtoken
+ *   vault auth enable approle
+ *   vault write auth/approle/role/mediaroulette policies="default" token_ttl="1h"
+ *   vault read -format=json auth/approle/role/mediaroulette/role-id
+ *   vault write -format=json -f auth/approle/role/mediaroulette/secret-id
+ * 
+ * Set environment variables:
  *   export VAULT_TEST_ENABLED=true
- *   export VAULT_TEST_TOKEN=testtoken
+ *   export VAULT_ROLE_ID=<role-id-from-above>
+ *   export VAULT_SECRET_ID=<secret-id-from-above>
  */
 class VaultSecretManagerTest {
 
-    private static final String TEST_TOKEN_ENV = "VAULT_TEST_TOKEN";
     private static final String TEST_ENABLED_ENV = "VAULT_TEST_ENABLED";
+    private static final String ROLE_ID_ENV = "VAULT_ROLE_ID";
+    private static final String SECRET_ID_ENV = "VAULT_SECRET_ID";
 
     @BeforeEach
     void setUp() {
@@ -69,6 +79,21 @@ class VaultSecretManagerTest {
         // Should fall back to environment variables
         String pathEnv = manager.getSecret("PATH");
         assertNotNull(pathEnv); // PATH should exist in environment
+    }
+
+    @Test
+    void testEmptyAppRoleCredentialsDisablesVault() {
+        // Even with enabled=true, empty credentials should disable Vault
+        VaultConfig config = new VaultConfig.Builder()
+                .enabled(true)
+                .roleId("")
+                .secretId("")
+                .build();
+
+        VaultSecretManager.initialize(config);
+        VaultSecretManager manager = VaultSecretManager.getInstance();
+
+        assertFalse(manager.isVaultEnabled());
     }
 
     @Test
@@ -163,15 +188,30 @@ class VaultSecretManagerTest {
     }
 
     @Test
+    void testGetTokenTTLWhenDisabled() {
+        VaultConfig config = new VaultConfig.Builder()
+                .enabled(false)
+                .build();
+
+        VaultSecretManager.initialize(config);
+        VaultSecretManager manager = VaultSecretManager.getInstance();
+
+        assertEquals(0, manager.getTokenTTL());
+    }
+
+    @Test
     @EnabledIfEnvironmentVariable(named = TEST_ENABLED_ENV, matches = "true")
-    void testVaultConnectionWithRealServer() {
-        String token = System.getenv(TEST_TOKEN_ENV);
-        assertNotNull(token, "VAULT_TEST_TOKEN must be set for integration tests");
+    void testVaultConnectionWithAppRole() {
+        String roleId = System.getenv(ROLE_ID_ENV);
+        String secretId = System.getenv(SECRET_ID_ENV);
+        assertNotNull(roleId, "VAULT_ROLE_ID must be set for integration tests");
+        assertNotNull(secretId, "VAULT_SECRET_ID must be set for integration tests");
 
         VaultConfig config = new VaultConfig.Builder()
                 .enabled(true)
                 .vaultAddress("http://localhost:8200")
-                .vaultToken(token)
+                .roleId(roleId)
+                .secretId(secretId)
                 .secretPath("mediaroulette")
                 .secretEngine("secret")
                 .sslVerify(false)
@@ -183,18 +223,22 @@ class VaultSecretManagerTest {
 
         assertTrue(manager.isVaultEnabled());
         assertTrue(manager.testConnection());
+        assertTrue(manager.getTokenTTL() > 0);
     }
 
     @Test
     @EnabledIfEnvironmentVariable(named = TEST_ENABLED_ENV, matches = "true")
-    void testReadSecretsFromRealVault() {
-        String token = System.getenv(TEST_TOKEN_ENV);
-        assertNotNull(token, "VAULT_TEST_TOKEN must be set for integration tests");
+    void testReadSecretsFromVaultWithAppRole() {
+        String roleId = System.getenv(ROLE_ID_ENV);
+        String secretId = System.getenv(SECRET_ID_ENV);
+        assertNotNull(roleId, "VAULT_ROLE_ID must be set for integration tests");
+        assertNotNull(secretId, "VAULT_SECRET_ID must be set for integration tests");
 
         VaultConfig config = new VaultConfig.Builder()
                 .enabled(true)
                 .vaultAddress("http://localhost:8200")
-                .vaultToken(token)
+                .roleId(roleId)
+                .secretId(secretId)
                 .secretPath("mediaroulette")
                 .secretEngine("secret")
                 .sslVerify(false)
@@ -209,31 +253,6 @@ class VaultSecretManagerTest {
         
         assertNotNull(secrets);
         // Secrets should be populated if they exist in Vault
-        // The CI workflow sets DISCORD_TOKEN and MONGODB_CONNECTION
-    }
-
-    @Test
-    @EnabledIfEnvironmentVariable(named = TEST_ENABLED_ENV, matches = "true")
-    void testGetSpecificSecretFromVault() {
-        String token = System.getenv(TEST_TOKEN_ENV);
-        assertNotNull(token, "VAULT_TEST_TOKEN must be set for integration tests");
-
-        VaultConfig config = new VaultConfig.Builder()
-                .enabled(true)
-                .vaultAddress("http://localhost:8200")
-                .vaultToken(token)
-                .secretPath("mediaroulette")
-                .secretEngine("secret")
-                .sslVerify(false)
-                .timeoutSeconds(5)
-                .build();
-
-        VaultSecretManager.initialize(config);
-        VaultSecretManager manager = VaultSecretManager.getInstance();
-
-        String discordToken = manager.getSecret("DISCORD_TOKEN");
-        // Should either return the value from Vault or null
-        // CI workflow sets this to "test_token"
     }
 
     @Test
@@ -268,25 +287,21 @@ class VaultSecretManagerTest {
         VaultConfig config = new VaultConfig.Builder()
                 .enabled(true)
                 .vaultAddress("http://invalid-vault-address-that-does-not-exist:8200")
-                .vaultToken("test-token")
+                .roleId("test-role")
+                .secretId("test-secret")
                 .secretPath("mediaroulette")
                 .sslVerify(false)
                 .timeoutSeconds(1)
                 .build();
 
-        // Initialization should succeed (Vault client is created)
-        // but refreshSecrets will log an error and continue
-        // This allows fallback to environment variables
+        // With AppRole, if login fails due to invalid address, Vault will be disabled
+        // This allows graceful fallback to environment variables
         assertDoesNotThrow(() -> {
             VaultSecretManager.initialize(config);
             VaultSecretManager manager = VaultSecretManager.getInstance();
             
-            // Vault is considered "enabled" even if connection fails
-            assertTrue(manager.isVaultEnabled());
-            
-            // But secrets will be empty since refresh failed
-            Map<String, String> secrets = manager.getAllSecrets();
-            assertTrue(secrets.isEmpty(), "Secrets should be empty when connection fails");
+            // Vault should be disabled since login failed
+            assertFalse(manager.isVaultEnabled(), "Vault should be disabled when login fails");
             
             // Should still fall back to environment variables
             String pathEnv = manager.getSecret("PATH");

@@ -158,7 +158,8 @@ public class PluginManager {
 
         PluginClassLoader classLoader = new PluginClassLoader(
                 new URL[]{file.toURI().toURL()},
-                this.getClass().getClassLoader()
+                this.getClass().getClassLoader(),
+                description.getName()
         );
 
         Class<?> pluginClass = classLoader.loadClass(description.getMain());
@@ -236,6 +237,111 @@ public class PluginManager {
             return true;
         } catch (Exception e) {
             logger.error("Failed to disable plugin {}: {}", plugin.getName(), e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Reload a single plugin by name.
+     * This will disable the plugin, close its class loader, and reload from disk.
+     * 
+     * @param name Name of the plugin to reload
+     * @return true if reload was successful
+     */
+    public boolean reloadPlugin(String name) {
+        Plugin plugin = findPlugin(name);
+        if (plugin == null) {
+            logger.warn("Cannot reload plugin - not found: {}", name);
+            return false;
+        }
+
+        String actualName = plugin.getName();
+        File jarFile = pluginJars.get(actualName);
+        
+        if (jarFile == null || !jarFile.exists()) {
+            logger.error("Cannot reload plugin - JAR file not found for: {}", actualName);
+            return false;
+        }
+
+        try {
+            // Disable and clean up
+            boolean wasEnabled = plugin.isEnabled();
+            if (wasEnabled) {
+                disablePlugin(actualName);
+            }
+
+            // Close class loader
+            PluginClassLoader oldLoader = classLoaders.remove(actualName);
+            if (oldLoader != null) {
+                try {
+                    oldLoader.close();
+                } catch (Exception e) {
+                    logger.debug("Error closing class loader: {}", e.getMessage());
+                }
+            }
+
+            // Remove old plugin
+            plugins.remove(actualName);
+
+            // Reload from disk
+            PluginDescriptionFile desc = getPluginDescription(jarFile);
+            loadPlugin(jarFile, desc);
+
+            // Re-enable if it was enabled
+            if (wasEnabled) {
+                enablePlugin(actualName);
+            }
+
+            logger.info("Reloaded plugin: {}", actualName);
+            return true;
+
+        } catch (Exception e) {
+            logger.error("Failed to reload plugin {}: {}", actualName, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Unload a plugin completely, removing it from memory.
+     * The plugin will be disabled and its class loader closed.
+     * 
+     * @param name Name of the plugin to unload
+     * @return true if unload was successful
+     */
+    public boolean unloadPlugin(String name) {
+        Plugin plugin = findPlugin(name);
+        if (plugin == null) {
+            logger.warn("Cannot unload plugin - not found: {}", name);
+            return false;
+        }
+
+        String actualName = plugin.getName();
+
+        try {
+            // Disable if enabled
+            if (plugin.isEnabled()) {
+                disablePlugin(actualName);
+            }
+
+            // Close class loader
+            PluginClassLoader loader = classLoaders.remove(actualName);
+            if (loader != null) {
+                try {
+                    loader.close();
+                } catch (Exception e) {
+                    logger.debug("Error closing class loader: {}", e.getMessage());
+                }
+            }
+
+            // Remove from maps
+            plugins.remove(actualName);
+            pluginJars.remove(actualName);
+
+            logger.info("Unloaded plugin: {}", actualName);
+            return true;
+
+        } catch (Exception e) {
+            logger.error("Failed to unload plugin {}: {}", actualName, e.getMessage(), e);
             return false;
         }
     }

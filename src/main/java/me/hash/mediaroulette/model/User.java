@@ -40,6 +40,9 @@ public class User {
     private long totalCommandsUsed; // Total commands used by user
     private java.time.LocalDateTime lastActiveDate; // Last time user was active
     private java.time.LocalDateTime accountCreatedDate; // When the user account was created
+    
+    // Source-specific preferences (sort method, time range, etc.)
+    private Map<String, SourcePreference> sourcePreferences;
 
     public User(String userId) {
         this.userId = userId;
@@ -70,6 +73,7 @@ public class User {
         this.lastActiveDate = java.time.LocalDateTime.now();
         this.accountCreatedDate = java.time.LocalDateTime.now();
         this.inventory = new ArrayList<>();
+        this.sourcePreferences = new HashMap<>();
     }
 
     // --- Getters and Setters ---
@@ -618,5 +622,61 @@ public class User {
         }
         
         updateLastActive();
+    }
+    
+    // ===== SOURCE PREFERENCES METHODS =====
+    
+    /**
+     * Get all source preferences.
+     */
+    public Map<String, SourcePreference> getSourcePreferences() {
+        return sourcePreferences != null ? sourcePreferences : new HashMap<>();
+    }
+    
+    /**
+     * Set all source preferences (used for MongoDB deserialization).
+     */
+    public void setSourcePreferences(Map<String, SourcePreference> sourcePreferences) {
+        this.sourcePreferences = sourcePreferences;
+    }
+    
+    /**
+     * Get preferences for a specific source.
+     * @param source The source name (e.g., "reddit")
+     * @return The SourcePreference, or a new empty one if not set
+     */
+    public SourcePreference getSourcePreference(String source) {
+        if (sourcePreferences == null) sourcePreferences = new HashMap<>();
+        return sourcePreferences.computeIfAbsent(source, SourcePreference::new);
+    }
+    
+    /**
+     * Set preferences for a specific source.
+     */
+    public void setSourcePreference(String source, SourcePreference preference) {
+        if (sourcePreferences == null) sourcePreferences = new HashMap<>();
+        sourcePreferences.put(source, preference);
+    }
+    
+    /**
+     * Get a specific setting value for a source, with a default.
+     * @param source The source name
+     * @param key The setting key
+     * @param defaultValue The default value if not set
+     * @return The setting value or default
+     */
+    public <T> T getSourceSetting(String source, String key, T defaultValue) {
+        SourcePreference pref = sourcePreferences != null ? sourcePreferences.get(source) : null;
+        return pref != null ? pref.getSetting(key, defaultValue) : defaultValue;
+    }
+    
+    /**
+     * Set a specific setting value for a source.
+     * @param source The source name  
+     * @param key The setting key
+     * @param value The value to set
+     */
+    public void setSourceSetting(String source, String key, Object value) {
+        getSourcePreference(source).setSetting(key, value);
     }
 }

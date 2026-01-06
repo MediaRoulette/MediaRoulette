@@ -15,7 +15,8 @@ public class Transaction {
         GAMBLING_LOSS,
         REFUND,
         PENALTY,
-        GIVEAWAY_WIN
+        GIVEAWAY_WIN,
+        VOTE_REWARD
     }
 
     private String transactionId;

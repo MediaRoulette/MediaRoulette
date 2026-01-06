@@ -93,6 +93,16 @@ public class ResourceManager {
     public boolean isInitialized() {
         return initialized;
     }
+
+    /**
+     * Reload resources - re-download from GitHub.
+     * This resets the initialized state and triggers a fresh download.
+     */
+    public CompletableFuture<Void> reload() {
+        initialized = false;
+        manifest = null;
+        return initialize();
+    }
     
     private void ensureDirectories() throws IOException {
         Files.createDirectories(RESOURCES_DIR);

@@ -32,19 +32,42 @@ public class UrlResolverFactory {
     }
 
     /**
-     * Checks if a URL is a video URL
+     * Checks if a URL is a video URL.
+     * Handles URLs with query parameters (e.g., .mp4?12345)
      */
     public boolean isVideoUrl(String url) {
         if (url == null) return false;
 
         String lowerUrl = url.toLowerCase();
-        return lowerUrl.matches(".*\\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v|m4s)$") ||
-                lowerUrl.contains("redgifs.com") ||
+        // Strip query parameters and fragments before checking extension
+        String urlPath = stripQueryParams(lowerUrl);
+        
+        // Check by file extension (supports query params)
+        if (urlPath.matches(".*\\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v|m4s|3gp|ogv|ts)$")) {
+            return true;
+        }
+        
+        // Check by known video platforms
+        return lowerUrl.contains("redgifs.com") ||
                 lowerUrl.contains("gfycat.com") ||
                 lowerUrl.contains("youtube.com") ||
                 lowerUrl.contains("youtu.be") ||
                 lowerUrl.contains("streamable.com") ||
-                (lowerUrl.contains("imgur.com/") && (lowerUrl.contains(".mp4") || lowerUrl.contains(".m4s")));
+                (lowerUrl.contains("imgur.com/") && (urlPath.endsWith(".mp4") || urlPath.endsWith(".m4s")));
+    }
+    
+    /**
+     * Strips query parameters and fragments from a URL
+     */
+    private String stripQueryParams(String url) {
+        int queryIndex = url.indexOf('?');
+        int fragmentIndex = url.indexOf('#');
+        int endIndex = url.length();
+        
+        if (queryIndex != -1) endIndex = Math.min(endIndex, queryIndex);
+        if (fragmentIndex != -1) endIndex = Math.min(endIndex, fragmentIndex);
+        
+        return url.substring(0, endIndex);
     }
 
     /**
@@ -54,10 +77,12 @@ public class UrlResolverFactory {
         if (url == null) return false;
 
         String lowerUrl = url.toLowerCase();
+        String urlPath = stripQueryParams(lowerUrl);
+        
         return lowerUrl.contains("redgifs.com") ||
                 lowerUrl.contains("gfycat.com") ||
                 lowerUrl.contains("streamable.com") ||
-                (lowerUrl.contains("imgur.com/") && lowerUrl.contains(".mp4"));
+                (lowerUrl.contains("imgur.com/") && urlPath.endsWith(".mp4"));
     }
 
     /**

@@ -40,7 +40,7 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Setup Vault test data
+    - name: Setup Vault AppRole and test data
       env:
         VAULT_ADDR: http://localhost:8200
         VAULT_TOKEN: testtoken
@@ -48,16 +48,59 @@ jobs:
         # Wait for Vault to be ready
         sleep 5
         
+        # Enable AppRole auth method
+        echo "Enabling AppRole auth method..."
+        curl -s -X POST \
+          -H "X-Vault-Token: testtoken" \
+          -H "Content-Type: application/json" \
+          -d '{"type":"approle"}' \
+          http://localhost:8200/v1/sys/auth/approle
+        
+        # Create policy for mediaroulette
+        echo "Creating mediaroulette policy..."
+        curl -s -X PUT \
+          -H "X-Vault-Token: testtoken" \
+          -H "Content-Type: application/json" \
+          -d '{"policy":"path \"secret/data/mediaroulette\" { capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\"] }"}' \
+          http://localhost:8200/v1/sys/policies/acl/mediaroulette-policy
+        
+        # Create AppRole role
+        echo "Creating AppRole role..."
+        curl -s -X POST \
+          -H "X-Vault-Token: testtoken" \
+          -H "Content-Type: application/json" \
+          -d '{"policies":["default","mediaroulette-policy"],"token_ttl":"1h","token_max_ttl":"4h"}' \
+          http://localhost:8200/v1/auth/approle/role/mediaroulette
+        
+        # Get Role ID
+        echo "Getting Role ID..."
+        ROLE_ID=$(curl -s -H "X-Vault-Token: testtoken" \
+          http://localhost:8200/v1/auth/approle/role/mediaroulette/role-id | jq -r '.data.role_id')
+        echo "VAULT_ROLE_ID=$ROLE_ID" >> $GITHUB_ENV
+        echo "Role ID: $ROLE_ID"
+        
+        # Generate Secret ID
+        echo "Generating Secret ID..."
+        SECRET_ID=$(curl -s -X POST -H "X-Vault-Token: testtoken" \
+          http://localhost:8200/v1/auth/approle/role/mediaroulette/secret-id | jq -r '.data.secret_id')
+        echo "VAULT_SECRET_ID=$SECRET_ID" >> $GITHUB_ENV
+        echo "Secret ID generated successfully"
+        
         # Write test secrets
-        curl -X POST \
+        echo "Writing test secrets..."
+        curl -s -X POST \
           -H "X-Vault-Token: testtoken" \
           -H "Content-Type: application/json" \
           -d '{"data":{"DISCORD_TOKEN":"test_token","MONGODB_CONNECTION":"mongodb://localhost:27017"}}' \
           http://localhost:8200/v1/secret/data/mediaroulette
         
-        # Verify secrets
-        curl -H "X-Vault-Token: testtoken" \
-          http://localhost:8200/v1/secret/data/mediaroulette
+        # Verify AppRole login works
+        echo "Testing AppRole login..."
+        LOGIN_RESULT=$(curl -s -X POST \
+          -H "Content-Type: application/json" \
+          -d "{\"role_id\":\"$ROLE_ID\",\"secret_id\":\"$SECRET_ID\"}" \
+          http://localhost:8200/v1/auth/approle/login)
+        echo "Login successful: $(echo $LOGIN_RESULT | jq -r '.auth.client_token != null')"
 
     - name: Build with Gradle
       run: ./gradlew build -x test
@@ -65,9 +108,10 @@ jobs:
     - name: Run Vault integration tests
       env:
         VAULT_TEST_ENABLED: true
-        VAULT_TEST_TOKEN: testtoken
       run: |
-        echo "Running Vault integration tests..."
+        echo "Running Vault integration tests with AppRole..."
+        echo "Role ID: ***"
+        echo "Secret ID: ***"
         ./gradlew test --tests "me.hash.mediaroulette.utils.vault.*" --info
 
     - name: Test Vault configuration
@@ -75,10 +119,16 @@ jobs:
         VAULT_ADDR: http://localhost:8200
         VAULT_TOKEN: testtoken
       run: |
-        # Verify secrets are accessible
-        echo "Verifying Vault secrets..."
-        curl -H "X-Vault-Token: testtoken" \
-          http://localhost:8200/v1/secret/data/mediaroulette | jq .
+        # Verify secrets are accessible via AppRole
+        echo "Verifying AppRole authentication..."
+        CLIENT_TOKEN=$(curl -s -X POST \
+          -H "Content-Type: application/json" \
+          -d "{\"role_id\":\"$VAULT_ROLE_ID\",\"secret_id\":\"$VAULT_SECRET_ID\"}" \
+          http://localhost:8200/v1/auth/approle/login | jq -r '.auth.client_token')
+        
+        echo "Verifying secrets are accessible..."
+        curl -s -H "X-Vault-Token: $CLIENT_TOKEN" \
+          http://localhost:8200/v1/secret/data/mediaroulette | jq '.data.data'
 
     - name: Upload test results
       if: always()
@@ -90,5 +140,6 @@ jobs:
     - name: Summary
       run: |
         echo "✅ Vault integration build successful"
-        echo "✅ Test secrets configured"
+        echo "✅ AppRole authentication configured"
+        echo "✅ Test secrets stored"
         echo "✅ Vault integration tests executed"

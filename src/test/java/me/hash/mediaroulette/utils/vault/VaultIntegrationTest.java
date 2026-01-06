@@ -7,13 +7,14 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Full integration test for Vault secret management.
+ * Full integration test for Vault secret management with AppRole authentication.
  * 
  * This test is designed to run in CI with the vault-test.yml workflow.
  * 
  * Prerequisites:
  * - Vault server running at http://localhost:8200
- * - Root token: testtoken
+ * - AppRole auth enabled and configured
+ * - Environment variables: VAULT_ROLE_ID, VAULT_SECRET_ID
  * - Secrets stored at secret/mediaroulette with keys:
  *   - DISCORD_TOKEN
  *   - MONGODB_CONNECTION
@@ -24,18 +25,24 @@ import static org.junit.jupiter.api.Assertions.*;
 class VaultIntegrationTest {
 
     private static VaultSecretManager manager;
-    private static final String VAULT_TOKEN = System.getenv().getOrDefault("VAULT_TEST_TOKEN", "testtoken");
+    private static final String ROLE_ID = System.getenv("VAULT_ROLE_ID");
+    private static final String SECRET_ID = System.getenv("VAULT_SECRET_ID");
 
     @BeforeAll
     static void setupVault() {
-        System.out.println("=== Vault Integration Test Setup ===");
+        System.out.println("=== Vault Integration Test Setup (AppRole) ===");
         System.out.println("Vault Address: http://localhost:8200");
-        System.out.println("Token: " + (VAULT_TOKEN != null ? "***" : "NOT SET"));
+        System.out.println("Role ID: " + (ROLE_ID != null ? "***" : "NOT SET"));
+        System.out.println("Secret ID: " + (SECRET_ID != null ? "***" : "NOT SET"));
+
+        assertNotNull(ROLE_ID, "VAULT_ROLE_ID must be set");
+        assertNotNull(SECRET_ID, "VAULT_SECRET_ID must be set");
 
         VaultConfig config = new VaultConfig.Builder()
                 .enabled(true)
                 .vaultAddress("http://localhost:8200")
-                .vaultToken(VAULT_TOKEN)
+                .roleId(ROLE_ID)
+                .secretId(SECRET_ID)
                 .secretPath("mediaroulette")
                 .secretEngine("secret")
                 .sslVerify(false)
@@ -46,6 +53,7 @@ class VaultIntegrationTest {
         manager = VaultSecretManager.getInstance();
         
         System.out.println("Vault enabled: " + manager.isVaultEnabled());
+        System.out.println("Token TTL: " + manager.getTokenTTL() + " seconds");
     }
 
     @Test
@@ -57,6 +65,13 @@ class VaultIntegrationTest {
     void testVaultConnectionSuccessful() {
         boolean connected = manager.testConnection();
         assertTrue(connected, "Should be able to connect to Vault server");
+    }
+
+    @Test
+    void testTokenTTLIsPositive() {
+        long ttl = manager.getTokenTTL();
+        assertTrue(ttl > 0, "Token TTL should be positive after successful login");
+        System.out.println("Current token TTL: " + ttl + " seconds");
     }
 
     @Test

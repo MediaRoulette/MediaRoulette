@@ -25,21 +25,36 @@ public class TMDBMovieProvider implements MediaProvider {
         this.apiKey = apiKey;
     }
 
+    private static final int MIN_YEAR = 1970; // Most TMDB content starts here
+    private static final int MAX_RETRIES = 5;
+
     @Override
     public MediaResult getRandomMedia(String query) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException {
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-        int year = random.nextInt(currentYear - 1900 + 1) + 1900; // inclusive of current year
-        Queue<MediaResult> cache = yearCache.computeIfAbsent(year, k -> new LinkedList<>());
+        
+        // Try up to MAX_RETRIES times with different years
+        for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            int year = random.nextInt(currentYear - MIN_YEAR + 1) + MIN_YEAR;
+            Queue<MediaResult> cache = yearCache.computeIfAbsent(year, k -> new LinkedList<>());
 
-        if (cache.isEmpty()) {
-            populateCache(year);
-        }
+            if (cache.isEmpty()) {
+                try {
+                    populateCache(year);
+                } catch (IOException e) {
+                    // Year might not have movies, try another year
+                    continue;
+                }
+            }
 
-        MediaResult result = cache.poll();
-        if (result == null) {
-            throw new IOException("No movies available for year: " + year);
+            MediaResult result = cache.poll();
+            if (result != null) {
+                return result;
+            }
+            // Cache was empty after population, remove and try another year
+            yearCache.remove(year);
         }
-        return result;
+        
+        throw new IOException("No movies available after " + MAX_RETRIES + " attempts");
     }
 
     private void populateCache(int year) throws IOException, HttpClientWrapper.RateLimitException, InterruptedException {
@@ -77,7 +92,7 @@ public class TMDBMovieProvider implements MediaProvider {
         // Maybe include a year (about 60% chance)
         if (random.nextDouble() < 0.6) {
             int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-            int year = suggestedYear > 0 ? suggestedYear : (1900 + random.nextInt(currentYear - 1900 + 1));
+            int year = suggestedYear > 0 ? suggestedYear : (MIN_YEAR + random.nextInt(currentYear - MIN_YEAR + 1));
             params.put("primary_release_year", String.valueOf(year));
         }
 

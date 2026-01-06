@@ -20,6 +20,14 @@ public class ColorExtractor {
     private static final Logger logger = LoggerFactory.getLogger(ColorExtractor.class);
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final FFmpegService ffmpegService = new FFmpegService();
+    
+    private static final java.util.Set<String> VIDEO_EXTENSIONS = java.util.Set.of(
+            "mp4", "webm", "mov", "avi", "mkv", "flv", "wmv", "m4v", "m4s", "3gp", "ogv", "ts"
+    );
+    
+    private static final java.util.Set<String> IMAGE_EXTENSIONS = java.util.Set.of(
+            "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif"
+    );
 
     public static CompletableFuture<Color> extractDominantColor(String imageUrl) {
         if (imageUrl == null || "none".equals(imageUrl) || imageUrl.startsWith("attachment://")) {
@@ -28,7 +36,10 @@ public class ColorExtractor {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                if (ffmpegService.isVideoUrl(imageUrl)) {
+                MediaType mediaType = detectMediaType(imageUrl);
+                logger.debug("Detected media type {} for URL: {}", mediaType, imageUrl);
+                
+                if (mediaType == MediaType.VIDEO) {
                     return extractColorFromVideo(imageUrl);
                 } else {
                     // Handles both Images and GIFs (first frame)
@@ -39,6 +50,66 @@ public class ColorExtractor {
                 return Color.CYAN;
             }
         });
+    }
+    
+    /**
+     * Detects the media type of a URL based on extension and platform detection.
+     */
+    private static MediaType detectMediaType(String url) {
+        // Extract extension from URL (strip query params and fragments)
+        String extension = getExtensionFromUrl(url);
+        
+        if (extension != null) {
+            String lowerExt = extension.toLowerCase();
+            if (VIDEO_EXTENSIONS.contains(lowerExt)) {
+                return MediaType.VIDEO;
+            }
+            if (IMAGE_EXTENSIONS.contains(lowerExt)) {
+                return MediaType.IMAGE;
+            }
+        }
+        
+        // Fallback to FFmpegService platform detection
+        if (ffmpegService.isVideoUrl(url)) {
+            return MediaType.VIDEO;
+        }
+        
+        return MediaType.IMAGE; // Default to image
+    }
+    
+    /**
+     * Extracts the file extension from a URL, handling query parameters and fragments.
+     */
+    private static String getExtensionFromUrl(String url) {
+        if (url == null) return null;
+        
+        // Strip query params and fragments
+        int queryIndex = url.indexOf('?');
+        int fragmentIndex = url.indexOf('#');
+        int endIndex = url.length();
+        
+        if (queryIndex != -1) endIndex = Math.min(endIndex, queryIndex);
+        if (fragmentIndex != -1) endIndex = Math.min(endIndex, fragmentIndex);
+        
+        String urlPath = url.substring(0, endIndex);
+        
+        // Find the last dot
+        int lastDotIndex = urlPath.lastIndexOf('.');
+        int lastSlashIndex = urlPath.lastIndexOf('/');
+        
+        // Make sure the dot is after the last slash (in filename, not path)
+        if (lastDotIndex > lastSlashIndex && lastDotIndex < urlPath.length() - 1) {
+            return urlPath.substring(lastDotIndex + 1);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Media type enumeration
+     */
+    private enum MediaType {
+        VIDEO, IMAGE, UNKNOWN
     }
 
     private static Color extractColorFromVideo(String url) {

@@ -176,6 +176,16 @@ public class UserService {
         updateUser(user);
     }
 
+    /**
+     * Get list of recent user IDs for tab completion.
+     * Returns user IDs from the in-memory cache (recently active users).
+     */
+    public java.util.List<String> getRecentUserIds(int limit) {
+        return cache.keySet().stream()
+                .limit(limit)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public UserRepository getUserRepository() {
         return userRepository;
     }

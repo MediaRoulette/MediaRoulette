@@ -83,12 +83,54 @@ public class StartupManager {
     }
     
     private void printBanner() {
+        String version = getVersion();
+        String title = "🎲 MediaRoulette";
+        
+        // Calculate dynamic padding
+        // Box width is 43 chars (excluding corners)
+        // ╔═══════════════════════════════════════════╗
+        // ║       🎲 MediaRoulette v1.0.1         ║
+        
+        int boxWidth = 43;
+        String fullKey = title + " v" + version;
+        
+        // Manual centering calculation to match the existing style but cleaner
+        // The original had a fixed width. We need to center "Title vVersion"
+        // in the 43-character space.
+        
+        int contentLen = title.length() + version.length() + 2; // +2 for " v"
+        // Adjust for emoji length (usually 2 chars wide visually but string length might differ)
+        // 🎲 is surrogate pair (2 chars)
+        int visualLen = contentLen - 1; // Emoji takes 2 chars in string but 2 spaces visually, wait. 
+        // 🎲 is 2 chars in Java string. Visually it takes 2 columns. 
+        // So string.length() matches visual width roughly? 
+        // strict math: (boxWidth - visualLen) / 2
+        
+        int paddingLeft = (boxWidth - visualLen) / 2;
+        int paddingRight = boxWidth - visualLen - paddingLeft;
+        
+        String leftPad = " ".repeat(Math.max(0, paddingLeft));
+        String rightPad = " ".repeat(Math.max(0, paddingRight));
+
         System.out.println();
         System.out.println(BRIGHT_PURPLE + "  ╔═══════════════════════════════════════════╗" + RESET);
-        System.out.println(BRIGHT_PURPLE + "  ║" + RESET + "       " + BOLD + BRIGHT_CYAN + "🎲 MediaRoulette" + RESET + 
-                DIM + " v1.0.1" + RESET + "         " + BRIGHT_PURPLE + "║" + RESET);
+        System.out.println(BRIGHT_PURPLE + "  ║" + RESET + leftPad + BOLD + BRIGHT_CYAN + title + RESET + 
+                DIM + " v" + version + RESET + rightPad + BRIGHT_PURPLE + "║" + RESET);
         System.out.println(BRIGHT_PURPLE + "  ╚═══════════════════════════════════════════╝" + RESET);
         System.out.println();
+    }
+    
+    private String getVersion() {
+        try (var is = getClass().getResourceAsStream("/version.properties")) {
+            if (is != null) {
+                var props = new java.util.Properties();
+                props.load(is);
+                return props.getProperty("version", "1.0.0");
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return "1.0.0";
     }
     
     private void printSummary() {
@@ -96,8 +138,11 @@ public class StartupManager {
         
         System.out.println();
         System.out.println(BRIGHT_BLACK + "  ┌─────────────────────────────────────────┐" + RESET);
-        System.out.println(BRIGHT_BLACK + "  │" + RESET + "           " + BOLD + "Startup Summary" + RESET + 
-                "              " + BRIGHT_BLACK + "│" + RESET);
+        // Box inner width is 41 chars matching the dashes
+        // "Startup Summary" is 15 chars
+        // Padding: (41 - 15) / 2 = 13
+        System.out.println(BRIGHT_BLACK + "  │" + RESET + "             " + BOLD + "Startup Summary" + RESET + 
+                "             " + BRIGHT_BLACK + "│" + RESET);
         System.out.println(BRIGHT_BLACK + "  ├─────────────────────────────────────────┤" + RESET);
         
         for (var entry : results.entrySet()) {

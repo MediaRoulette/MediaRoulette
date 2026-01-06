@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for VaultConfig class.
+ * Unit tests for VaultConfig class with AppRole authentication.
  */
 class VaultConfigTest {
 
@@ -22,7 +22,8 @@ class VaultConfigTest {
         assertNotNull(config);
         assertFalse(config.isEnabled());
         assertEquals("http://localhost:8200", config.getVaultAddress());
-        assertEquals("", config.getVaultToken());
+        assertEquals("", config.getRoleId());
+        assertEquals("", config.getSecretId());
         assertEquals("mediaroulette", config.getSecretPath());
         assertEquals("secret", config.getSecretEngine());
         assertTrue(config.isSslVerify());
@@ -34,7 +35,8 @@ class VaultConfigTest {
         VaultConfig config = new VaultConfig.Builder()
                 .enabled(true)
                 .vaultAddress("https://vault.example.com:8200")
-                .vaultToken("test-token")
+                .roleId("test-role-id")
+                .secretId("test-secret-id")
                 .vaultNamespace("test-namespace")
                 .secretPath("myapp")
                 .secretEngine("kv")
@@ -44,7 +46,8 @@ class VaultConfigTest {
 
         assertTrue(config.isEnabled());
         assertEquals("https://vault.example.com:8200", config.getVaultAddress());
-        assertEquals("test-token", config.getVaultToken());
+        assertEquals("test-role-id", config.getRoleId());
+        assertEquals("test-secret-id", config.getSecretId());
         assertEquals("test-namespace", config.getVaultNamespace());
         assertEquals("myapp", config.getSecretPath());
         assertEquals("kv", config.getSecretEngine());
@@ -79,7 +82,8 @@ class VaultConfigTest {
         try (FileWriter writer = new FileWriter(configFile)) {
             writer.write("vault.enabled=true\n");
             writer.write("vault.address=https://test.vault.com:8200\n");
-            writer.write("vault.token=test-token-123\n");
+            writer.write("vault.approle.role_id=test-role-123\n");
+            writer.write("vault.approle.secret_id=test-secret-456\n");
             writer.write("vault.namespace=test-ns\n");
             writer.write("vault.secret.path=testapp\n");
             writer.write("vault.secret.engine=kv\n");
@@ -97,7 +101,8 @@ class VaultConfigTest {
         VaultConfig config = new VaultConfig.Builder()
                 .enabled(true)
                 .vaultAddress("https://vault.example.com:8200")
-                .vaultToken("test-token")
+                .roleId("test-role-id")
+                .secretId("test-secret-id")
                 .secretPath("testapp")
                 .build();
 
@@ -122,5 +127,20 @@ class VaultConfigTest {
                 .build();
 
         assertNull(config.getVaultNamespace());
+    }
+
+    @Test
+    void testEmptyAppRoleCredentials() {
+        VaultConfig config = new VaultConfig.Builder()
+                .enabled(true)
+                .roleId("")
+                .secretId("")
+                .build();
+
+        // Config can be created with empty credentials
+        // but VaultSecretManager will treat this as disabled
+        assertTrue(config.isEnabled());
+        assertEquals("", config.getRoleId());
+        assertEquals("", config.getSecretId());
     }
 }

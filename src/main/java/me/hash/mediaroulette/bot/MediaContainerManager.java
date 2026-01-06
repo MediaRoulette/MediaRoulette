@@ -336,6 +336,7 @@ public class MediaContainerManager {
         String title = map.get("title");
         String description = map.get("description");
         String imageUrl = map.get("image");
+        String galleryUrlsStr = map.get("gallery_urls");
         
         Section headerSection = Section.of(
                 Thumbnail.fromUrl(userAvatarUrl),
@@ -346,10 +347,26 @@ public class MediaContainerManager {
         List<Button> buttons = createImageButtons(shouldContinue);
 
         if (!"none".equals(imageUrl)) {
+            // Create gallery with multiple items if gallery_urls is present
+            MediaGallery gallery;
+            if (galleryUrlsStr != null && !galleryUrlsStr.isEmpty()) {
+                String[] urls = galleryUrlsStr.split("\\|");
+                List<MediaGalleryItem> galleryItems = new java.util.ArrayList<>();
+                int maxItems = Math.min(urls.length, 10); // Discord limit
+                for (int i = 0; i < maxItems; i++) {
+                    if (!urls[i].trim().isEmpty()) {
+                        galleryItems.add(MediaGalleryItem.fromUrl(urls[i].trim()));
+                    }
+                }
+                gallery = MediaGallery.of(galleryItems);
+            } else {
+                gallery = MediaGallery.of(MediaGalleryItem.fromUrl(imageUrl));
+            }
+
             return Container.of(
                     headerSection,
                     Separator.createDivider(Separator.Spacing.SMALL),
-                    MediaGallery.of(MediaGalleryItem.fromUrl(imageUrl)),
+                    gallery,
                     Separator.createDivider(Separator.Spacing.SMALL),
                     ActionRow.of(buttons)
             ).withAccentColor(color);
