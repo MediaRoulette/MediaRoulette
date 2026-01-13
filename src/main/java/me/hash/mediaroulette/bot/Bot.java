@@ -14,7 +14,7 @@ import me.hash.mediaroulette.bot.commands.admin.GiveawayCommand;
 import me.hash.mediaroulette.bot.commands.bot.*;
 import me.hash.mediaroulette.bot.commands.config.ChancesCommand;
 import me.hash.mediaroulette.bot.commands.dictionary.DictionaryCommand;
-import me.hash.mediaroulette.bot.commands.dictionary.SettingsCommand;
+import me.hash.mediaroulette.bot.commands.config.SettingsCommand;
 import me.hash.mediaroulette.bot.commands.images.FavoritesCommand;
 import me.hash.mediaroulette.bot.commands.images.getRandomImage;
 

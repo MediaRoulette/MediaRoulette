@@ -41,6 +41,11 @@ public class AutoCompleteHandler extends ListenerAdapter {
         else if (focusedOption.equals("subreddit") || focusedOption.equals("custom-subreddit")) {
             handleSubredditAutocomplete(event, currentInput);
         }
+        
+        // Handle /chances search autocomplete
+        else if (commandName.equals("chances") && focusedOption.equals("search")) {
+            handleChancesSearchAutocomplete(event, currentInput);
+        }
     }
     
     private void handleSubredditAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
@@ -141,6 +146,24 @@ public class AutoCompleteHandler extends ListenerAdapter {
         if (choices.size() > 25) {
             choices = choices.subList(0, 25);
         }
+        
+        event.replyChoices(choices).queue();
+    }
+    
+    /**
+     * Handle autocomplete for /chances search option.
+     * Suggests source names based on user input.
+     */
+    public void handleChancesSearchAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
+        // Get all available sources from ChancesCommand metadata
+        Map<String, String> sourceNames = me.hash.mediaroulette.bot.commands.config.ChancesCommand.getSourceDisplayNames();
+        
+        List<Command.Choice> choices = sourceNames.entrySet().stream()
+                .filter(entry -> entry.getValue().toLowerCase().contains(currentInput) 
+                        || entry.getKey().toLowerCase().contains(currentInput))
+                .map(entry -> new Command.Choice(entry.getValue(), entry.getKey()))
+                .limit(25)
+                .collect(Collectors.toList());
         
         event.replyChoices(choices).queue();
     }

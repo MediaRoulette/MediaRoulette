@@ -355,12 +355,12 @@ public class MediaContainerManager {
                 int maxItems = Math.min(urls.length, 10); // Discord limit
                 for (int i = 0; i < maxItems; i++) {
                     if (!urls[i].trim().isEmpty()) {
-                        galleryItems.add(MediaGalleryItem.fromUrl(urls[i].trim()));
+                        galleryItems.add(createSafeMediaGalleryItem(urls[i].trim()));
                     }
                 }
                 gallery = MediaGallery.of(galleryItems);
             } else {
-                gallery = MediaGallery.of(MediaGalleryItem.fromUrl(imageUrl));
+                gallery = MediaGallery.of(createSafeMediaGalleryItem(imageUrl));
             }
 
             return Container.of(
@@ -630,7 +630,7 @@ public class MediaContainerManager {
                 return Container.of(
                         headerSection,
                         Separator.createDivider(Separator.Spacing.SMALL),
-                        MediaGallery.of(MediaGalleryItem.fromUrl(imageUrl)),
+                        MediaGallery.of(createSafeMediaGalleryItem(imageUrl)),
                         Separator.createDivider(Separator.Spacing.SMALL),
                         ActionRow.of(buttons)
                 ).withAccentColor(color);
@@ -704,7 +704,7 @@ public class MediaContainerManager {
                 updatedMap.put("image", resolvedUrl);
                 updatedMap.put("original_video_url", imageUrl);
 
-                logger.error("Using direct video URL: {}", resolvedUrl);
+                logger.debug("Using direct video URL: {}", resolvedUrl);
                 
                 return ColorExtractor.extractDominantColor(map.get("image"))
                     .orTimeout(30, TimeUnit.SECONDS)
@@ -737,6 +737,108 @@ public class MediaContainerManager {
                lowerUrl.contains(".m4v") || 
                lowerUrl.contains(".webm") || 
                lowerUrl.contains(".mov");
+    }
+    
+    /**
+     * Creates a MediaGalleryItem with a valid filename to avoid "Name may not be blank" errors.
+     * JDA's FileProxy.downloadAsFileUpload requires a valid filename, which may not be present
+     * in some URLs (e.g., API endpoints, URLs without extensions, etc.).
+     * 
+     * This method ensures the URL has a proper filename by appending one if needed.
+     */
+    private static MediaGalleryItem createSafeMediaGalleryItem(String url) {
+        if (url == null || url.isBlank()) {
+            // Use a simple placeholder URL that has a valid filename
+            return MediaGalleryItem.fromUrl("https://via.placeholder.com/400x300.png");
+        }
+        
+        String filename = extractFilenameFromUrl(url);
+        
+        // If filename is valid, use URL as-is
+        if (filename != null && !filename.isBlank() && filename.contains(".")) {
+            return MediaGalleryItem.fromUrl(url);
+        }
+        
+        // URL doesn't have a valid filename - we need to append one
+        // JDA will extract filename from URL path, so we add a fake filename via fragment
+        // that gets ignored by the server but gives JDA a filename to use
+        String extension = detectMediaExtension(url);
+        String safeUrl = appendFilenameToUrl(url, "media." + extension);
+        
+        return MediaGalleryItem.fromUrl(safeUrl);
+    }
+    
+    /**
+     * Appends a filename to the URL using a query parameter or path trick.
+     * Discord/JDA extracts the filename from the last path segment.
+     */
+    private static String appendFilenameToUrl(String url, String filename) {
+        // Check if URL already has query params
+        if (url.contains("?")) {
+            // Add as additional query param - most servers ignore unknown params
+            return url + "&_fn=" + filename;
+        } else {
+            // Add as query param with the filename
+            return url + "?_fn=" + filename;
+        }
+    }
+    
+    /**
+     * Extracts the filename from a URL, handling query parameters and fragments.
+     */
+    private static String extractFilenameFromUrl(String url) {
+        try {
+            // Strip query params and fragments
+            int queryIndex = url.indexOf('?');
+            int fragmentIndex = url.indexOf('#');
+            int endIndex = url.length();
+            
+            if (queryIndex != -1) endIndex = Math.min(endIndex, queryIndex);
+            if (fragmentIndex != -1) endIndex = Math.min(endIndex, fragmentIndex);
+            
+            String urlPath = url.substring(0, endIndex);
+            
+            // Get the last path segment
+            int lastSlashIndex = urlPath.lastIndexOf('/');
+            if (lastSlashIndex != -1 && lastSlashIndex < urlPath.length() - 1) {
+                String filename = urlPath.substring(lastSlashIndex + 1);
+                // Check if it looks like a valid filename (has an extension)
+                if (filename.contains(".") && filename.length() > 1) {
+                    return filename;
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to extract filename from URL: {}", url);
+        }
+        return null;
+    }
+    
+    /**
+     * Detects the appropriate media extension based on URL patterns.
+     */
+    private static String detectMediaExtension(String url) {
+        if (url == null) return "png";
+        
+        String lowerUrl = url.toLowerCase();
+        
+        // Check for video extensions
+        if (lowerUrl.contains(".mp4") || lowerUrl.contains("video") || lowerUrl.contains("mp4")) {
+            return "mp4";
+        }
+        if (lowerUrl.contains(".webm")) return "webm";
+        if (lowerUrl.contains(".mov")) return "mov";
+        if (lowerUrl.contains(".gif") || lowerUrl.contains("gif")) return "gif";
+        
+        // Check for image extensions
+        if (lowerUrl.contains(".webp") || lowerUrl.contains("webp")) return "webp";
+        if (lowerUrl.contains(".jpg") || lowerUrl.contains(".jpeg") || lowerUrl.contains("jpeg")) return "jpg";
+        if (lowerUrl.contains(".png") || lowerUrl.contains("png")) return "png";
+        
+        // Check for known video platforms
+        if (lowerUrl.contains("redgifs") || lowerUrl.contains("gfycat")) return "mp4";
+        
+        // Default to png for images
+        return "png";
     }
 
     public static void cleanup() {

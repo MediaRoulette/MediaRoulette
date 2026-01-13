@@ -1,7 +1,6 @@
 package me.hash.mediaroulette.bot.commands.images;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.MediaContainerManager;
@@ -18,6 +17,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
+import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -44,23 +44,19 @@ public class getRandomImage extends BaseCommand {
 
         ImageSourceRegistry.getInstance().getProvidersByPriority().forEach(provider -> {
             String name = provider.getName().toLowerCase();
-            String description = provider.getDescription();
-            if (description.length() > 100) {
-                description = description.substring(0, 97) + "...";
-            }
-            
-            SubcommandData subcommand = new SubcommandData(name, description)
+            String desc = provider.getDescription();
+            if (desc.length() > 100) desc = desc.substring(0, 97) + "...";
+
+            SubcommandData sub = new SubcommandData(name, desc)
                     .addOption(OptionType.BOOLEAN, "shouldcontinue", "Should the image keep generating?");
 
             if (provider.supportsSearch()) {
-                subcommand.addOption(OptionType.STRING, "query", "Search query for " + provider.getDisplayName(), false, true);
+                sub.addOption(OptionType.STRING, "query", "Search query for " + provider.getDisplayName(), false, true);
             }
-            
-            command.addSubcommands(subcommand);
+            command.addSubcommands(sub);
         });
-        
-        return command.setIntegrationTypes(IntegrationType.ALL)
-                .setContexts(InteractionContextType.ALL);
+
+        return command.setIntegrationTypes(IntegrationType.ALL).setContexts(InteractionContextType.ALL);
     }
 
     @Override
@@ -90,19 +86,19 @@ public class getRandomImage extends BaseCommand {
 
         event.getHook().sendMessageComponents(interactionService.createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
                 .useComponentsV2()
-                .queue(msg -> Main.getBot().getExecutor().execute(() -> processImageRequest(event, user, subcommand, query, event.getHook())));
+                .queue(msg -> Main.getBot().getExecutor().execute(() -> processImageRequest(event, user, subcommand, query, event.getHook())),
+                       err -> ErrorHandler.handleException(event, "Error", "Failed to send loading message", err));
     }
 
-    private void processImageRequest(SlashCommandInteractionEvent event, User user, String subcommand, String query, net.dv8tion.jda.api.interactions.InteractionHook hook) {
-        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+    private void processImageRequest(SlashCommandInteractionEvent event, User user, String subcommand, String query, InteractionHook hook) {
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        boolean shouldContinue = event.getOption("shouldcontinue") != null && event.getOption("shouldcontinue").getAsBoolean();
 
         try {
-            boolean shouldContinue = event.getOption("shouldcontinue") != null && event.getOption("shouldcontinue").getAsBoolean();
-
             requestService.fetchImage(subcommand, event, query)
                     .thenAccept(image -> {
                         if (image == null || image.get("image") == null) {
-                            ErrorHandler.sendErrorEmbed(event, localeManager.get("error.no_images_title"), localeManager.get("error.no_images_description"));
+                            ErrorHandler.editToErrorContainer(event, locale.get("error.no_images_title"), locale.get("error.no_images_description"));
                             return;
                         }
 
@@ -110,25 +106,25 @@ public class getRandomImage extends BaseCommand {
 
                         MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
                                 .thenAccept(msg -> {
-                                    interactionService.registerMessage(msg.getIdLong(), 
+                                    interactionService.registerMessage(msg.getIdLong(),
                                             new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
                                     QuestGenerator.onImageGenerated(user, subcommand);
                                     Main.getUserService().updateUser(user);
                                 })
                                 .exceptionally(ex -> {
-                                    ErrorHandler.handleException(event, localeManager.get("error.unexpected_error"), localeManager.get("error.failed_to_send_image"), ex);
+                                    ErrorHandler.editToErrorContainer(event, locale.get("error.unexpected_error"), locale.get("error.failed_to_send_image"));
                                     return null;
                                 });
                     })
                     .exceptionally(e -> {
-                        ErrorHandler.sendErrorEmbed(event, localeManager.get("error.generic_title"), e.getMessage());
+                        ErrorHandler.editToErrorContainer(event, locale.get("error.generic_title"), e.getMessage());
                         return null;
                     });
 
             user.incrementImagesGenerated();
             Main.getUserService().updateUser(user);
         } catch (Exception e) {
-            ErrorHandler.handleException(event, localeManager.get("error.unexpected_error"), e.getMessage(), e);
+            ErrorHandler.editToErrorContainer(event, locale.get("error.unexpected_error"), e.getMessage());
         }
     }
 

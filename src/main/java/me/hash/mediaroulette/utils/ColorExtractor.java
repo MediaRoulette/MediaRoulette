@@ -8,26 +8,36 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class ColorExtractor {
     private static final Logger logger = LoggerFactory.getLogger(ColorExtractor.class);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
     private static final FFmpegService ffmpegService = new FFmpegService();
-    
-    private static final java.util.Set<String> VIDEO_EXTENSIONS = java.util.Set.of(
-            "mp4", "webm", "mov", "avi", "mkv", "flv", "wmv", "m4v", "m4s", "3gp", "ogv", "ts"
+
+    private static final Set<String> VIDEO_EXTENSIONS = Set.of(
+            "mp4", "webm", "mov", "avi", "mkv", "flv", "wmv", "m4v", "3gp", "ogv", "ts"
     );
-    
-    private static final java.util.Set<String> IMAGE_EXTENSIONS = java.util.Set.of(
-            "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif"
+
+    private static final Set<String> NATIVE_IMAGE_EXTENSIONS = Set.of(
+            "jpg", "jpeg", "png", "bmp", "tiff", "tif"
     );
+
+    private static final Set<String> FFMPEG_IMAGE_EXTENSIONS = Set.of(
+            "gif", "webp", "svg", "ico"
+    );
+
+    private static final String DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36";
 
     public static CompletableFuture<Color> extractDominantColor(String imageUrl) {
         if (imageUrl == null || "none".equals(imageUrl) || imageUrl.startsWith("attachment://")) {
@@ -36,186 +46,158 @@ public class ColorExtractor {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                MediaType mediaType = detectMediaType(imageUrl);
-                logger.debug("Detected media type {} for URL: {}", mediaType, imageUrl);
-                
-                if (mediaType == MediaType.VIDEO) {
-                    return extractColorFromVideo(imageUrl);
-                } else {
-                    // Handles both Images and GIFs (first frame)
-                    return extractColorFromImage(imageUrl);
+                String ext = getExtension(imageUrl);
+
+                if (ext != null && VIDEO_EXTENSIONS.contains(ext)) {
+                    return extractFromVideo(imageUrl);
                 }
+
+                if (ext != null && FFMPEG_IMAGE_EXTENSIONS.contains(ext)) {
+                    return extractWithFFmpeg(imageUrl);
+                }
+
+                return extractFromImage(imageUrl);
             } catch (Exception e) {
-                logger.error("Failed to extract color from: {} - {}", imageUrl, e.getMessage());
+                logger.warn("Color extraction failed for {}: {}", imageUrl, e.getMessage());
                 return Color.CYAN;
             }
         });
     }
-    
-    /**
-     * Detects the media type of a URL based on extension and platform detection.
-     */
-    private static MediaType detectMediaType(String url) {
-        // Extract extension from URL (strip query params and fragments)
-        String extension = getExtensionFromUrl(url);
-        
-        if (extension != null) {
-            String lowerExt = extension.toLowerCase();
-            if (VIDEO_EXTENSIONS.contains(lowerExt)) {
-                return MediaType.VIDEO;
-            }
-            if (IMAGE_EXTENSIONS.contains(lowerExt)) {
-                return MediaType.IMAGE;
-            }
-        }
-        
-        // Fallback to FFmpegService platform detection
-        if (ffmpegService.isVideoUrl(url)) {
-            return MediaType.VIDEO;
-        }
-        
-        return MediaType.IMAGE; // Default to image
-    }
-    
-    /**
-     * Extracts the file extension from a URL, handling query parameters and fragments.
-     */
-    private static String getExtensionFromUrl(String url) {
+
+    private static String getExtension(String url) {
         if (url == null) return null;
-        
-        // Strip query params and fragments
-        int queryIndex = url.indexOf('?');
-        int fragmentIndex = url.indexOf('#');
-        int endIndex = url.length();
-        
-        if (queryIndex != -1) endIndex = Math.min(endIndex, queryIndex);
-        if (fragmentIndex != -1) endIndex = Math.min(endIndex, fragmentIndex);
-        
-        String urlPath = url.substring(0, endIndex);
-        
-        // Find the last dot
-        int lastDotIndex = urlPath.lastIndexOf('.');
-        int lastSlashIndex = urlPath.lastIndexOf('/');
-        
-        // Make sure the dot is after the last slash (in filename, not path)
-        if (lastDotIndex > lastSlashIndex && lastDotIndex < urlPath.length() - 1) {
-            return urlPath.substring(lastDotIndex + 1);
+        int queryIdx = url.indexOf('?');
+        int fragIdx = url.indexOf('#');
+        int end = url.length();
+        if (queryIdx != -1) end = Math.min(end, queryIdx);
+        if (fragIdx != -1) end = Math.min(end, fragIdx);
+
+        String path = url.substring(0, end);
+        int dotIdx = path.lastIndexOf('.');
+        int slashIdx = path.lastIndexOf('/');
+
+        if (dotIdx > slashIdx && dotIdx < path.length() - 1) {
+            return path.substring(dotIdx + 1).toLowerCase();
         }
-        
         return null;
     }
-    
-    /**
-     * Media type enumeration
-     */
-    private enum MediaType {
-        VIDEO, IMAGE, UNKNOWN
-    }
 
-    private static Color extractColorFromVideo(String url) {
-        // Try to get a preview image first (faster)
+    private static Color extractFromVideo(String url) {
         String previewUrl = ffmpegService.getVideoPreviewUrl(url);
         if (previewUrl != null) {
             try {
-                return extractColorFromImage(previewUrl);
-            } catch (Exception e) {
-                logger.error("Failed to extract color from preview, falling back to FFmpeg: {}", e.getMessage());
+                return extractFromImage(previewUrl);
+            } catch (Exception ignored) {
             }
         }
-        
-        // Fallback to FFmpeg extraction
+        return extractWithFFmpeg(url);
+    }
+
+    private static Color extractWithFFmpeg(String url) {
         try {
             return ffmpegService.extractDominantColor(url).get();
         } catch (Exception e) {
-            logger.error("FFmpeg color extraction failed: {}", e.getMessage());
+            logger.warn("FFmpeg color extraction failed for {}: {}", url, e.getMessage());
             return Color.CYAN;
         }
     }
 
-    private static Color extractColorFromImage(String url) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(10)) // Added timeout
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                .build();
-
-        HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
-
-        if (response.statusCode() != 200) {
-            throw new IOException("Failed to fetch image: " + response.statusCode());
+    private static Color extractFromImage(String url) throws Exception {
+        byte[] bytes = fetchBytes(url);
+        if (bytes == null || bytes.length == 0) {
+            return extractWithFFmpeg(url);
         }
 
-        BufferedImage image = null;
+        BufferedImage img = null;
+        try (InputStream is = new ByteArrayInputStream(bytes)) {
+            img = ImageIO.read(is);
+            if (img == null) {
+                return extractWithFFmpeg(url);
+            }
+            return getDominantColor(img);
+        } finally {
+            if (img != null) img.flush();
+        }
+    }
+
+    private static byte[] fetchBytes(String url) {
         try {
-            image = ImageIO.read(new ByteArrayInputStream(response.body()));
-            if (image == null) {
-                throw new IOException("Could not decode image");
+            String referer = extractReferer(url);
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(8))
+                    .header("User-Agent", DEFAULT_UA)
+                    .header("Accept", "image/*,*/*;q=0.8")
+                    .header("Accept-Encoding", "identity");
+            if (referer != null) {
+                builder.header("Referer", referer);
             }
 
-            return getDominantColor(image);
-        } finally {
-            if (image != null) {
-                image.flush();
+            HttpResponse<byte[]> resp = HTTP_CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            if (resp.statusCode() == 200) {
+                return resp.body();
             }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private static String extractReferer(String url) {
+        try {
+            URI uri = URI.create(url);
+            return uri.getScheme() + "://" + uri.getHost() + "/";
+        } catch (Exception e) {
+            return null;
         }
     }
 
     private static Color getDominantColor(BufferedImage image) {
-        int width = Math.min(image.getWidth(), 100);
-        int height = Math.min(image.getHeight(), 100);
+        int srcW = image.getWidth();
+        int srcH = image.getHeight();
+        int w = Math.min(srcW, 64);
+        int h = Math.min(srcH, 64);
 
         BufferedImage scaled = null;
-        Graphics2D g2d = null;
-        
+        Graphics2D g = null;
         try {
-            scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-            g2d = scaled.createGraphics();
-            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g2d.drawImage(image, 0, 0, width, height, null);
+            scaled = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.drawImage(image, 0, 0, w, h, null);
 
-            long redSum = 0, greenSum = 0, blueSum = 0;
-            int pixelCount = 0;
+            long rSum = 0, gSum = 0, bSum = 0;
+            int count = 0;
 
-            for (int x = 0; x < width; x += 2) {
-                for (int y = 0; y < height; y += 2) {
+            for (int x = 0; x < w; x += 3) {
+                for (int y = 0; y < h; y += 3) {
                     int rgb = scaled.getRGB(x, y);
                     int r = (rgb >> 16) & 0xFF;
-                    int g = (rgb >> 8) & 0xFF;
+                    int gr = (rgb >> 8) & 0xFF;
                     int b = rgb & 0xFF;
-
-                    int brightness = (r + g + b) / 3;
+                    int brightness = (r + gr + b) / 3;
                     if (brightness > 30 && brightness < 225) {
-                        redSum += r;
-                        greenSum += g;
-                        blueSum += b;
-                        pixelCount++;
+                        rSum += r;
+                        gSum += gr;
+                        bSum += b;
+                        count++;
                     }
                 }
             }
 
-            if (pixelCount == 0) {
-                return Color.CYAN;
-            }
+            if (count == 0) return Color.CYAN;
 
-            int avgRed = (int) (redSum / pixelCount);
-            int avgGreen = (int) (greenSum / pixelCount);
-            int avgBlue = (int) (blueSum / pixelCount);
-
-            return enhanceSaturation(new Color(avgRed, avgGreen, avgBlue));
+            int avgR = (int) (rSum / count);
+            int avgG = (int) (gSum / count);
+            int avgB = (int) (bSum / count);
+            return enhanceSaturation(new Color(avgR, avgG, avgB));
         } finally {
-            if (g2d != null) {
-                g2d.dispose();
-            }
-            if (scaled != null) {
-                scaled.flush();
-            }
+            if (g != null) g.dispose();
+            if (scaled != null) scaled.flush();
         }
     }
 
-    private static Color enhanceSaturation(Color color) {
-        float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), null);
-        float saturation = Math.min(1.0f, hsb[1] * 1.3f);
-        float brightness = Math.min(1.0f, hsb[2] * 1.1f);
-        return Color.getHSBColor(hsb[0], saturation, brightness);
+    private static Color enhanceSaturation(Color c) {
+        float[] hsb = Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), null);
+        return Color.getHSBColor(hsb[0], Math.min(1f, hsb[1] * 1.3f), Math.min(1f, hsb[2] * 1.1f));
     }
 }

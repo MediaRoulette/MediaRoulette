@@ -197,7 +197,7 @@ public class FavoritesCommand extends BaseCommand {
                 ? Container.of(
                     headerSection,
                     Separator.createDivider(Separator.Spacing.SMALL),
-                    MediaGallery.of(MediaGalleryItem.fromUrl(imageUrl)),
+                    MediaGallery.of(createSafeMediaGalleryItem(imageUrl)),
                     Separator.createDivider(Separator.Spacing.SMALL),
                     paginatorComponents.get(0),
                     paginatorComponents.size() > 1 ? paginatorComponents.get(1) : ActionRow.of(Button.secondary("favorite:none", " ").asDisabled()),
@@ -286,5 +286,66 @@ public class FavoritesCommand extends BaseCommand {
             }
         }
         return true;
+    }
+    
+    /**
+     * Creates a MediaGalleryItem with a valid filename to avoid "Name may not be blank" errors.
+     */
+    private MediaGalleryItem createSafeMediaGalleryItem(String url) {
+        if (url == null || url.isBlank()) {
+            return MediaGalleryItem.fromUrl("https://via.placeholder.com/400x300.png");
+        }
+        
+        String filename = extractFilenameFromUrl(url);
+        
+        // If filename is valid, use URL as-is
+        if (filename != null && !filename.isBlank() && filename.contains(".")) {
+            return MediaGalleryItem.fromUrl(url);
+        }
+        
+        // URL doesn't have a valid filename - append one via query param
+        String extension = detectMediaExtension(url);
+        String safeUrl = url.contains("?") 
+            ? url + "&_fn=media." + extension 
+            : url + "?_fn=media." + extension;
+        
+        return MediaGalleryItem.fromUrl(safeUrl);
+    }
+    
+    private String extractFilenameFromUrl(String url) {
+        try {
+            int queryIndex = url.indexOf('?');
+            int fragmentIndex = url.indexOf('#');
+            int endIndex = url.length();
+            
+            if (queryIndex != -1) endIndex = Math.min(endIndex, queryIndex);
+            if (fragmentIndex != -1) endIndex = Math.min(endIndex, fragmentIndex);
+            
+            String urlPath = url.substring(0, endIndex);
+            int lastSlashIndex = urlPath.lastIndexOf('/');
+            
+            if (lastSlashIndex != -1 && lastSlashIndex < urlPath.length() - 1) {
+                String filename = urlPath.substring(lastSlashIndex + 1);
+                if (filename.contains(".") && filename.length() > 1) {
+                    return filename;
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+    
+    private String detectMediaExtension(String url) {
+        if (url == null) return "png";
+        String lowerUrl = url.toLowerCase();
+        
+        if (lowerUrl.contains(".mp4") || lowerUrl.contains("video")) return "mp4";
+        if (lowerUrl.contains(".webm")) return "webm";
+        if (lowerUrl.contains(".gif")) return "gif";
+        if (lowerUrl.contains(".webp")) return "webp";
+        if (lowerUrl.contains(".jpg") || lowerUrl.contains(".jpeg")) return "jpg";
+        if (lowerUrl.contains(".png")) return "png";
+        if (lowerUrl.contains("redgifs") || lowerUrl.contains("gfycat")) return "mp4";
+        
+        return "png";
     }
 }

@@ -11,9 +11,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Comprehensive tests for UrlResolverFactory
- */
 @DisplayName("UrlResolverFactory Tests")
 class UrlResolverFactoryTest {
 

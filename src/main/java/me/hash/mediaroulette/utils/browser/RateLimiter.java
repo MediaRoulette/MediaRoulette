@@ -23,6 +23,7 @@ public class RateLimiter {
         // Initialize default rate limits for each source
         defaultLimits.put("reddit", 60);      // Reddit API limit
         defaultLimits.put("4chan", 60);       // 4chan API limit
+        defaultLimits.put("redgifs", 60);     // RedGifs API limit
         defaultLimits.put("tenor", 50);       // Tenor API limit
         defaultLimits.put("google", 100);     // Google Custom Search limit
         defaultLimits.put("youtube", 100);    // YouTube API limit

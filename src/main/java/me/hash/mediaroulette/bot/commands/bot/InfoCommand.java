@@ -16,6 +16,8 @@ import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.components.thumbnail.Thumbnail;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.interactions.IntegrationType;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
@@ -42,7 +44,8 @@ public class InfoCommand extends BaseCommand {
                 .addSubcommands(
                         new SubcommandData("bot", "🤖 Bot statistics"),
                         new SubcommandData("me", "👤 Your profile")
-                );
+                ).setIntegrationTypes(IntegrationType.ALL)
+                .setContexts(InteractionContextType.ALL);
     }
 
     @Override

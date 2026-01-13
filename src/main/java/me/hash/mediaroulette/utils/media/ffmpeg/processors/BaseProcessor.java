@@ -4,16 +4,11 @@ import me.hash.mediaroulette.utils.media.ffmpeg.config.FFmpegConfig;
 import me.hash.mediaroulette.utils.media.FFmpegDownloader;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Base class for all FFmpeg processors
- */
 public abstract class BaseProcessor {
     protected final FFmpegConfig config;
 
@@ -21,122 +16,87 @@ public abstract class BaseProcessor {
         this.config = config;
     }
 
-    /**
-     * Executes an FFmpeg command with the specified timeout
-     */
     protected CompletableFuture<ProcessResult> executeFFmpegCommand(List<String> command, int timeoutSeconds) {
-        return FFmpegDownloader.getFFmpegPath().thenCompose(ffmpegPath -> {
-            return CompletableFuture.supplyAsync(() -> {
+        return FFmpegDownloader.getFFmpegPath().thenCompose(ffmpegPath ->
+            CompletableFuture.supplyAsync(() -> {
                 try {
                     config.getFileManager().ensureTempDirectoryExists();
-
-                    // Replace first element with actual ffmpeg path
                     command.set(0, ffmpegPath.toString());
 
                     ProcessBuilder pb = new ProcessBuilder(command);
                     pb.redirectErrorStream(true);
-                    Process process = pb.start();
+                    Process proc = pb.start();
 
-                    StringBuilder output = new StringBuilder();
-                    StringBuilder error = new StringBuilder();
-
-                    // Read output in separate thread to prevent blocking
-                    Thread outputReader = new Thread(() -> {
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    StringBuilder out = new StringBuilder();
+                    Thread reader = new Thread(() -> {
+                        try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
                             String line;
-                            while ((line = reader.readLine()) != null) {
-                                output.append(line).append("\n");
-                            }
-                        } catch (IOException e) {
-                            error.append("Failed to read output: ").append(e.getMessage());
-                        }
+                            while ((line = r.readLine()) != null) out.append(line).append("\n");
+                        } catch (Exception ignored) {}
                     });
-                    outputReader.start();
+                    reader.start();
 
-                    boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
-                    if (!finished) {
-                        process.destroyForcibly();
-                        outputReader.interrupt();
-                        throw new RuntimeException("FFmpeg command timed out after " + timeoutSeconds + " seconds");
+                    boolean done = proc.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+                    if (!done) {
+                        proc.destroyForcibly();
+                        reader.interrupt();
+                        throw new RuntimeException("FFmpeg timed out after " + timeoutSeconds + "s");
                     }
-
-                    outputReader.join(1000); // Wait up to 1 second for output reader to finish
-
-                    return new ProcessResult(process.exitValue(), output.toString(), error.toString());
-
+                    reader.join(500);
+                    return new ProcessResult(proc.exitValue(), out.toString(), "");
                 } catch (Exception e) {
-                    throw new RuntimeException("Failed to execute FFmpeg command: " + e.getMessage(), e);
+                    throw new RuntimeException("FFmpeg failed: " + e.getMessage(), e);
                 }
-            });
-        });
+            }));
     }
 
-    /**
-     * Executes an FFprobe command with the specified timeout
-     */
     protected CompletableFuture<ProcessResult> executeFFprobeCommand(List<String> command, int timeoutSeconds) {
-        return FFmpegDownloader.getFFprobePath().thenCompose(ffprobePath -> {
-            return CompletableFuture.supplyAsync(() -> {
+        return FFmpegDownloader.getFFprobePath().thenCompose(ffprobePath ->
+            CompletableFuture.supplyAsync(() -> {
                 try {
-                    // Replace first element with actual ffprobe path
                     command.set(0, ffprobePath.toString());
 
                     ProcessBuilder pb = new ProcessBuilder(command);
                     pb.redirectErrorStream(false);
-                    Process process = pb.start();
+                    Process proc = pb.start();
 
-                    StringBuilder output = new StringBuilder();
-                    StringBuilder error = new StringBuilder();
+                    StringBuilder out = new StringBuilder();
+                    StringBuilder err = new StringBuilder();
 
-                    // Read both output and error streams
-                    Thread outputReader = new Thread(() -> {
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    Thread outReader = new Thread(() -> {
+                        try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
                             String line;
-                            while ((line = reader.readLine()) != null) {
-                                output.append(line).append("\n");
-                            }
-                        } catch (IOException e) {
-                            // Ignore
-                        }
+                            while ((line = r.readLine()) != null) out.append(line).append("\n");
+                        } catch (Exception ignored) {}
                     });
 
-                    Thread errorReader = new Thread(() -> {
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    Thread errReader = new Thread(() -> {
+                        try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getErrorStream()))) {
                             String line;
-                            while ((line = reader.readLine()) != null) {
-                                error.append(line).append("\n");
-                            }
-                        } catch (IOException e) {
-                            // Ignore
-                        }
+                            while ((line = r.readLine()) != null) err.append(line).append("\n");
+                        } catch (Exception ignored) {}
                     });
 
-                    outputReader.start();
-                    errorReader.start();
+                    outReader.start();
+                    errReader.start();
 
-                    boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
-                    if (!finished) {
-                        process.destroyForcibly();
-                        outputReader.interrupt();
-                        errorReader.interrupt();
-                        throw new RuntimeException("FFprobe command timed out after " + timeoutSeconds + " seconds");
+                    boolean done = proc.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+                    if (!done) {
+                        proc.destroyForcibly();
+                        outReader.interrupt();
+                        errReader.interrupt();
+                        throw new RuntimeException("FFprobe timed out after " + timeoutSeconds + "s");
                     }
 
-                    outputReader.join(1000);
-                    errorReader.join(1000);
-
-                    return new ProcessResult(process.exitValue(), output.toString(), error.toString());
-
+                    outReader.join(500);
+                    errReader.join(500);
+                    return new ProcessResult(proc.exitValue(), out.toString(), err.toString());
                 } catch (Exception e) {
-                    throw new RuntimeException("Failed to execute FFprobe command: " + e.getMessage(), e);
+                    throw new RuntimeException("FFprobe failed: " + e.getMessage(), e);
                 }
-            });
-        });
+            }));
     }
 
-    /**
-     * Result of a process execution
-     */
     protected static class ProcessResult {
         private final int exitCode;
         private final String output;

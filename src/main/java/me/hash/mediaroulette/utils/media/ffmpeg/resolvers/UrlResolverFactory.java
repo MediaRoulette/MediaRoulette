@@ -1,6 +1,7 @@
 package me.hash.mediaroulette.utils.media.ffmpeg.resolvers;
 
 import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.impl.DirectUrlResolver;
+import me.hash.mediaroulette.utils.media.ffmpeg.resolvers.impl.RedGifsResolver;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,6 +15,9 @@ public class UrlResolverFactory {
 
     public UrlResolverFactory() {
         resolvers = new ArrayList<>();
+        // Register resolvers - higher priority resolvers are checked first
+        resolvers.add(new RedGifsResolver());
+        resolvers.sort(Comparator.comparingInt(UrlResolver::getPriority).reversed());
     }
 
     public static void addResolver(UrlResolver resolver) {

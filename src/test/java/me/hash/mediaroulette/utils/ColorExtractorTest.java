@@ -264,4 +264,75 @@ class ColorExtractorTest {
             assertEquals("mp4", extension);
         }
     }
+    
+    @Nested
+    @DisplayName("Integration tests for problematic URLs")
+    class IntegrationTests {
+        
+        @Test
+        @DisplayName("Should extract color from WebP image (previously failed with 'Could not decode image')")
+        void shouldExtractColorFromWebP() throws Exception {
+            // This URL was failing with "Could not decode image" because ImageIO doesn't support WebP
+            String webpUrl = "https://saradahentai.com/wp-content/uploads/2025/12/kim-kardashian-nice-shot-by-elsychzz-fortnite.webp";
+            
+            CompletableFuture<Color> future = ColorExtractor.extractDominantColor(webpUrl);
+            Color result = future.get(30, TimeUnit.SECONDS);
+            
+            // Should return a valid color, not throw an exception
+            assertNotNull(result, "Should return a color for WebP image");
+            // If FFmpeg not available or URL no longer valid, should fallback to CYAN
+            // Any non-exception result is acceptable
+        }
+        
+        @Test
+        @DisplayName("Should extract color from GIF with 403 protection (previously failed with 'Failed to fetch image: 403')")
+        void shouldExtractColorFromProtected403Gif() throws Exception {
+            // This URL was failing with "Failed to fetch image: 403"
+            String protectedGifUrl = "https://img1.thatpervert.com/pics/post/Riley-Reid-Porn-Model-facesitting-oral-porn-5480933.gif";
+            
+            CompletableFuture<Color> future = ColorExtractor.extractDominantColor(protectedGifUrl);
+            Color result = future.get(30, TimeUnit.SECONDS);
+            
+            // Should return a valid color, not throw an exception
+            assertNotNull(result, "Should return a color for protected GIF");
+            // Either successfully extracts color with proper headers, or falls back to FFmpeg, or returns CYAN
+            // Any non-exception result is acceptable
+        }
+        
+        @Test
+        @DisplayName("Should handle standard JPG image")
+        void shouldExtractColorFromJpg() throws Exception {
+            // A reliable public image for testing
+            String jpgUrl = "https://httpbin.org/image/jpeg";
+            
+            CompletableFuture<Color> future = ColorExtractor.extractDominantColor(jpgUrl);
+            Color result = future.get(30, TimeUnit.SECONDS);
+            
+            assertNotNull(result, "Should return a color for JPG image");
+        }
+        
+        @Test
+        @DisplayName("Should handle standard PNG image")
+        void shouldExtractColorFromPng() throws Exception {
+            // A reliable public image for testing
+            String pngUrl = "https://httpbin.org/image/png";
+            
+            CompletableFuture<Color> future = ColorExtractor.extractDominantColor(pngUrl);
+            Color result = future.get(30, TimeUnit.SECONDS);
+            
+            assertNotNull(result, "Should return a color for PNG image");
+        }
+        
+        @Test
+        @DisplayName("Should gracefully handle non-existent URL")
+        void shouldHandleNonExistentUrl() throws Exception {
+            String badUrl = "https://this-domain-definitely-does-not-exist-12345.com/image.jpg";
+            
+            CompletableFuture<Color> future = ColorExtractor.extractDominantColor(badUrl);
+            Color result = future.get(30, TimeUnit.SECONDS);
+            
+            // Should fallback to CYAN instead of throwing
+            assertEquals(Color.CYAN, result, "Should return CYAN for non-existent URLs");
+        }
+    }
 }

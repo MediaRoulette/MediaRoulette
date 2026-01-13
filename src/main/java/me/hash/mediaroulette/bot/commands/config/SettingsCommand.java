@@ -1,9 +1,7 @@
-package me.hash.mediaroulette.bot.commands.dictionary;
+package me.hash.mediaroulette.bot.commands.config;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
-import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.model.*;
 import me.hash.mediaroulette.service.DictionaryService;
@@ -16,7 +14,6 @@ import org.bson.Document;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
