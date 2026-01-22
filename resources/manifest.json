@@ -1,12 +1,12 @@
 {
-  "version": "1.0.0",
-  "lastUpdated": 1767453352057,
-  "generatedAt": "2026-01-03T18:15:52.057297",
+  "version": "1.0.1",
+  "lastUpdated": 1769124904439,
+  "generatedAt": "2026-01-23T02:35:04.439294",
   "baseUrl": "https://raw.githubusercontent.com/MediaRoulette/MediaRoulette/main/resources/",
   "resources": {
     "config/randomWeightValues.json": {
-      "sha256": "83e024f3d227a5137679ba884a29d3224be64001708ffce0bfb464f1294b4036",
-      "size": 713,
+      "sha256": "16f935f03f1da6159e0b58ab1831106713e3bda3ac5c888b9a0aa4e5fa5958a3",
+      "size": 712,
       "required": false
     },
     "config/themes.json": {
@@ -84,26 +84,36 @@
       "size": 11162771,
       "required": false
     },
+    "locales/messages_ar.properties": {
+      "sha256": "8b1f5624c9ce8a4088fdd7be49f67d7ccd22f945e9b850987b2e2f39ac315c6f",
+      "size": 13177,
+      "required": true
+    },
     "locales/messages_en_US.properties": {
-      "sha256": "ab94293a850ec45b6284edadc724942c1c4b636beb417c03d4bc43b461d19ad8",
-      "size": 2031,
+      "sha256": "d98242b1125165c9b3d91a50a0944074705b3900c67f94c883e78e43df1d9150",
+      "size": 16380,
       "required": true
     },
     "locales/messages_es.properties": {
-      "sha256": "250019d6e962d6829aa6a0c96d1ef09d4f5f616f98d3b954c430f8f0f96fb2e2",
-      "size": 1815,
+      "sha256": "a0c6ed96a7d56d3379f104057ee92c87f00c5edf8be37272cec0959cdd815e34",
+      "size": 11261,
+      "required": true
+    },
+    "locales/messages_fr.properties": {
+      "sha256": "9c32995409d27432a70fca3ef93163a79ac346d0443fc63e584260032979f4af",
+      "size": 11746,
       "required": true
     }
   },
   "summary": {
-    "totalFiles": 18,
-    "totalSize": 34402671,
+    "totalFiles": 20,
+    "totalSize": 34451388,
     "categories": {
       "config": 2,
       "data": 2,
       "font": 5,
       "image": 7,
-      "locale": 2
+      "locale": 4
     }
   }
 }
