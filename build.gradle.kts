@@ -49,7 +49,7 @@ dependencies {
     implementation("com.opencsv:opencsv:5.12.0")
     implementation("io.github.cdimascio:dotenv-java:3.0.0")
     implementation("club.minnced:discord-webhooks:0.8.4")
-    implementation("org.mongodb:mongodb-driver-sync:5.5.1")
+    implementation("org.mongodb:mongodb-driver-sync:5.6.2")
     implementation("ch.qos.logback:logback-classic:1.5.25")
     implementation("org.fusesource.jansi:jansi:2.4.0")
     implementation("org.yaml:snakeyaml:2.4")
