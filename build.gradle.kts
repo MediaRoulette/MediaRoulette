@@ -45,7 +45,7 @@ dependencies {
     }
 
     implementation("org.json:json:20251224")
-    implementation("org.jsoup:jsoup:1.16.1")
+    implementation("org.jsoup:jsoup:1.22.1")
     implementation("com.opencsv:opencsv:5.12.0")
     implementation("io.github.cdimascio:dotenv-java:3.2.0")
     implementation("club.minnced:discord-webhooks:0.8.4")
