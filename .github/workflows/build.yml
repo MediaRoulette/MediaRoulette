@@ -18,7 +18,7 @@ jobs:
           java-version: '22'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: wrapper
           build-scan-publish: true
