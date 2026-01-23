@@ -46,7 +46,7 @@ jobs:
           ls -la */build/libs/ 2>/dev/null || echo "No build/libs directories found"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: media-roulette-${{ github.sha }}
           path: |
