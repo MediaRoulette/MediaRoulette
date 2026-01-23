@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "me.hash"
-version = "1.0.2"
+version = "1.0.3"
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     archiveClassifier.set("")  // Remove classifier so it replaces the main jar
@@ -30,8 +30,8 @@ tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
 }
 
 repositories {
-    mavenCentral()
     google()
+    mavenCentral()
 
     maven { url = uri("https://jitpack.io") }
 }
@@ -57,7 +57,7 @@ dependencies {
 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     implementation("com.fasterxml.jackson.core:jackson-core:2.21.0")
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.21.0")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
 
     implementation("com.bettercloud:vault-java-driver:5.1.0")
 
