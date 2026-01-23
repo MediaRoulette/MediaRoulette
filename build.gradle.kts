@@ -51,7 +51,7 @@ dependencies {
     implementation("club.minnced:discord-webhooks:0.8.4")
     implementation("org.mongodb:mongodb-driver-sync:5.6.2")
     implementation("ch.qos.logback:logback-classic:1.5.25")
-    implementation("org.fusesource.jansi:jansi:2.4.0")
+    implementation("org.fusesource.jansi:jansi:2.4.2")
     implementation("org.yaml:snakeyaml:2.4")
     implementation("org.jline:jline:3.27.1")
 
