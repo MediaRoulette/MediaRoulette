@@ -44,7 +44,7 @@ dependencies {
         exclude(module = "opus-java")
     }
 
-    implementation("org.json:json:20250517")
+    implementation("org.json:json:20251224")
     implementation("org.jsoup:jsoup:1.16.1")
     implementation("com.opencsv:opencsv:5.12.0")
     implementation("io.github.cdimascio:dotenv-java:3.0.0")
