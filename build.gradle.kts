@@ -40,7 +40,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     
     // JDA without audio support (saves ~12 MB - opus-java, tink)
-    implementation("net.dv8tion:JDA:6.1.0") {
+    implementation("net.dv8tion:JDA:6.3.0") {
         exclude(module = "opus-java")
     }
 
