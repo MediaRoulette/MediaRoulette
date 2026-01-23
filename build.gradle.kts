@@ -2,7 +2,7 @@ plugins {
     application
     `java-library`
     `maven-publish`
-    id("com.gradleup.shadow") version "9.0.0"
+    id("com.gradleup.shadow") version "9.3.1"
 }
 
 group = "me.hash"
@@ -37,35 +37,35 @@ repositories {
 }
 
 dependencies {
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
     
     // JDA without audio support (saves ~12 MB - opus-java, tink)
-    implementation("net.dv8tion:JDA:6.1.0") {
+    implementation("net.dv8tion:JDA:6.3.0") {
         exclude(module = "opus-java")
     }
 
-    implementation("org.json:json:20250517")
-    implementation("org.jsoup:jsoup:1.16.1")
+    implementation("org.json:json:20251224")
+    implementation("org.jsoup:jsoup:1.22.1")
     implementation("com.opencsv:opencsv:5.12.0")
-    implementation("io.github.cdimascio:dotenv-java:3.0.0")
+    implementation("io.github.cdimascio:dotenv-java:3.2.0")
     implementation("club.minnced:discord-webhooks:0.8.4")
-    implementation("org.mongodb:mongodb-driver-sync:5.5.1")
-    implementation("ch.qos.logback:logback-classic:1.5.19")
-    implementation("org.fusesource.jansi:jansi:2.4.0")
+    implementation("org.mongodb:mongodb-driver-sync:5.6.2")
+    implementation("ch.qos.logback:logback-classic:1.5.25")
+    implementation("org.fusesource.jansi:jansi:2.4.2")
     implementation("org.yaml:snakeyaml:2.4")
-    implementation("org.jline:jline:3.27.1")
+    implementation("org.jline:jline:3.30.6")
 
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.21")
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.21.0")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.21.0")
 
     implementation("com.bettercloud:vault-java-driver:5.1.0")
 
     // Testing
-    testImplementation(platform("org.junit:junit-bom:5.10.2"))
+    testImplementation(platform("org.junit:junit-bom:6.0.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("org.mockito:mockito-core:5.11.0")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
+    testImplementation("org.mockito:mockito-core:5.21.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.21.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
