@@ -50,7 +50,7 @@ dependencies {
     implementation("io.github.cdimascio:dotenv-java:3.2.0")
     implementation("club.minnced:discord-webhooks:0.8.4")
     implementation("org.mongodb:mongodb-driver-sync:5.6.2")
-    implementation("ch.qos.logback:logback-classic:1.5.25")
+    implementation("ch.qos.logback:logback-classic:1.5.27")
     implementation("org.fusesource.jansi:jansi:2.4.2")
     implementation("org.yaml:snakeyaml:2.5")
     implementation("org.jline:jline:3.30.6")
