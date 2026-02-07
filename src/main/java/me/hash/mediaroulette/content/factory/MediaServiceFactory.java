@@ -45,9 +45,8 @@ public class MediaServiceFactory {
         return new TenorProvider(httpClient, Main.getEnv("TENOR_API"));
     }
 
-
-    public MediaProvider createRule34Provider() {
-        return new Rule34Provider(httpClient);
+    public MediaProvider createBooruProvider() {
+        return new BooruProvider(httpClient);
     }
 
     public MediaProvider createTMDBTvProvider() {

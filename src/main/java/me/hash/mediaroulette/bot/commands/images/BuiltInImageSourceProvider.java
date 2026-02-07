@@ -63,6 +63,11 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
         return priority;
     }
     
+    @Override
+    public boolean isNsfw() {
+        return mediaProvider.isNsfw();
+    }
+    
     private boolean isSourceEnabledInLocalConfig(String sourceName) {
         me.hash.mediaroulette.config.LocalConfig config = me.hash.mediaroulette.config.LocalConfig.getInstance();
         String configKey = ImageSource.getConfigKey(sourceName);
@@ -77,6 +82,7 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
             case ImageSource.IMGUR -> "Images from Imgur";
             case ImageSource.PICSUM -> "Random placeholder images from Lorem Picsum";
             case ImageSource.RULE34XXX -> "Adult content from Rule34";
+            case ImageSource.BOORU -> "Random images from booru boards (Rule34, Gelbooru)";
             case ImageSource.MOVIE -> "Movie-related images from TMDB";
             case ImageSource.TVSHOW -> "TV show images from TMDB";
             case ImageSource.URBAN -> "Images related to Urban Dictionary terms";

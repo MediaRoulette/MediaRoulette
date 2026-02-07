@@ -210,4 +210,9 @@ public class YouTubeShortsProvider implements MediaProvider {
     public String getProviderName() {
         return "YouTube Shorts";
     }
+    
+    @Override
+    public boolean isNsfw() {
+        return false;
+    }
 }

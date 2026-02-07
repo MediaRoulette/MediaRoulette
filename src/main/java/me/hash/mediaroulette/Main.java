@@ -193,14 +193,6 @@ public class Main {
         }
     }
 
-    private static void initializeMediaProcessing() {
-        try {
-            MediaInitializer.initialize().get();
-        } catch (Exception e) {
-            logger.debug("Media processing init failed: {}", e.getMessage());
-        }
-    }
-
     // ==================== Bot and Plugin Setup ====================
 
     private static String initializeBotTask() {
@@ -214,13 +206,6 @@ public class Main {
         return "Ready";
     }
     
-    private static void initializeBot() {
-        String discordToken = getEnv("DISCORD_TOKEN");
-        if (discordToken != null && !discordToken.isEmpty()) {
-            bot = new Bot(discordToken);
-        }
-    }
-
     private static String initializePluginsTask() {
         pluginManager = new PluginManager();
 
@@ -240,26 +225,9 @@ public class Main {
         return count + " loaded";
     }
     
-    private static void initializePlugins() {
-        pluginManager = new PluginManager();
-        File pluginDir = new File("plugins");
-        if (!pluginDir.exists()) {
-            pluginDir.mkdirs();
-        }
-        pluginManager.loadPlugins(pluginDir);
-        pluginManager.enablePlugins();
-        if (bot != null) {
-            bot.registerCommands();
-        }
-    }
-
     private static String initializeGiveawaysTask() {
         GiveawayManager.initialize();
         return "Ready";
-    }
-
-    private static void initializeGiveaways() {
-        GiveawayManager.initialize();
     }
 
     private static void startTerminalInterface() {

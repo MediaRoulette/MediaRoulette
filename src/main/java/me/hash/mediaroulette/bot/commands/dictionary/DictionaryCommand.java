@@ -1,10 +1,7 @@
 package me.hash.mediaroulette.bot.commands.dictionary;
 
-import com.fasterxml.jackson.databind.ser.Serializers;
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
-import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.model.Dictionary;
 import me.hash.mediaroulette.model.User;
@@ -19,7 +16,6 @@ import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -72,48 +68,50 @@ public class DictionaryCommand extends BaseCommand {
         Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
+            User user = Main.getUserService().getOrCreateUser(userId);
+            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
             
             switch (subcommand) {
-                case "create" -> handleCreate(event, userId);
-                case "list" -> handleList(event, userId);
-                case "view" -> handleView(event, userId);
-                case "edit" -> handleEdit(event, userId);
-                case "delete" -> handleDelete(event, userId);
-                case "public" -> handlePublic(event, userId);
+                case "create" -> handleCreate(event, userId, locale);
+                case "list" -> handleList(event, userId, locale);
+                case "view" -> handleView(event, userId, locale);
+                case "edit" -> handleEdit(event, userId, locale);
+                case "delete" -> handleDelete(event, userId, locale);
+                case "public" -> handlePublic(event, userId, locale);
             }
         });
     }
     
-    private void handleCreate(SlashCommandInteractionEvent event, String userId) {
+    private void handleCreate(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         String name = event.getOption("name").getAsString();
         String description = event.getOption("description") != null ? 
-            event.getOption("description").getAsString() : "No description";
+            event.getOption("description").getAsString() : locale.get("info.no_description");
             
         Dictionary dict = dictionaryService.createDictionary(name, description, userId);
         
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("✅ Dictionary Created")
-            .setDescription(String.format("**%s** has been created!\nID: `%s`", name, dict.getId()))
+            .setTitle(locale.get("dictionary.created_title"))
+            .setDescription(locale.get("dictionary.created_description", name, dict.getId()))
             .setColor(SUCCESS_COLOR)
-            .addField("📝 Description", description, false)
-            .addField("🔧 Next Steps", "Use `/dictionary edit` to add words", false);
+            .addField(locale.get("dictionary.description_label"), description, false)
+            .addField("🔧 " + locale.get("info.next_steps"), locale.get("dictionary.next_steps"), false);
             
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
     
-    private void handleList(SlashCommandInteractionEvent event, String userId) {
+    private void handleList(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         List<Dictionary> dictionaries = dictionaryService.getUserDictionaries(userId);
         
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("📚 Your Dictionaries")
+            .setTitle(locale.get("dictionary.list_title"))
             .setColor(PRIMARY_COLOR);
             
         if (dictionaries.isEmpty()) {
-            embed.setDescription("You haven't created any dictionaries yet.\nUse `/dictionary create` to get started!");
+            embed.setDescription(locale.get("dictionary.list_empty"));
         } else {
             StringBuilder sb = new StringBuilder();
             for (Dictionary dict : dictionaries) {
-                sb.append(String.format("**%s** (`%s`)\n%s\n📊 %d words | 🔄 %d uses\n\n", 
+                sb.append(locale.get("dictionary.list_item", 
                     dict.getName(), dict.getId(), dict.getDescription(), 
                     dict.getWordCount(), dict.getUsageCount()));
             }
@@ -123,82 +121,82 @@ public class DictionaryCommand extends BaseCommand {
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
     
-    private void handleView(SlashCommandInteractionEvent event, String userId) {
+    private void handleView(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         String id = event.getOption("id").getAsString();
         Optional<Dictionary> dictOpt = dictionaryService.getDictionary(id);
         
         if (dictOpt.isEmpty() || !dictOpt.get().canBeViewedBy(userId)) {
-            sendError(event, "Dictionary not found or access denied.");
+            sendError(event, locale.get("error.dictionary_not_found"), locale);
             return;
         }
         
         Dictionary dict = dictOpt.get();
+        String publicStr = dict.isPublic() ? locale.get("dictionary.yes") : locale.get("dictionary.no");
+        
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("📖 " + dict.getName())
+            .setTitle(locale.get("dictionary.view_title", dict.getName()))
             .setDescription(dict.getDescription())
             .setColor(PRIMARY_COLOR)
-            .addField("📊 Statistics", 
-                String.format("Words: %d\nUsage: %d times\nPublic: %s", 
-                    dict.getWordCount(), dict.getUsageCount(), 
-                    dict.isPublic() ? "Yes" : "No"), true);
+            .addField("📊 " + locale.get("info.statistics"), 
+                locale.get("dictionary.stats_format", dict.getWordCount(), dict.getUsageCount(), publicStr), true);
                     
         if (dict.getWordCount() > 0) {
             String words = String.join(", ", dict.getWords().subList(0, Math.min(10, dict.getWordCount())));
             if (dict.getWordCount() > 10) words += "...";
-            embed.addField("📝 Words (showing first 10)", words, false);
+            embed.addField(locale.get("dictionary.words_preview"), words, false);
         }
         
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
     
-    private void handleEdit(SlashCommandInteractionEvent event, String userId) {
+    private void handleEdit(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         String id = event.getOption("id").getAsString();
         Optional<Dictionary> dictOpt = dictionaryService.getDictionary(id);
         
         if (dictOpt.isEmpty() || !dictOpt.get().canBeEditedBy(userId)) {
-            sendError(event, "Dictionary not found or access denied.");
+            sendError(event, locale.get("error.dictionary_not_found"), locale);
             return;
         }
         
         Dictionary dict = dictOpt.get();
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("✏️ Edit: " + dict.getName())
-            .setDescription("Choose what you want to edit:")
+            .setTitle(locale.get("dictionary.edit_title", dict.getName()))
+            .setDescription(locale.get("dictionary.edit_description"))
             .setColor(PRIMARY_COLOR);
             
         List<Button> buttons = Arrays.asList(
-            Button.primary("dict_edit_words:" + id, "📝 Edit Words"),
-            Button.secondary("dict_edit_info:" + id, "ℹ️ Edit Info"),
-            Button.success("dict_toggle_public:" + id, dict.isPublic() ? "🔒 Make Private" : "🌐 Make Public")
+            Button.primary("dict_edit_words:" + id, locale.get("dictionary.edit_words")),
+            Button.secondary("dict_edit_info:" + id, locale.get("dictionary.edit_info")),
+            Button.success("dict_toggle_public:" + id, dict.isPublic() ? locale.get("dictionary.make_private") : locale.get("dictionary.make_public"))
         );
         
         event.getHook().sendMessageEmbeds(embed.build())
             .addComponents(ActionRow.of(buttons)).queue();
     }
     
-    private void handleDelete(SlashCommandInteractionEvent event, String userId) {
+    private void handleDelete(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         String id = event.getOption("id").getAsString();
         
         if (dictionaryService.deleteDictionary(id, userId)) {
-            sendSuccess(event, "Dictionary deleted successfully.");
+            sendSuccess(event, locale.get("success.dictionary_deleted"), locale);
         } else {
-            sendError(event, "Failed to delete dictionary. Check ID and permissions.");
+            sendError(event, locale.get("dictionary.delete_failed"), locale);
         }
     }
     
-    private void handlePublic(SlashCommandInteractionEvent event, String userId) {
+    private void handlePublic(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         List<Dictionary> publicDicts = dictionaryService.getAccessibleDictionaries(userId);
         
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("🌐 Public Dictionaries")
+            .setTitle(locale.get("dictionary.public_title"))
             .setColor(PRIMARY_COLOR);
             
         if (publicDicts.isEmpty()) {
-            embed.setDescription("No public dictionaries available.");
+            embed.setDescription(locale.get("dictionary.public_empty"));
         } else {
             StringBuilder sb = new StringBuilder();
             for (Dictionary dict : publicDicts.subList(0, Math.min(10, publicDicts.size()))) {
-                sb.append(String.format("**%s** (`%s`)\n%s\n📊 %d words\n\n", 
+                sb.append(locale.get("dictionary.public_item", 
                     dict.getName(), dict.getId(), dict.getDescription(), dict.getWordCount()));
             }
             embed.setDescription(sb.toString());
@@ -218,26 +216,25 @@ public class DictionaryCommand extends BaseCommand {
         
         Main.getBot().getExecutor().execute(() -> {
             User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-            LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
 
             String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
             if (!event.getUser().getId().equals(originalUserId)) {
-                event.reply(localeManager.get("error.not_your_menu")).setEphemeral(true).queue();
+                event.reply(locale.get("error.not_your_menu")).setEphemeral(true).queue();
                 return;
             }
 
-            // Check permissions first
             Optional<Dictionary> dictOpt = dictionaryService.getDictionary(dictId);
             if (dictOpt.isEmpty() || !dictOpt.get().canBeEditedBy(userId)) {
-                event.reply("❌ Dictionary not found or you don't have permission to edit it.")
+                event.reply(locale.get("dictionary.permission_error"))
                     .setEphemeral(true).queue();
                 return;
             }
             
             switch (action) {
-                case "dict_edit_words" -> showWordsEditModal(event, dictId);
-                case "dict_edit_info" -> showInfoEditModal(event, dictId, dictOpt.get());
-                case "dict_toggle_public" -> handleTogglePublic(event, dictId, dictOpt.get());
+                case "dict_edit_words" -> showWordsEditModal(event, dictId, locale);
+                case "dict_edit_info" -> showInfoEditModal(event, dictId, dictOpt.get(), locale);
+                case "dict_toggle_public" -> handleTogglePublic(event, dictOpt.get(), locale);
             }
         });
     }
@@ -253,27 +250,28 @@ public class DictionaryCommand extends BaseCommand {
             String dictId = parts.length > 1 ? parts[1] : null;
             String userId = event.getUser().getId();
             
-            // Check permissions
+            User user = Main.getUserService().getOrCreateUser(userId);
+            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            
             Optional<Dictionary> dictOpt = dictionaryService.getDictionary(dictId);
             if (dictOpt.isEmpty() || !dictOpt.get().canBeEditedBy(userId)) {
-                event.getHook().sendMessage("❌ Dictionary not found or access denied.").queue();
+                event.getHook().sendMessage(locale.get("error.dictionary_not_found")).queue();
                 return;
             }
             
             Dictionary dict = dictOpt.get();
             
             switch (action) {
-                case "dict_words_edit" -> handleWordsEdit(event, dict);
-                case "dict_info_edit" -> handleInfoEdit(event, dict);
+                case "dict_words_edit" -> handleWordsEdit(event, dict, locale);
+                case "dict_info_edit" -> handleInfoEdit(event, dict, locale);
             }
         });
     }
     
-    private void handleWordsEdit(ModalInteractionEvent event, Dictionary dict) {
+    private void handleWordsEdit(ModalInteractionEvent event, Dictionary dict, LocaleManager locale) {
         String wordsInput = event.getValue("words").getAsString();
         
         try {
-            // Clear existing words and add new ones
             dict.clearWords();
             
             if (!wordsInput.trim().isEmpty()) {
@@ -286,18 +284,15 @@ public class DictionaryCommand extends BaseCommand {
                 }
             }
             
-            // Save the dictionary
             dictionaryService.updateDictionary(dict);
-            
-            event.getHook().sendMessage(String.format("✅ Dictionary **%s** updated with %d words!", 
-                dict.getName(), dict.getWordCount())).queue();
+            event.getHook().sendMessage(locale.get("dictionary.update_success", dict.getName(), dict.getWordCount())).queue();
                 
         } catch (Exception e) {
-            event.getHook().sendMessage("❌ Failed to update dictionary: " + e.getMessage()).queue();
+            event.getHook().sendMessage(locale.get("dictionary.update_failed", e.getMessage())).queue();
         }
     }
     
-    private void handleInfoEdit(ModalInteractionEvent event, Dictionary dict) {
+    private void handleInfoEdit(ModalInteractionEvent event, Dictionary dict, LocaleManager locale) {
         String name = event.getValue("name").getAsString().trim();
         String description = event.getValue("description").getAsString().trim();
         
@@ -305,16 +300,15 @@ public class DictionaryCommand extends BaseCommand {
             dict.setName(name);
             dict.setDescription(description);
             
-            // Save the dictionary
             dictionaryService.updateDictionary(dict);
-            event.getHook().sendMessage(String.format("✅ Dictionary **%s** info updated!", name)).queue();
+            event.getHook().sendMessage(locale.get("dictionary.info_update_success", name)).queue();
             
         } catch (Exception e) {
-            event.getHook().sendMessage("❌ Failed to update dictionary info: " + e.getMessage()).queue();
+            event.getHook().sendMessage(locale.get("dictionary.info_update_failed", e.getMessage())).queue();
         }
     }
     
-    private void showWordsEditModal(ButtonInteractionEvent event, String dictId) {
+    private void showWordsEditModal(ButtonInteractionEvent event, String dictId, LocaleManager locale) {
         Optional<Dictionary> dictOpt = dictionaryService.getDictionary(dictId);
         if (dictOpt.isEmpty()) return;
         
@@ -322,12 +316,10 @@ public class DictionaryCommand extends BaseCommand {
         String currentWords = String.join(", ", dict.getWords());
         
         TextInput.Builder wordsInputBuilder = TextInput.create("words", TextInputStyle.PARAGRAPH)
-            .setPlaceholder("word1, word2, word3...")
+            .setPlaceholder(locale.get("dictionary.words_placeholder"))
             .setRequiredRange(0, 2000);
         
-        // Only set value if we have words, otherwise let it be empty and show placeholder
         if (!currentWords.trim().isEmpty()) {
-            // Truncate if too long for modal
             if (currentWords.length() > 2000) {
                 currentWords = currentWords.substring(0, 2000);
             }
@@ -336,31 +328,29 @@ public class DictionaryCommand extends BaseCommand {
         
         TextInput wordsInput = wordsInputBuilder.build();
             
-        Modal modal = Modal.create("dict_words_edit:" + dictId, "Edit Dictionary Words")
-            .addComponents(Label.of("Words (comma-separated)", wordsInput))
+        Modal modal = Modal.create("dict_words_edit:" + dictId, locale.get("dictionary.modal_edit_words"))
+            .addComponents(Label.of(locale.get("dictionary.words_label"), wordsInput))
             .build();
             
         event.replyModal(modal).queue();
     }
     
-    private void showInfoEditModal(ButtonInteractionEvent event, String dictId, Dictionary dict) {
-        // Name is required, so provide a fallback
+    private void showInfoEditModal(ButtonInteractionEvent event, String dictId, Dictionary dict, LocaleManager locale) {
         String name = dict.getName();
         if (name == null || name.trim().isEmpty()) {
             name = "Unnamed Dictionary";
         }
         
         TextInput nameInput = TextInput.create("name", TextInputStyle.SHORT)
-            .setPlaceholder("Enter dictionary name...")
+            .setPlaceholder(locale.get("dictionary.name_placeholder"))
             .setValue(name)
             .setRequiredRange(1, 100)
             .build();
             
         TextInput.Builder descInputBuilder = TextInput.create("description", TextInputStyle.PARAGRAPH)
-            .setPlaceholder("Enter description...")
+            .setPlaceholder(locale.get("dictionary.description_placeholder"))
             .setRequiredRange(0, 500);
             
-        // Only set description value if it's not empty
         String description = dict.getDescription();
         if (description != null && !description.trim().isEmpty()) {
             descInputBuilder.setValue(description);
@@ -368,41 +358,39 @@ public class DictionaryCommand extends BaseCommand {
             
         TextInput descInput = descInputBuilder.build();
             
-        Modal modal = Modal.create("dict_info_edit:" + dictId, "Edit Dictionary Info")
-            .addComponents(Label.of("Dictionary Name", nameInput), Label.of("Description", descInput))
+        Modal modal = Modal.create("dict_info_edit:" + dictId, locale.get("dictionary.modal_edit_info"))
+            .addComponents(Label.of(locale.get("dictionary.name_label"), nameInput), Label.of(locale.get("dictionary.description_label"), descInput))
             .build();
             
         event.replyModal(modal).queue();
     }
     
-    private void handleTogglePublic(ButtonInteractionEvent event, String dictId, Dictionary dict) {
+    private void handleTogglePublic(ButtonInteractionEvent event, Dictionary dict, LocaleManager locale) {
         event.deferEdit().queue();
         
         try {
             dict.setPublic(!dict.isPublic());
-            // Save dictionary
             dictionaryService.updateDictionary(dict);
             
-            String status = dict.isPublic() ? "public" : "private";
-            event.getHook().sendMessage(String.format("✅ Dictionary **%s** is now %s!", 
-                dict.getName(), status)).queue();
+            String status = dict.isPublic() ? locale.get("dictionary.public") : locale.get("dictionary.private");
+            event.getHook().sendMessage(locale.get("dictionary.visibility_success", dict.getName(), status)).queue();
                 
         } catch (Exception e) {
-            event.getHook().sendMessage("❌ Failed to update dictionary visibility.").queue();
+            event.getHook().sendMessage(locale.get("dictionary.visibility_failed")).queue();
         }
     }
     
-    private void sendSuccess(SlashCommandInteractionEvent event, String message) {
+    private void sendSuccess(SlashCommandInteractionEvent event, String message, LocaleManager locale) {
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("✅ Success")
+            .setTitle("✅ " + locale.get("success.title"))
             .setDescription(message)
             .setColor(SUCCESS_COLOR);
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
     
-    private void sendError(SlashCommandInteractionEvent event, String message) {
+    private void sendError(SlashCommandInteractionEvent event, String message, LocaleManager locale) {
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("❌ Error")
+            .setTitle("❌ " + locale.get("error.title"))
             .setDescription(message)
             .setColor(ERROR_COLOR);
         event.getHook().sendMessageEmbeds(embed.build()).queue();

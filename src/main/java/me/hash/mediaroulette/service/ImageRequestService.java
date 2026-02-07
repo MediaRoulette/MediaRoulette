@@ -4,6 +4,8 @@ import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.plugins.images.ImageSource;
+import me.hash.mediaroulette.plugins.images.ImageSourceProvider;
+import me.hash.mediaroulette.locale.LocaleManager;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 
@@ -31,7 +33,23 @@ public class ImageRequestService {
         });
     }
 
-    public boolean validateChannelAccess(SlashCommandInteractionEvent event, User user) {
+    
+    /**
+     * Validate channel access with provider-aware NSFW checking.
+     * SFW providers (YouTube, Picsum, Movies, TV Shows) can be used in any channel.
+     * NSFW providers require NSFW channel or DM access.
+     * 
+     * @param event The slash command event
+     * @param user The user making the request
+     * @param provider The image source provider (null for unknown/legacy sources)
+     * @return ValidationResult indicating whether access is allowed and error details if not
+     */
+    public ValidationResult validateChannelAccessWithResult(SlashCommandInteractionEvent event, User user, ImageSourceProvider provider) {
+        // If provider is SFW, skip NSFW validation entirely
+        if (provider != null && !provider.isNsfw()) {
+            return ValidationResult.success();
+        }
+        
         ChannelType type = event.getChannelType();
 
         boolean isPrivate = type == ChannelType.PRIVATE;
@@ -39,23 +57,57 @@ public class ImageRequestService {
         boolean isNsfwText = isText && event.getChannel().asTextChannel().isNSFW();
 
         if (isPrivate && !user.isNsfw()) {
-            ErrorHandler.sendErrorEmbed(event, "NSFW not enabled", "Use the bot once in an NSFW channel to enable NSFW access.");
-            return false;
+            return ValidationResult.nsfwNotEnabledInDm();
         }
 
         if (isText) {
             if (isNsfwText && !user.isNsfw()) {
                 user.setNsfw(true);
-                return true;
+                return ValidationResult.success();
             }
 
             if (!isNsfwText) {
-                ErrorHandler.sendErrorEmbed(event, "NSFW Channel Required", "Please use this command in an NSFW channel or DMs.");
-                return false;
+                // Return source-specific error if we know which provider was denied
+                if (provider != null) {
+                    return ValidationResult.nsfwSourceDenied(provider);
+                }
+                return ValidationResult.nsfwChannelRequired();
             }
         }
 
+        return ValidationResult.success();
+    }
+    
+    /**
+     * Legacy method for backward compatibility - validates and shows error if denied.
+     * @deprecated Use {@link #validateChannelAccessWithResult} for more granular control
+     */
+    @Deprecated
+    public boolean validateChannelAccess(SlashCommandInteractionEvent event, User user, ImageSourceProvider provider) {
+        ValidationResult result = validateChannelAccessWithResult(event, user, provider);
+        if (!result.allowed()) {
+            showValidationError(event, user, result);
+            return false;
+        }
         return true;
+    }
+    
+    /**
+     * Display the appropriate error message for a denied validation result.
+     */
+    public void showValidationError(SlashCommandInteractionEvent event, User user, ValidationResult result) {
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        
+        String title = locale.get(result.errorTitleKey());
+        String description;
+        
+        if (result.hasSourceSpecificError()) {
+            description = locale.get(result.errorDescriptionKey(), result.getDeniedProviderName());
+        } else {
+            description = locale.get(result.errorDescriptionKey());
+        }
+        
+        ErrorHandler.sendErrorEmbed(event, title, description);
     }
 
 

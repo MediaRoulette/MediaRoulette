@@ -3,7 +3,7 @@
     {"imageType": "imgur", "enabled": true, "chance": 8},
     {"imageType": "4chan", "enabled": true, "chance": 12},
     {"imageType": "picsum", "enabled": true, "chance": 6},
-    {"imageType": "rule34", "enabled": true, "chance": 7},
+    {"imageType": "booru", "enabled": true, "chance": 7},
     {"imageType": "tenor", "enabled": true, "chance": 8},
     {"imageType": "google", "enabled": true, "chance": 10},
     {"imageType": "movies", "enabled": true, "chance": 12},

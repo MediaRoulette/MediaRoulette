@@ -7,11 +7,11 @@ import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.model.MessageData;
 import me.hash.mediaroulette.model.User;
+import me.hash.mediaroulette.plugins.images.ImageSourceProvider;
 import me.hash.mediaroulette.plugins.images.ImageSourceRegistry;
 import me.hash.mediaroulette.service.ImageInteractionService;
 import me.hash.mediaroulette.service.ImageRequestService;
 import me.hash.mediaroulette.locale.LocaleManager;
-import me.hash.mediaroulette.utils.MaintenanceChecker;
 import me.hash.mediaroulette.service.QuestGenerator;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -64,11 +64,6 @@ public class getRandomImage extends BaseCommand {
     public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("random")) return;
 
-        if (MaintenanceChecker.isMaintenanceBlocked(event)) {
-            MaintenanceChecker.sendMaintenanceMessage(event);
-            return;
-        }
-
         event.deferReply().queue();
 
         String userId = event.getUser().getId();
@@ -79,12 +74,17 @@ public class getRandomImage extends BaseCommand {
         requestService.trackSourceUsage(userId, subcommand, query);
 
         User user = Main.getUserService().getOrCreateUser(userId);
-
-        if (!requestService.validateChannelAccess(event, user)) return;
+        
+        // For specific sources, validate NSFW access upfront
+        // For "all", skip upfront validation - ImageSource.handle() already filters sources based on channel type
+        if (!"all".equals(subcommand)) {
+            ImageSourceProvider provider = ImageSourceRegistry.getInstance().getProvider(subcommand.toUpperCase());
+            if (!requestService.validateChannelAccess(event, user, provider)) return;
+        }
 
         Main.getUserService().updateUser(user);
 
-        event.getHook().sendMessageComponents(interactionService.createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
+        event.getHook().sendMessageComponents(interactionService.createLoadingContainer(user))
                 .useComponentsV2()
                 .queue(msg -> Main.getBot().getExecutor().execute(() -> processImageRequest(event, user, subcommand, query, event.getHook())),
                        err -> ErrorHandler.handleException(event, "Error", "Failed to send loading message", err));

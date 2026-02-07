@@ -8,6 +8,17 @@ import me.hash.mediaroulette.service.DictionaryService;
 import com.mongodb.client.MongoCollection;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.container.Container;
+import net.dv8tion.jda.api.components.container.ContainerChildComponent;
+import net.dv8tion.jda.api.components.MessageTopLevelComponent;
+import net.dv8tion.jda.api.components.section.Section;
+import net.dv8tion.jda.api.components.selections.SelectOption;
+import net.dv8tion.jda.api.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.components.separator.Separator;
+import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.components.thumbnail.Thumbnail;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import org.bson.Document;
@@ -22,13 +33,16 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import me.hash.mediaroulette.locale.LocaleManager;
 
 import java.awt.Color;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +60,15 @@ public class SettingsCommand extends BaseCommand {
         "tenor", "google", "reddit"
     );
     
+    // Supported locales with display info
+    private record SupportedLocale(String code, String displayName, String flag) {}
+    private static final List<SupportedLocale> SUPPORTED_LOCALES = Arrays.asList(
+        new SupportedLocale("en_US", "English (US)", "🇺🇸"),
+        new SupportedLocale("es", "Español", "🇪🇸"),
+        new SupportedLocale("fr", "Français", "🇫🇷"),
+        new SupportedLocale("ar", "العربية", "🇸🇦")
+    );
+    
     private final DictionaryService dictionaryService;
     
     public SettingsCommand(DictionaryService dictionaryService) {
@@ -54,12 +77,14 @@ public class SettingsCommand extends BaseCommand {
     
     @Override
     public CommandData getCommandData() {
-        return Commands.slash("settings", "⚙️ Configure dictionary assignments for sources")
+        return Commands.slash("settings", "⚙️ Configure your MediaRoulette settings")
                 .addSubcommands(
+                    new SubcommandData("view", "View all your settings in an interactive panel"),
+                    new SubcommandData("locale", "Change your language preference")
+                        .addOption(OptionType.STRING, "language", "Language code (en_US, es, fr, ar)", false, true),
                     new SubcommandData("assign", "Assign a dictionary to a source")
                         .addOption(OptionType.STRING, "source", "Source name (tenor, reddit, etc.)", true)
                         .addOption(OptionType.STRING, "dictionary", "Dictionary ID", true),
-                    new SubcommandData("view", "View current assignments"),
                     new SubcommandData("unassign", "Remove dictionary assignment")
                         .addOption(OptionType.STRING, "source", "Source name", true),
                     new SubcommandData("shareconfig", "Share your configuration")
@@ -81,14 +106,17 @@ public class SettingsCommand extends BaseCommand {
         Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
+            User user = Main.getUserService().getOrCreateUser(userId);
+            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
             
             switch (subcommand) {
-                case "assign" -> handleAssign(event, userId);
-                case "view" -> handleView(event, userId);
-                case "unassign" -> handleUnassign(event, userId);
-                case "shareconfig" -> handleShareConfig(event, userId);
-                case "assigndefault" -> handleAssignDefault(event, userId);
-                case "reset" -> handleReset(event, userId);
+                case "view" -> handleView(event, user, locale);
+                case "locale" -> handleLocale(event, user, locale);
+                case "assign" -> handleAssign(event, userId, locale);
+                case "unassign" -> handleUnassign(event, userId, locale);
+                case "shareconfig" -> handleShareConfig(event, userId, locale);
+                case "assigndefault" -> handleAssignDefault(event, userId, locale);
+                case "reset" -> handleReset(event, userId, locale);
             }
         });
     }
@@ -100,84 +128,378 @@ public class SettingsCommand extends BaseCommand {
         if (componentId.startsWith("settings:setconfig:")) {
             event.deferReply(true).queue(); // Ephemeral response
             Main.getBot().getExecutor().execute(() -> handleApplyConfig(event, componentId));
+        } else if (componentId.equals("settings:share")) {
+            event.deferReply().queue();
+            Main.getBot().getExecutor().execute(() -> handleShareConfigFromButton(event));
+        } else if (componentId.equals("settings:reset")) {
+            event.deferReply().queue();
+            Main.getBot().getExecutor().execute(() -> handleResetFromButton(event));
         }
     }
     
-    private void handleAssign(SlashCommandInteractionEvent event, String userId) {
+    @Override
+    public void onStringSelectInteraction(StringSelectInteractionEvent event) {
+        String componentId = event.getComponentId();
+        
+        if (!componentId.equals("settings:locale_select")) return;
+        
+        // Validate user owns this interaction
+        String eventUserId = event.getUser().getId();
+        if (!event.getMessage().getInteractionMetadata().getUser().getId().equals(eventUserId)) {
+            event.reply(LocaleManager.getInstance(Main.getUserService().getOrCreateUser(eventUserId).getLocale())
+                    .get("error.not_your_menu")).setEphemeral(true).queue();
+            return;
+        }
+        
+        event.deferEdit().queue();
+        Main.getBot().getExecutor().execute(() -> {
+            String selectedLocale = event.getValues().getFirst();
+            String userId = event.getUser().getId();
+            User user = Main.getUserService().getOrCreateUser(userId);
+            
+            // Update locale
+            user.setLocale(selectedLocale);
+            Main.getUserService().updateUser(user);
+            
+            LocaleManager newLocale = LocaleManager.getInstance(selectedLocale);
+            
+            // Find display name for the selected locale
+            String displayName = SUPPORTED_LOCALES.stream()
+                    .filter(l -> l.code().equals(selectedLocale))
+                    .findFirst()
+                    .map(l -> l.flag() + " " + l.displayName())
+                    .orElse(selectedLocale);
+            
+            // Refresh the view with updated locale
+            updateSettingsDisplay(event.getHook(), user, event.getUser(), 
+                    newLocale.get("settings.language_updated", displayName));
+        });
+    }
+    
+    private void handleAssign(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         String source = event.getOption("source").getAsString().toLowerCase();
         String dictionaryId = event.getOption("dictionary").getAsString();
         
         if (!SUPPORTED_SOURCES.contains(source)) {
-            sendError(event, "Unsupported source. Supported: " + String.join(", ", SUPPORTED_SOURCES));
+            sendError(event, locale.get("settings.unsupported_source", String.join(", ", SUPPORTED_SOURCES)));
             return;
         }
         
         Optional<Dictionary> dictOpt = dictionaryService.getDictionary(dictionaryId);
         if (dictOpt.isEmpty() || !dictOpt.get().canBeViewedBy(userId)) {
-            sendError(event, "Dictionary not found or access denied.");
+            sendError(event, locale.get("error.dictionary_not_found"));
             return;
         }
         
         dictionaryService.assignDictionary(userId, source, dictionaryId);
         
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("✅ Assignment Complete")
-            .setDescription(String.format("Dictionary **%s** assigned to **%s**", 
-                dictOpt.get().getName(), source))
+            .setTitle(locale.get("settings.assignment_complete"))
+            .setDescription(locale.get("settings.assignment_description", dictOpt.get().getName(), source))
             .setColor(SUCCESS_COLOR);
             
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
     
-    private void handleView(SlashCommandInteractionEvent event, String userId) {
-        EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("⚙️ Dictionary Assignments")
-            .setColor(PRIMARY_COLOR);
-            
-        StringBuilder sb = new StringBuilder();
-        boolean hasAssignments = false;
+    private void handleView(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
+        updateSettingsDisplay(event.getHook(), user, event.getUser(), null);
+    }
+    
+    private void handleLocale(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
+        var languageOption = event.getOption("language");
+        
+        if (languageOption == null) {
+            // Show locale selection UI (same as view but focused on locale)
+            updateSettingsDisplay(event.getHook(), user, event.getUser(), null);
+            return;
+        }
+        
+        String newLocaleCode = languageOption.getAsString();
+        
+        // Validate the locale
+        SupportedLocale found = SUPPORTED_LOCALES.stream()
+                .filter(l -> l.code().equals(newLocaleCode))
+                .findFirst()
+                .orElse(null);
+        
+        if (found == null) {
+            String supportedCodes = SUPPORTED_LOCALES.stream()
+                    .map(SupportedLocale::code)
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("");
+            sendError(event, locale.get("settings.unsupported_locale", supportedCodes));
+            return;
+        }
+        
+        // Update user locale
+        user.setLocale(newLocaleCode);
+        Main.getUserService().updateUser(user);
+        
+        LocaleManager newLocale = LocaleManager.getInstance(newLocaleCode);
+        String displayName = found.flag() + " " + found.displayName();
+        
+        // Send success with the new Container UI
+        updateSettingsDisplay(event.getHook(), user, event.getUser(), 
+                newLocale.get("settings.language_updated", displayName));
+    }
+    
+    /**
+     * Build and display the settings Container UI.
+     */
+    private void updateSettingsDisplay(net.dv8tion.jda.api.interactions.InteractionHook hook, 
+                                       User user, net.dv8tion.jda.api.entities.User discordUser, 
+                                       String statusMessage) {
+        String userId = user.getUserId();
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        
+        List<ContainerChildComponent> components = new ArrayList<>();
+        
+        // Header Section with user avatar
+        components.add(Section.of(
+                Thumbnail.fromUrl(discordUser.getEffectiveAvatarUrl()),
+                TextDisplay.of("## " + locale.get("settings.your_settings")),
+                TextDisplay.of("**" + locale.get("settings.personalize") + "**")
+        ));
+        
+        components.add(Separator.createDivider(Separator.Spacing.SMALL));
+        
+        // === Language Section ===
+        SupportedLocale currentLocale = SUPPORTED_LOCALES.stream()
+                .filter(l -> l.code().equals(user.getLocale()))
+                .findFirst()
+                .orElse(SUPPORTED_LOCALES.getFirst());
+        
+        StringBuilder langContent = new StringBuilder();
+        langContent.append("### ").append(locale.get("settings.language_title")).append("\n");
+        langContent.append(currentLocale.flag()).append(" **").append(currentLocale.displayName()).append("**");
+        components.add(TextDisplay.of(langContent.toString()));
+        
+        components.add(Separator.createDivider(Separator.Spacing.SMALL));
+        
+        // === Appearance Section ===
+        StringBuilder appearanceContent = new StringBuilder();
+        appearanceContent.append("### ").append(locale.get("settings.appearance_title")).append("\n");
+        String themeName = user.getTheme() != null ? user.getTheme() : "default";
+        appearanceContent.append(locale.get("settings.theme_label")).append(" `").append(formatThemeName(themeName)).append("`");
+        components.add(TextDisplay.of(appearanceContent.toString()));
+        
+        components.add(Separator.createDivider(Separator.Spacing.SMALL));
+        
+        // === Dictionary Assignments Section ===
+        StringBuilder dictContent = new StringBuilder();
+        dictContent.append("### ").append(locale.get("settings.dictionaries_title")).append("\n");
         
         for (String source : SUPPORTED_SOURCES) {
             Optional<String> assignedDict = dictionaryService.getAssignedDictionary(userId, source);
             if (assignedDict.isPresent()) {
                 Optional<Dictionary> dict = dictionaryService.getDictionary(assignedDict.get());
                 if (dict.isPresent()) {
-                    sb.append(String.format("**%s**: %s (`%s`)\n", 
+                    dictContent.append("**").append(formatSourceName(source)).append("**: ")
+                            .append(dict.get().getName()).append(" (`").append(dict.get().getId()).append("`)\n");
+                } else {
+                    dictContent.append("**").append(formatSourceName(source)).append("**: ")
+                            .append(locale.get("settings.default_dictionary")).append("\n");
+                }
+            } else {
+                dictContent.append("**").append(formatSourceName(source)).append("**: *")
+                        .append(locale.get("settings.default_dictionary")).append("*\n");
+            }
+        }
+        components.add(TextDisplay.of(dictContent.toString()));
+        
+        // === Status Message (if any) ===
+        if (statusMessage != null) {
+            components.add(Separator.createDivider(Separator.Spacing.SMALL));
+            components.add(TextDisplay.of("📢 " + statusMessage));
+        }
+        
+        Container container = Container.of((java.util.Collection<? extends ContainerChildComponent>) components)
+                .withAccentColor(PRIMARY_COLOR);
+        
+        // Build the language select menu
+        StringSelectMenu.Builder localeMenu = StringSelectMenu.create("settings:locale_select")
+                .setPlaceholder(locale.get("settings.language_select_placeholder"));
+        
+        for (SupportedLocale loc : SUPPORTED_LOCALES) {
+            SelectOption option = SelectOption.of(loc.displayName(), loc.code())
+                    .withEmoji(Emoji.fromUnicode(loc.flag()))
+                    .withDefault(loc.code().equals(user.getLocale()));
+            localeMenu.addOptions(option);
+        }
+        
+        // Action buttons
+        ActionRow buttonRow = ActionRow.of(
+                Button.secondary("settings:share", locale.get("settings.share_config")),
+                Button.danger("settings:reset", locale.get("settings.reset_all"))
+        );
+        
+        // Combine all components
+        List<MessageTopLevelComponent> allComponents = new ArrayList<>();
+        allComponents.add(container);
+        allComponents.add(ActionRow.of(localeMenu.build()));
+        allComponents.add(buttonRow);
+        
+        hook.editOriginalComponents(allComponents).useComponentsV2().queue(null, e -> {
+            logger.error("Failed to update settings display: {}", e.getMessage());
+        });
+    }
+    
+    private String formatThemeName(String theme) {
+        if (theme == null || theme.isEmpty()) return "Default";
+        return Character.toUpperCase(theme.charAt(0)) + theme.substring(1).toLowerCase();
+    }
+    
+    /**
+     * Handle share config button from container UI.
+     */
+    private void handleShareConfigFromButton(ButtonInteractionEvent event) {
+        String userId = event.getUser().getId();
+        User user = Main.getUserService().getOrCreateUser(userId);
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        
+        try {
+            String configId = generateShareableConfig(user, userId, null, null);
+            
+            if (configId != null) {
+                Button applyConfigButton = Button.primary("settings:setconfig:" + configId, locale.get("settings.apply_config_button"));
+                
+                EmbedBuilder embed = new EmbedBuilder()
+                    .setTitle(locale.get("settings.config_shared"))
+                    .setDescription(locale.get("settings.config_ready"))
+                    .setColor(SUCCESS_COLOR)
+                    .setTimestamp(Instant.now());
+                    
+                event.getHook().sendMessageEmbeds(embed.build())
+                    .addComponents(ActionRow.of(applyConfigButton))
+                    .queue();
+            } else {
+                sendErrorToHook(event.getHook(), locale.get("settings.config_failed"));
+            }
+        } catch (Exception e) {
+            sendErrorToHook(event.getHook(), locale.get("settings.config_generate_failed", e.getMessage()));
+        }
+    }
+    
+    /**
+     * Handle reset button from container UI.
+     */
+    private void handleResetFromButton(ButtonInteractionEvent event) {
+        String userId = event.getUser().getId();
+        User user = Main.getUserService().getOrCreateUser(userId);
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        
+        try {
+            // Remove all dictionary assignments
+            int removedAssignments = 0;
+            for (String source : SUPPORTED_SOURCES) {
+                if (dictionaryService.unassignDictionary(userId, source)) {
+                    removedAssignments++;
+                }
+            }
+            
+            // Reset user settings to defaults
+            user.setLocale("en_US");
+            user.setTheme("default");
+            Main.getUserService().updateUser(user);
+            
+            LocaleManager newLocale = LocaleManager.getInstance("en_US");
+            
+            EmbedBuilder embed = new EmbedBuilder()
+                .setTitle(newLocale.get("settings.reset_complete"))
+                .setDescription(newLocale.get("settings.reset_description", removedAssignments))
+                .setColor(SUCCESS_COLOR)
+                .setTimestamp(Instant.now());
+                
+            event.getHook().sendMessageEmbeds(embed.build()).queue();
+            
+        } catch (Exception e) {
+            sendErrorToHook(event.getHook(), locale.get("settings.reset_failed", e.getMessage()));
+        }
+    }
+    
+    private void sendErrorToHook(net.dv8tion.jda.api.interactions.InteractionHook hook, String message) {
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("❌ Error")
+            .setDescription(message)
+            .setColor(ERROR_COLOR);
+        hook.sendMessageEmbeds(embed.build()).queue();
+    }
+    
+    /**
+     * Generate a shareable config and store it in the database.
+     * @return The config ID if successful, null otherwise.
+     */
+    private String generateShareableConfig(User user, String userId, String customTitle, String customDescription) {
+        StringBuilder configBuilder = new StringBuilder();
+        
+        configBuilder.append("=".repeat(50)).append("\n");
+        if (customTitle != null) {
+            configBuilder.append("📋 ").append(customTitle.toUpperCase()).append("\n");
+        } else {
+            configBuilder.append("📋 MEDIAROULETTE CONFIGURATION EXPORT\n");
+        }
+        configBuilder.append("=".repeat(50)).append("\n");
+        configBuilder.append("User ID: ").append(userId).append("\n");
+        configBuilder.append("Export Date: ").append(Instant.now().toString()).append("\n");
+        if (customDescription != null) {
+            configBuilder.append("Description: ").append(customDescription).append("\n");
+        }
+        configBuilder.append("\n");
+        
+        // Dictionary Assignments
+        configBuilder.append("🎯 DICTIONARY ASSIGNMENTS\n");
+        configBuilder.append("-".repeat(30)).append("\n");
+        
+        boolean hasAssignments = false;
+        for (String source : SUPPORTED_SOURCES) {
+            Optional<String> assignedDict = dictionaryService.getAssignedDictionary(userId, source);
+            if (assignedDict.isPresent()) {
+                Optional<Dictionary> dict = dictionaryService.getDictionary(assignedDict.get());
+                if (dict.isPresent()) {
+                    configBuilder.append(String.format("DICT_ASSIGN:%s|%s\n", source, dict.get().getId()));
+                    configBuilder.append(String.format("%-10s: %s (%s)\n", 
                         formatSourceName(source), dict.get().getName(), dict.get().getId()));
                     hasAssignments = true;
                 }
-            } else {
-                sb.append(String.format("**%s**: *Default dictionary*\n", formatSourceName(source)));
             }
         }
         
         if (!hasAssignments) {
-            embed.setDescription("No custom dictionary assignments. All sources use default dictionaries.");
-        } else {
-            embed.setDescription(sb.toString());
+            configBuilder.append("No custom dictionary assignments (using defaults)\n");
         }
         
-        event.getHook().sendMessageEmbeds(embed.build()).queue();
+        // User Settings
+        configBuilder.append("\n⚙️ USER SETTINGS\n");
+        configBuilder.append("-".repeat(30)).append("\n");
+        configBuilder.append(String.format("USER_SETTING:nsfw|%s\n", user.isNsfw() ? "true" : "false"));
+        configBuilder.append(String.format("USER_SETTING:locale|%s\n", user.getLocale()));
+        configBuilder.append(String.format("USER_SETTING:theme|%s\n", user.getTheme()));
+        
+        configBuilder.append("\n").append("=".repeat(50)).append("\n");
+        configBuilder.append("💡 To import this configuration, use /settings import <hastebin-url>\n");
+        configBuilder.append("🆘 Need help? Use /support to join our Discord server\n");
+        configBuilder.append("=".repeat(50));
+        
+        // Store in database
+        return storeConfigInDatabase(configBuilder.toString(), customTitle, customDescription, userId);
     }
     
-    private void handleUnassign(SlashCommandInteractionEvent event, String userId) {
+    private void handleUnassign(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         String source = event.getOption("source").getAsString().toLowerCase();
         
         if (!SUPPORTED_SOURCES.contains(source)) {
-            sendError(event, "Unsupported source.");
+            sendError(event, locale.get("settings.unsupported_source", String.join(", ", SUPPORTED_SOURCES)));
             return;
         }
         
-        // Remove the assignment
         if (dictionaryService.unassignDictionary(userId, source)) {
-            sendSuccess(event, String.format("Dictionary assignment removed from **%s**. Now using default.", 
-                formatSourceName(source)));
+            sendSuccess(event, locale.get("settings.unassign_success", formatSourceName(source)));
         } else {
-            sendError(event, String.format("No dictionary assigned to **%s**.", formatSourceName(source)));
+            sendError(event, locale.get("settings.no_assignment", formatSourceName(source)));
         }
     }
     
-    private void handleShareConfig(SlashCommandInteractionEvent event, String userId) {
+    private void handleShareConfig(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         try {
             User user = Main.getUserService().getOrCreateUser(userId);
             
@@ -591,7 +913,7 @@ public class SettingsCommand extends BaseCommand {
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
     
-    private void handleAssignDefault(SlashCommandInteractionEvent event, String userId) {
+    private void handleAssignDefault(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         String source = event.getOption("source").getAsString().toLowerCase();
         
         if (!SUPPORTED_SOURCES.contains(source)) {
@@ -608,7 +930,7 @@ public class SettingsCommand extends BaseCommand {
         }
     }
     
-    private void handleReset(SlashCommandInteractionEvent event, String userId) {
+    private void handleReset(SlashCommandInteractionEvent event, String userId, LocaleManager locale) {
         try {
             User user = Main.getUserService().getOrCreateUser(userId);
             

@@ -242,4 +242,9 @@ public class YouTubeProvider implements MediaProvider {
     public String getProviderName() {
         return "YouTube";
     }
+    
+    @Override
+    public boolean isNsfw() {
+        return false;
+    }
 }

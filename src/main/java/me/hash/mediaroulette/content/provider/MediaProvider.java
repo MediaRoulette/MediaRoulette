@@ -16,4 +16,12 @@ public interface MediaProvider {
 
     boolean supportsQuery();
     String getProviderName();
+    
+    /**
+     * Check if this provider produces NSFW content.
+     * @return true if the source is NSFW (default), false if SFW
+     */
+    default boolean isNsfw() {
+        return true; // Safe default - assume NSFW unless explicitly marked SFW
+    }
 }

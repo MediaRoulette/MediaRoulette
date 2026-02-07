@@ -83,7 +83,7 @@ public class ThemeManager {
      */
     public Theme getTheme(String themeName) {
         if (themeName == null || themeName.trim().isEmpty()) {
-            logger.warn("Attempted to get theme with null or empty name");
+            // silently return default theme, null/empty theme name is expected for users who haven't set a theme
             return getDefaultTheme();
         }
 

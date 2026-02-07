@@ -66,7 +66,7 @@ public class ChancesCommand extends BaseCommand {
         registerSource("short", "YouTube Shorts", Emoji.YT_SHORTS_LOGO.getFormat(), "Media");
         registerSource("tenor", "Tenor", Emoji.TENOR_LOGO.getFormat(), "Media");
         
-        registerSource("rule34xxx", "Rule34", "🔞", "NSFW");
+        registerSource("booru", "Booru", "🔞", "NSFW");
         registerSource("urban", "Urban Dictionary", Emoji.URBAN_DICTIONARY_LOGO.getFormat(), "Text");
     }
 

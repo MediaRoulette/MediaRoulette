@@ -1,9 +1,9 @@
 package me.hash.mediaroulette.bot.commands.user;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
+import me.hash.mediaroulette.locale.LocaleManager;
 import me.hash.mediaroulette.model.InventoryItem;
 import me.hash.mediaroulette.model.User;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -56,12 +56,14 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
+            User user = Main.getUserService().getOrCreateUser(userId);
+            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
 
             switch (subcommand) {
-                case "view" -> handleView(event, userId);
-                case "sort" -> handleSort(event, userId);
-                case "use" -> handleUse(event, userId);
-                case "info" -> handleInfo(event, userId);
+                case "view" -> handleView(event, user, locale);
+                case "sort" -> handleSort(event, user, locale);
+                case "use" -> handleUse(event, user, locale);
+                case "info" -> handleInfo(event, user, locale);
             }
         });
     }
@@ -76,14 +78,12 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         }
     }
 
-    private void handleView(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.getUserService().getOrCreateUser(userId);
+    private void handleView(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
         String filter = event.getOption("filter") != null ? event.getOption("filter").getAsString() : null;
         int page = event.getOption("page") != null ? event.getOption("page").getAsInt() : 1;
 
         List<InventoryItem> items = user.getInventory();
         
-        // Apply filter if specified
         if (filter != null) {
             String filterLower = filter.toLowerCase();
             items = items.stream()
@@ -93,16 +93,16 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         }
 
         if (items.isEmpty()) {
+            String filterSuffix = filter != null ? locale.get("inventory.filter_suffix", filter) : "";
             EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle("📦 Your Inventory")
-                    .setDescription("Your inventory is empty" + (filter != null ? " for filter: " + filter : "") + "!")
+                    .setTitle(locale.get("inventory.title"))
+                    .setDescription(locale.get("inventory.empty", filterSuffix))
                     .setColor(PRIMARY_COLOR)
                     .setTimestamp(Instant.now());
             event.getHook().sendMessageEmbeds(embed.build()).queue();
             return;
         }
 
-        // Pagination
         int totalPages = (int) Math.ceil((double) items.size() / ITEMS_PER_PAGE);
         page = Math.max(1, Math.min(page, totalPages));
         
@@ -110,15 +110,15 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         int endIndex = Math.min(startIndex + ITEMS_PER_PAGE, items.size());
         List<InventoryItem> pageItems = items.subList(startIndex, endIndex);
 
+        String filtered = filter != null ? " (Filtered)" : "";
         EmbedBuilder embed = new EmbedBuilder()
-                .setTitle("📦 Your Inventory" + (filter != null ? " (Filtered)" : ""))
+                .setTitle(locale.get("inventory.title") + filtered)
                 .setColor(PRIMARY_COLOR)
                 .setTimestamp(Instant.now());
 
         StringBuilder description = new StringBuilder();
-        description.append(String.format("**Inventory Usage:** %d/%d slots\n", 
-            user.getUniqueInventoryItems(), User.MAX_INVENTORY_SIZE));
-        description.append(String.format("**Total Items:** %d items\n\n", user.getTotalInventoryItems()));
+        description.append(locale.get("inventory.usage", user.getUniqueInventoryItems(), User.MAX_INVENTORY_SIZE)).append("\n");
+        description.append(locale.get("inventory.total", user.getTotalInventoryItems())).append("\n\n");
 
         for (InventoryItem item : pageItems) {
             description.append(String.format("%s **%s** (x%d)\n", 
@@ -128,81 +128,73 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         }
 
         embed.setDescription(description.toString());
-        embed.setFooter(String.format("Page %d/%d • %d items total", page, totalPages, items.size()), null);
+        embed.setFooter(locale.get("inventory.page_footer", page, totalPages, items.size()), null);
 
-        // Add navigation buttons
         ActionRow buttons = ActionRow.of(
-                Button.primary("inventory:prev:" + (page - 1) + ":" + (filter != null ? filter : ""), "◀ Previous")
+                Button.primary("inventory:prev:" + (page - 1) + ":" + (filter != null ? filter : ""), "◀ " + locale.get("ui.previous"))
                         .withDisabled(page <= 1),
-                Button.primary("inventory:next:" + (page + 1) + ":" + (filter != null ? filter : ""), "Next ▶")
+                Button.primary("inventory:next:" + (page + 1) + ":" + (filter != null ? filter : ""), locale.get("ui.next") + " ▶")
                         .withDisabled(page >= totalPages),
-                Button.secondary("inventory:refresh:" + page + ":" + (filter != null ? filter : ""), "🔄 Refresh")
+                Button.secondary("inventory:refresh:" + page + ":" + (filter != null ? filter : ""), "🔄 " + locale.get("ui.refresh"))
         );
 
         event.getHook().sendMessageEmbeds(embed.build()).setComponents(buttons).queue();
     }
 
-    private void handleSort(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.getUserService().getOrCreateUser(userId);
+    private void handleSort(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
         String sortBy = event.getOption("by").getAsString();
 
         user.sortInventory(sortBy);
         Main.getUserService().updateUser(user);
 
-        String description = "Your inventory has been sorted by **" + sortBy + "**.";
-        EmbedBuilder embed = MediaContainerManager.createSuccess("Inventory Sorted", description);
+        String description = locale.get("inventory.sorted", sortBy);
+        EmbedBuilder embed = MediaContainerManager.createSuccess(locale.get("inventory.sorted_title"), description);
 
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
 
-    private void handleUse(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.getUserService().getOrCreateUser(userId);
+    private void handleUse(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
         String itemId = event.getOption("item").getAsString();
         int quantity = event.getOption("quantity") != null ? event.getOption("quantity").getAsInt() : 1;
 
         InventoryItem item = user.getInventoryItem(itemId);
         if (item == null) {
-            sendError(event, "Item not found in your inventory: " + itemId);
+            sendError(event, locale.get("inventory.item_not_found", itemId), locale);
             return;
         }
 
         if (!user.hasInventoryItem(itemId, quantity)) {
-            sendError(event, String.format("You don't have enough of this item. You have %d, need %d.", 
-                item.getQuantity(), quantity));
+            sendError(event, locale.get("inventory.not_enough", item.getQuantity(), quantity), locale);
             return;
         }
 
-        // Check if item is usable
         if (!"consumable".equals(item.getType()) && !"tool".equals(item.getType())) {
-            sendError(event, "This item cannot be used: " + item.getName());
+            sendError(event, locale.get("inventory.cannot_use", item.getName()), locale);
             return;
         }
 
-        // Use the item
         boolean success = user.removeInventoryItem(itemId, quantity);
         if (success) {
             Main.getUserService().updateUser(user);
             
             EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle("✅ Item Used")
-                    .setDescription(String.format("You used **%dx %s**!\n\n*%s*", 
-                        quantity, item.getName(), item.getDescription()))
+                    .setTitle(locale.get("inventory.item_used"))
+                    .setDescription(locale.get("inventory.item_used_desc", quantity, item.getName(), item.getDescription()))
                     .setColor(SUCCESS_COLOR)
                     .setTimestamp(Instant.now());
 
             event.getHook().sendMessageEmbeds(embed.build()).queue();
         } else {
-            sendError(event, "Failed to use the item. Please try again.");
+            sendError(event, locale.get("inventory.use_failed"), locale);
         }
     }
 
-    private void handleInfo(SlashCommandInteractionEvent event, String userId) {
-        User user = Main.getUserService().getOrCreateUser(userId);
+    private void handleInfo(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
         String itemId = event.getOption("item").getAsString();
 
         InventoryItem item = user.getInventoryItem(itemId);
         if (item == null) {
-            sendError(event, "Item not found in your inventory: " + itemId);
+            sendError(event, locale.get("inventory.item_not_found", itemId), locale);
             return;
         }
 
@@ -211,16 +203,19 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
                 .setDescription(item.getDescription())
                 .setColor(PRIMARY_COLOR);
 
-        embed.addField("📊 Details", 
-                String.format("**Type:** %s\n**Rarity:** %s\n**Quantity:** %d", 
-                    item.getType(), item.getRarityEmoji() + " " + item.getRarity(), item.getQuantity()), true);
+        embed.addField(locale.get("inventory.details"), 
+                String.format("**%s:** %s\n**%s:** %s %s\n**%s:** %d", 
+                    locale.get("inventory.type"), item.getType(),
+                    locale.get("inventory.rarity"), item.getRarityEmoji(), item.getRarity(),
+                    locale.get("inventory.quantity"), item.getQuantity()), true);
 
-        embed.addField("🔍 Info", 
-                String.format("**ID:** `%s`\n**Stackable:** %s\n**Source:** %s", 
-                    item.getId(), item.isStackable() ? "Yes" : "No", 
-                    item.getSource() != null ? item.getSource() : "Unknown"), true);
+        embed.addField(locale.get("inventory.info"), 
+                String.format("**ID:** `%s`\n**%s:** %s\n**%s:** %s", 
+                    item.getId(),
+                    locale.get("inventory.stackable"), item.isStackable() ? "Yes" : "No",
+                    locale.get("inventory.source"), item.getSource() != null ? item.getSource() : "Unknown"), true);
 
-        embed.addField("📅 Acquired", 
+        embed.addField(locale.get("inventory.acquired"), 
                 String.format("<t:%d:F>", item.getAcquiredAt().getEpochSecond()), false);
 
         event.getHook().sendMessageEmbeds(embed.build()).queue();
@@ -232,23 +227,21 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
 
         String action = parts[1];
         String userId = event.getUser().getId();
+        User user = Main.getUserService().getOrCreateUser(userId);
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
 
         switch (action) {
             case "prev", "next", "refresh" -> {
                 int page = Integer.parseInt(parts[2]);
                 String filter = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : null;
-                
-                User user = Main.getUserService().getOrCreateUser(userId);
-                // Recreate the view with new page
-                updateInventoryView(event, user, filter, page);
+                updateInventoryView(event, user, filter, page, locale);
             }
         }
     }
 
-    private void updateInventoryView(ButtonInteractionEvent event, User user, String filter, int page) {
+    private void updateInventoryView(ButtonInteractionEvent event, User user, String filter, int page, LocaleManager locale) {
         List<InventoryItem> items = user.getInventory();
         
-        // Apply filter if specified
         if (filter != null) {
             String filterLower = filter.toLowerCase();
             items = items.stream()
@@ -258,16 +251,16 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         }
 
         if (items.isEmpty()) {
+            String filterSuffix = filter != null ? locale.get("inventory.filter_suffix", filter) : "";
             EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle("📦 Your Inventory")
-                    .setDescription("Your inventory is empty" + (filter != null ? " for filter: " + filter : "") + "!")
+                    .setTitle(locale.get("inventory.title"))
+                    .setDescription(locale.get("inventory.empty", filterSuffix))
                     .setColor(PRIMARY_COLOR)
                     .setTimestamp(Instant.now());
             event.getHook().editOriginalEmbeds(embed.build()).setComponents().queue();
             return;
         }
 
-        // Pagination
         int totalPages = (int) Math.ceil((double) items.size() / ITEMS_PER_PAGE);
         page = Math.max(1, Math.min(page, totalPages));
         
@@ -275,15 +268,15 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         int endIndex = Math.min(startIndex + ITEMS_PER_PAGE, items.size());
         List<InventoryItem> pageItems = items.subList(startIndex, endIndex);
 
+        String filtered = filter != null ? " (Filtered)" : "";
         EmbedBuilder embed = new EmbedBuilder()
-                .setTitle("📦 Your Inventory" + (filter != null ? " (Filtered)" : ""))
+                .setTitle(locale.get("inventory.title") + filtered)
                 .setColor(PRIMARY_COLOR)
                 .setTimestamp(Instant.now());
 
         StringBuilder description = new StringBuilder();
-        description.append(String.format("**Inventory Usage:** %d/%d slots\n", 
-            user.getUniqueInventoryItems(), User.MAX_INVENTORY_SIZE));
-        description.append(String.format("**Total Items:** %d items\n\n", user.getTotalInventoryItems()));
+        description.append(locale.get("inventory.usage", user.getUniqueInventoryItems(), User.MAX_INVENTORY_SIZE)).append("\n");
+        description.append(locale.get("inventory.total", user.getTotalInventoryItems())).append("\n\n");
 
         for (InventoryItem item : pageItems) {
             description.append(String.format("%s **%s** (x%d)\n", 
@@ -293,21 +286,20 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         }
 
         embed.setDescription(description.toString());
-        embed.setFooter(String.format("Page %d/%d • %d items total", page, totalPages, items.size()), null);
+        embed.setFooter(locale.get("inventory.page_footer", page, totalPages, items.size()), null);
 
-        // Add navigation buttons
         ActionRow buttons = ActionRow.of(
-                Button.primary("inventory:prev:" + (page - 1) + ":" + (filter != null ? filter : ""), "◀ Previous")
+                Button.primary("inventory:prev:" + (page - 1) + ":" + (filter != null ? filter : ""), "◀ " + locale.get("ui.previous"))
                         .withDisabled(page <= 1),
-                Button.primary("inventory:next:" + (page + 1) + ":" + (filter != null ? filter : ""), "Next ▶")
+                Button.primary("inventory:next:" + (page + 1) + ":" + (filter != null ? filter : ""), locale.get("ui.next") + " ▶")
                         .withDisabled(page >= totalPages),
-                Button.secondary("inventory:refresh:" + page + ":" + (filter != null ? filter : ""), "🔄 Refresh")
+                Button.secondary("inventory:refresh:" + page + ":" + (filter != null ? filter : ""), "🔄 " + locale.get("ui.refresh"))
         );
 
         event.getHook().editOriginalEmbeds(embed.build()).setComponents(buttons).queue();
     }
 
-    private void sendError(SlashCommandInteractionEvent event, String message) {
-        event.getHook().sendMessageEmbeds(MediaContainerManager.createError("Error", message).build()).queue();
+    private void sendError(SlashCommandInteractionEvent event, String message, LocaleManager locale) {
+        event.getHook().sendMessageEmbeds(MediaContainerManager.createError(locale.get("error.title"), message).build()).queue();
     }
 }

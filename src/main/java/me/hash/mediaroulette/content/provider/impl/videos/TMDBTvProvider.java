@@ -156,4 +156,9 @@ public class TMDBTvProvider implements MediaProvider {
     public String getProviderName() {
         return "TMDB TV Shows";
     }
+    
+    @Override
+    public boolean isNsfw() {
+        return false; // TMDB TV Shows uses include_adult=false
+    }
 }

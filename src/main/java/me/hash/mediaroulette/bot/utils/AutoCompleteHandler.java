@@ -1,6 +1,7 @@
 package me.hash.mediaroulette.bot.utils;
 
 import me.hash.mediaroulette.Main;
+import me.hash.mediaroulette.content.provider.impl.images.BooruBoard;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.config.LocalConfig;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
@@ -27,6 +28,7 @@ public class AutoCompleteHandler extends ListenerAdapter {
                 case "tenor" -> handleTenorQueryAutocomplete(event, currentInput);
                 case "4chan" -> handleFourChanBoardAutocomplete(event, currentInput);
                 case "urban" -> handleUrbanAutocomplete(event, currentInput);
+                case "booru" -> handleBooruBoardAutocomplete(event, currentInput);
                 case null -> {}
                 default -> throw new IllegalStateException("Unexpected value: " + subcommandName);
             }
@@ -146,6 +148,16 @@ public class AutoCompleteHandler extends ListenerAdapter {
         if (choices.size() > 25) {
             choices = choices.subList(0, 25);
         }
+        
+        event.replyChoices(choices).queue();
+    }
+    
+    private void handleBooruBoardAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
+        List<Command.Choice> choices = BooruBoard.getAll().stream()
+                .filter(board -> board.getId().contains(currentInput) || 
+                        board.getDisplayName().toLowerCase().contains(currentInput))
+                .map(board -> new Command.Choice(board.getDisplayName(), board.getId()))
+                .collect(Collectors.toList());
         
         event.replyChoices(choices).queue();
     }

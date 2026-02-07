@@ -46,7 +46,7 @@ public class ImageSourceRegistry {
         registerBuiltIn(ImageSource.TENOR, factory.createTenorProvider(), 70);
         registerBuiltIn(ImageSource._4CHAN, factory.createFourChanProvider(), 65);
         registerBuiltIn(ImageSource.PICSUM, factory.createPicsumProvider(), 60);
-        registerBuiltIn(ImageSource.RULE34XXX, factory.createRule34Provider(), 55);
+        registerBuiltIn(ImageSource.BOORU, factory.createBooruProvider(), 54);
         registerBuiltIn(ImageSource.MOVIE, factory.createTMDBMovieProvider(), 50);
         registerBuiltIn(ImageSource.TVSHOW, factory.createTMDBTvProvider(), 50);
         registerBuiltIn(ImageSource.URBAN, factory.createUrbanDictionaryProvider(), 45);

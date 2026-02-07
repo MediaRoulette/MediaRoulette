@@ -70,36 +70,40 @@ public class LocaleManager {
             this.locale = Locale.of(parts[0]);
         }
 
-        // Try external resources folder first
+        // Load from external resources folder only
         Path externalFile = LOCALES_DIR.resolve("messages_" + localeName + ".properties");
         if (Files.exists(externalFile)) {
             try (InputStream is = Files.newInputStream(externalFile)) {
                 this.bundle = new PropertyResourceBundle(is);
-                logger.debug("Loaded locale {} from external resources", localeName);
+                logger.debug("Loaded locale {} from external resources: {}", localeName, externalFile.toAbsolutePath());
                 return;
             } catch (Exception e) {
-                logger.warn("Failed to load external locale file {}: {}", externalFile, e.getMessage());
+                logger.error("Failed to load external locale file {}: {}", externalFile, e.getMessage());
             }
         }
 
-        // Fallback to classpath ResourceBundle
-        try {
-            this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
-            logger.debug("Loaded locale {} from classpath", localeName);
-        } catch (MissingResourceException e) {
-            logger.warn("Locale {} not found, falling back to en_US", localeName);
-            this.locale = Locale.of("en", "US");
-            try {
-                this.bundle = ResourceBundle.getBundle("locales.messages", this.locale);
-            } catch (MissingResourceException fallbackError) {
-                logger.error("Could not load locales.messages for en_US", fallbackError);
-                try {
-                    this.bundle = ResourceBundle.getBundle("locales.messages");
-                } catch (MissingResourceException finalError) {
-                    logger.error("Could not load any locales.messages bundle", finalError);
-                    throw new RuntimeException("Could not initialize LocaleManager", finalError);
+        // Try en_US as fallback if requested locale not found
+        if (!localeName.equals("en_US")) {
+            Path fallbackFile = LOCALES_DIR.resolve("messages_en_US.properties");
+            if (Files.exists(fallbackFile)) {
+                try (InputStream is = Files.newInputStream(fallbackFile)) {
+                    this.bundle = new PropertyResourceBundle(is);
+                    this.locale = Locale.of("en", "US");
+                    logger.warn("Locale {} not found, loaded en_US fallback from: {}", localeName, fallbackFile.toAbsolutePath());
+                    return;
+                } catch (Exception e) {
+                    logger.error("Failed to load fallback locale file {}: {}", fallbackFile, e.getMessage());
                 }
             }
+        }
+
+        // If no external file found, create empty bundle and log error
+        logger.error("No locale file found for {} at path: {}. Working directory: {}", 
+                localeName, externalFile.toAbsolutePath(), System.getProperty("user.dir"));
+        try {
+            this.bundle = new PropertyResourceBundle(new java.io.StringReader(""));
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Failed to create empty locale bundle", e);
         }
     }
 

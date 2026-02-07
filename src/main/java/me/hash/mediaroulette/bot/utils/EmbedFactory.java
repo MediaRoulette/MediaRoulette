@@ -116,15 +116,15 @@ public class EmbedFactory {
     }
 
     public static ActionRow createPaginationButtons(String baseId, int currentPage, int totalPages,
-                                                    String additionalData) {
+                                                    String additionalData, String prevLabel, String nextLabel, String refreshLabel) {
         String data = additionalData != null ? ":" + additionalData : "";
 
         return ActionRow.of(
-                Button.primary(baseId + ":prev:" + (currentPage - 1) + data, "◀ Previous")
+                Button.primary(baseId + ":prev:" + (currentPage - 1) + data, "◀ " + prevLabel)
                         .withDisabled(currentPage <= 1),
-                Button.primary(baseId + ":next:" + (currentPage + 1) + data, "Next ▶")
+                Button.primary(baseId + ":next:" + (currentPage + 1) + data, nextLabel + " ▶")
                         .withDisabled(currentPage >= totalPages),
-                Button.secondary(baseId + ":refresh:" + currentPage + data, "🔄 Refresh")
+                Button.secondary(baseId + ":refresh:" + currentPage + data, "🔄 " + refreshLabel)
         );
     }
 

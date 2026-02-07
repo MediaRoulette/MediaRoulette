@@ -1,10 +1,10 @@
 package me.hash.mediaroulette.bot.commands.bot;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.Bot;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.utils.Emoji;
+import me.hash.mediaroulette.locale.LocaleManager;
 import me.hash.mediaroulette.model.User;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
@@ -55,9 +55,12 @@ public class InfoCommand extends BaseCommand {
 
         event.deferReply().queue();
         Main.getBot().getExecutor().execute(() -> {
+            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            
             Container container = "bot".equals(event.getSubcommandName())
-                    ? createBotInfo()
-                    : createUserInfo(event.getUser().getId(), event.getUser().getName(), event.getUser().getAvatarUrl());
+                    ? createBotInfo(locale)
+                    : createUserInfo(event.getUser().getId(), event.getUser().getName(), event.getUser().getAvatarUrl(), locale);
             event.getHook().sendMessageComponents(container).useComponentsV2().queue();
         });
     }
@@ -69,13 +72,16 @@ public class InfoCommand extends BaseCommand {
 
         event.deferEdit().queue();
         Main.getBot().getExecutor().execute(() -> {
-            Container container = id.equals("refresh_stats") ? createBotInfo() 
-                    : createUserInfo(event.getUser().getId(), event.getUser().getName(), event.getUser().getAvatarUrl());
+            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            
+            Container container = id.equals("refresh_stats") ? createBotInfo(locale) 
+                    : createUserInfo(event.getUser().getId(), event.getUser().getName(), event.getUser().getAvatarUrl(), locale);
             event.getHook().editOriginalComponents(container).useComponentsV2().queue();
         });
     }
 
-    private Container createBotInfo() {
+    private Container createBotInfo(LocaleManager locale) {
         JDA shard = Main.getBot().getShardManager().getShards().getFirst();
         long totalImages = Main.getUserService().getTotalImagesGenerated();
         long totalUsers = Main.getUserService().getTotalUsers();
@@ -85,26 +91,29 @@ public class InfoCommand extends BaseCommand {
 
         Section header = Section.of(
                 Thumbnail.fromUrl(getBotAvatar(shard)),
-                TextDisplay.of("## 🤖 Media Roulette Bot"),
-                TextDisplay.of("**Real-time Statistics & Performance**")
+                TextDisplay.of("## 🤖 " + locale.get("info.title")),
+                TextDisplay.of("**" + locale.get("info.subtitle") + "**")
         );
 
         String statsText = String.format("""
-                ### 📊 Usage
-                **Images:** `%s` • **Users:** `%s` • **Uptime:** `%s`
+                ### 📊 %s
+                **%s:** `%s` • **%s:** `%s` • **%s:** `%s`
                 
-                ### ⚡ Performance
-                **Ping:** `%dms` • **Guilds:** `%s` • **Shards:** `%d`
-                **Memory:** `%s / %s` (%.0f%%)
+                ### ⚡ %s
+                **%s:** `%dms` • **%s:** `%s` • **%s:** `%d`
+                **%s:** `%s / %s` (%.0f%%)
                 %s
                 
-                ### 🖥️ System
-                **CPU:** `%d cores` • **Load:** `%s` • **Java:** `%s`""",
-                formatNumber(totalImages), formatNumber(totalUsers), formatUptime(uptime),
-                shard.getGatewayPing(), formatNumber(shard.getGuilds().size()), shard.getShardInfo().getShardTotal(),
-                formatBytes(usedMem), formatBytes(maxMem), (double) usedMem / maxMem * 100,
+                ### 🖥️ %s
+                **%s:** `%d cores` • **%s:** `%s` • **%s:** `%s`""",
+                locale.get("info.usage_section"),
+                locale.get("info.images_generated"), formatNumber(totalImages), locale.get("info.users"), formatNumber(totalUsers), locale.get("info.uptime"), formatUptime(uptime),
+                locale.get("info.performance_section"),
+                locale.get("info.ping"), shard.getGatewayPing(), locale.get("info.servers"), formatNumber(shard.getGuilds().size()), locale.get("info.shards"), shard.getShardInfo().getShardTotal(),
+                locale.get("info.memory"), formatBytes(usedMem), formatBytes(maxMem), (double) usedMem / maxMem * 100,
                 Emoji.createProgressBar(usedMem, maxMem, 10),
-                OS_BEAN.getAvailableProcessors(), getSystemLoad(), System.getProperty("java.version").split("\\.")[0]);
+                locale.get("info.system_section"),
+                locale.get("info.cpu"), OS_BEAN.getAvailableProcessors(), locale.get("info.system_load"), getSystemLoad(), locale.get("info.java"), System.getProperty("java.version").split("\\.")[0]);
 
         return Container.of(
                 header,
@@ -112,14 +121,14 @@ public class InfoCommand extends BaseCommand {
                 TextDisplay.of(statsText),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 ActionRow.of(
-                        Button.link("https://discord.gg/Kr7qvutZ4N", "Support"),
-                        Button.link("https://www.buymeacoffee.com/HashyDev", "Donate"),
-                        Button.secondary("refresh_stats", "🔄 Refresh")
+                        Button.link("https://discord.gg/Kr7qvutZ4N", locale.get("ui.support")),
+                        Button.link("https://www.buymeacoffee.com/HashyDev", locale.get("ui.donate")),
+                        Button.secondary("refresh_stats", "🔄 " + locale.get("ui.refresh"))
                 )
         ).withAccentColor(PRIMARY_COLOR);
     }
 
-    private Container createUserInfo(String userId, String username, String avatarUrl) {
+    private Container createUserInfo(String userId, String username, String avatarUrl, LocaleManager locale) {
         User user = Main.getUserService().getOrCreateUser(userId);
         int favUsed = user.getFavorites().size();
         int favLimit = user.getFavoriteLimit();
@@ -128,18 +137,20 @@ public class InfoCommand extends BaseCommand {
         Section header = Section.of(
                 Thumbnail.fromUrl(avatarUrl != null ? avatarUrl : DEFAULT_AVATAR),
                 TextDisplay.of("## 👤 " + username + badges),
-                TextDisplay.of("**" + getAccountLevel(user) + " Account**")
+                TextDisplay.of("**" + getAccountLevel(user, locale) + " " + locale.get("info.account_type", "Account") + "**")
         );
 
         String infoText = String.format("""
-                ### 🎨 Statistics
-                **Images:** `%s` • **Level:** `%s`
+                ### 🎨 %s
+                **%s:** `%s` • **%s:** `%s`
                 
-                ### ❤️ Favorites
-                **Slots:** `%d/%d` (%d remaining)
+                ### ❤️ %s
+                **%s:** `%d/%d` (%d %s)
                 %s""",
-                formatNumber(user.getImagesGenerated()), getUsageLevel(user.getImagesGenerated()),
-                favUsed, favLimit, favLimit - favUsed,
+                locale.get("info.statistics"),
+                locale.get("info.images_generated"), formatNumber(user.getImagesGenerated()), locale.get("info.usage_level"), getUsageLevel(user.getImagesGenerated(), locale),
+                locale.get("info.favorites_count"),
+                locale.get("info.slots"), favUsed, favLimit, favLimit - favUsed, locale.get("info.remaining"),
                 Emoji.createProgressBar(favUsed, favLimit, 10));
 
         return Container.of(
@@ -148,13 +159,12 @@ public class InfoCommand extends BaseCommand {
                 TextDisplay.of(infoText),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 ActionRow.of(
-                        Button.link("https://discord.gg/Kr7qvutZ4N", "Support"),
-                        Button.secondary("refresh_profile", "🔄 Refresh")
+                        Button.link("https://discord.gg/Kr7qvutZ4N", locale.get("ui.support")),
+                        Button.secondary("refresh_profile", "🔄 " + locale.get("ui.refresh"))
                 )
         ).withAccentColor(getUserColor(user));
     }
 
-    // Helper Methods
     private String getBotAvatar(JDA shard) {
         String url = shard.getSelfUser().getAvatarUrl();
         return url != null ? url : DEFAULT_AVATAR;
@@ -177,18 +187,18 @@ public class InfoCommand extends BaseCommand {
         return String.format("%dm", minutes);
     }
 
-    private String getUsageLevel(long images) {
-        if (images >= 1000) return "Expert";
-        if (images >= 500) return "Advanced";
-        if (images >= 100) return "Regular";
-        if (images >= 10) return "Active";
-        return "New";
+    private String getUsageLevel(long images, LocaleManager locale) {
+        if (images >= 1000) return locale.get("info.level_super");
+        if (images >= 500) return locale.get("info.level_power");
+        if (images >= 100) return locale.get("info.level_regular");
+        if (images >= 10) return locale.get("info.level_casual");
+        return locale.get("info.level_beginner");
     }
 
-    private String getAccountLevel(User user) {
-        if (user.isAdmin()) return "Administrator";
-        if (user.isPremium()) return "Premium";
-        return "Standard";
+    private String getAccountLevel(User user, LocaleManager locale) {
+        if (user.isAdmin()) return locale.get("info.level_admin");
+        if (user.isPremium()) return locale.get("info.level_premium");
+        return locale.get("info.level_standard");
     }
 
     private String getSystemLoad() {
@@ -212,5 +222,4 @@ public class InfoCommand extends BaseCommand {
         }
         return String.format("%.1f %s", size, units[i]);
     }
-
 }

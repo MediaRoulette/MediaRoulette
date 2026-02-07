@@ -8,6 +8,9 @@ import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.model.ImageOptions;
 import me.hash.mediaroulette.locale.LocaleManager;
 import me.hash.mediaroulette.config.LocalConfig;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.unions.ChannelUnion;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.Interaction;
 
 import java.util.*;
@@ -21,6 +24,7 @@ public class ImageSource {
     public static final String IMGUR = "IMGUR";
     public static final String PICSUM = "PICSUM";
     public static final String RULE34XXX = "RULE34XXX";
+    public static final String BOORU = "BOORU";
     public static final String MOVIE = "MOVIE";
     public static final String TVSHOW = "TVSHOW";
     public static final String URBAN = "URBAN";
@@ -80,6 +84,7 @@ public class ImageSource {
             case IMGUR -> "imgur";
             case PICSUM -> "picsum";
             case RULE34XXX -> "rule34xxx";
+            case BOORU -> "booru";
             case MOVIE -> "tmdb_movie";
             case TVSHOW -> "tmdb_tv";
             case URBAN -> "urban_dictionary";
@@ -123,6 +128,16 @@ public class ImageSource {
     public static Optional<ImageSourceProvider> findSourceProvider(String name) {
         return ImageSourceRegistry.getInstance().findProvider(name);
     }
+    
+    /**
+     * Check if a source is NSFW
+     * @param sourceName The source name
+     * @return true if the source is NSFW, false if SFW
+     */
+    public static boolean isSourceNsfw(String sourceName) {
+        ImageSourceProvider provider = ImageSourceRegistry.getInstance().getProvider(sourceName);
+        return provider != null ? provider.isNsfw() : true; // Default to NSFW if unknown
+    }
 
     /**
      * Get a random image from any available source (replacement for ALL)
@@ -155,6 +170,9 @@ public class ImageSource {
         ImageSourceRegistry registry = ImageSourceRegistry.getInstance();
         Collection<ImageSourceProvider> allProviders = registry.getAllProviders();
         
+        // Check if NSFW sources are allowed in this channel
+        boolean allowNsfw = canUseNsfwSources(interaction, user);
+        
         // Get default options and user options
         List<ImageOptions> defaultImageOptions = ImageOptions.getDefaultOptions();
         Map<String, ImageOptions> userImageOptions = user.getImageOptionsMap();
@@ -176,6 +194,11 @@ public class ImageSource {
             // Find corresponding provider
             ImageSourceProvider provider = findProviderForImageType(allProviders, imageType);
             if (provider == null || !provider.isEnabled()) {
+                continue;
+            }
+            
+            // Skip NSFW providers if channel doesn't allow NSFW content
+            if (provider.isNsfw() && !allowNsfw) {
                 continue;
             }
             
@@ -211,10 +234,17 @@ public class ImageSource {
             
             // Find corresponding provider
             ImageSourceProvider provider = findProviderForImageType(allProviders, imageType);
-            if (provider != null && provider.isEnabled() && userOption.isEnabled() && userOption.getChance() > 0) {
-                weightedSources.add(new WeightedSource(provider, userOption.getChance(), imageType));
-                totalWeight += userOption.getChance();
+            if (provider == null || !provider.isEnabled() || !userOption.isEnabled() || userOption.getChance() <= 0) {
+                continue;
             }
+            
+            // Skip NSFW providers if channel doesn't allow NSFW content
+            if (provider.isNsfw() && !allowNsfw) {
+                continue;
+            }
+            
+            weightedSources.add(new WeightedSource(provider, userOption.getChance(), imageType));
+            totalWeight += userOption.getChance();
         }
         
         if (weightedSources.isEmpty()) {
@@ -278,6 +308,7 @@ public class ImageSource {
             case "imgur" -> IMGUR;
             case "reddit" -> "REDDIT"; // Plugin source
             case "rule34xxx" -> RULE34XXX;
+            case "booru" -> BOORU;
             case "tenor" -> TENOR;
             case "google" -> GOOGLE;
             case "movies" -> MOVIE;
@@ -331,6 +362,29 @@ public class ImageSource {
             this.weight = weight;
             this.imageType = imageType;
         }
+    }
+    
+    /**
+     * Check if NSFW sources can be used based on channel type and user settings
+     * @param interaction The Discord interaction
+     * @param user The user making the request
+     * @return true if NSFW sources are allowed
+     */
+    private static boolean canUseNsfwSources(Interaction interaction, User user) {
+        ChannelType type = interaction.getChannelType();
+        
+        // DMs are allowed if user has NSFW enabled
+        if (type == ChannelType.PRIVATE) {
+            return user.isNsfw();
+        }
+        
+        // Text channels - check if NSFW channel
+        if (type == ChannelType.TEXT) {
+            return ((ChannelUnion) interaction.getChannel()).asTextChannel().isNSFW();
+        }
+        
+        // For other channel types (threads, forums, etc.), default to non-NSFW
+        return false;
     }
 
 }

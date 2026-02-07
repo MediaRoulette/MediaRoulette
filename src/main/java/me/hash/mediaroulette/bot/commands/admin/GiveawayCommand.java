@@ -13,6 +13,7 @@ import me.hash.mediaroulette.model.Giveaway;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.service.BotInventoryService;
 import me.hash.mediaroulette.service.GiveawayService;
+import me.hash.mediaroulette.locale.LocaleManager;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -308,10 +309,12 @@ public class GiveawayCommand extends BaseCommand {
     private void handleGiveawayEntry(ButtonInteractionEvent event, String componentId) {
         String giveawayId = componentId.substring("giveaway:enter:".length());
         String userId = event.getUser().getId();
+        User user = Main.getUserService().getOrCreateUser(userId);
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
 
         Optional<Giveaway> giveawayOpt = giveawayService.getGiveaway(giveawayId);
         if (giveawayOpt.isEmpty()) {
-            event.reply("❌ This giveaway no longer exists.").setEphemeral(true).queue();
+            event.reply("❌ " + locale.get("giveaway.not_exists")).setEphemeral(true).queue();
             return;
         }
 
@@ -320,30 +323,26 @@ public class GiveawayCommand extends BaseCommand {
         if (!giveaway.canEnter(userId)) {
             String reason;
             if (giveaway.getEntries().contains(userId)) {
-                reason = "You have already entered this giveaway!";
+                reason = locale.get("giveaway.already_entered");
             } else if (giveaway.isExpired()) {
-                reason = "This giveaway has ended!";
+                reason = locale.get("giveaway.ended");
             } else if (giveaway.getMaxEntries() > 0 && giveaway.getEntries().size() >= giveaway.getMaxEntries()) {
-                reason = "This giveaway has reached maximum entries!";
+                reason = locale.get("giveaway.max_entries_reached");
             } else {
-                reason = "You cannot enter this giveaway.";
+                reason = locale.get("giveaway.cannot_enter");
             }
             
             event.reply("❌ " + reason).setEphemeral(true).queue();
             return;
         }
 
-        // Add entry
         boolean added = giveaway.addEntry(userId);
         if (added) {
             giveawayService.updateGiveaway(giveaway);
-            
-            // Update the giveaway message with new entry count
             updateGiveawayMessage(giveaway, false);
-            
-            event.reply("✅ You have successfully entered the giveaway! Good luck! 🍀").setEphemeral(true).queue();
+            event.reply(locale.get("giveaway.entry_success")).setEphemeral(true).queue();
         } else {
-            event.reply("❌ Failed to enter the giveaway. Please try again.").setEphemeral(true).queue();
+            event.reply("❌ " + locale.get("giveaway.entry_failed")).setEphemeral(true).queue();
         }
     }
 

@@ -43,9 +43,12 @@ public class Bot extends ListenerAdapter {
                 new ThreadPoolExecutor.AbortPolicy()
         );
 
+        // Check if maintenance mode is enabled at startup
+        boolean maintenanceMode = Main.getLocalConfig().getMaintenanceMode();
+
         this.shardManager = DefaultShardManagerBuilder.createDefault(token)
-                .setActivity(Activity.playing("Use /support for help! | Alpha :3"))
-                .setStatus(OnlineStatus.ONLINE)
+                .setActivity(Activity.playing(maintenanceMode ? "🔧 Under Maintenance" : "Use /support for help! | Alpha :3"))
+                .setStatus(maintenanceMode ? OnlineStatus.DO_NOT_DISTURB : OnlineStatus.ONLINE)
                 .setShardsTotal(-1)
                 .addEventListeners(
                         new AdminCommand(),

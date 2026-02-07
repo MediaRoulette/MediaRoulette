@@ -16,12 +16,17 @@ import net.dv8tion.jda.api.components.thumbnail.Thumbnail;
 import net.dv8tion.jda.api.components.tree.MessageComponentTree;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.Color;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
 
 public class ImageInteractionService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ImageInteractionService.class);
 
     private static ImageInteractionService instance;
     private final Map<Long, MessageData> activeMessages = new ConcurrentHashMap<>();
@@ -108,7 +113,7 @@ public class ImageInteractionService {
         User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
         LocaleManager locale = LocaleManager.getInstance(user.getLocale());
 
-        event.getHook().editOriginalComponents(createLoadingContainer(event.getUser().getEffectiveAvatarUrl()))
+        event.getHook().editOriginalComponents(createLoadingContainer(user))
                 .useComponentsV2()
                 .queue(success -> {
                     try {
@@ -133,8 +138,8 @@ public class ImageInteractionService {
 
         try {
             MediaContainerManager.ContainerData containerData = MediaContainerManager.extractContainerData(event.getMessage());
-            String title = containerData.title != null ? containerData.title : ("Random " + data.getSubcommand());
-            String description = containerData.description != null ? containerData.description : ("Random " + data.getSubcommand() + " image");
+            String title = containerData.title != null ? containerData.title : locale.get("image.random_title", data.getSubcommand());
+            String description = containerData.description != null ? containerData.description : locale.get("image.random_description", data.getSubcommand());
             String imageUrl = containerData.imageUrl;
 
             if (imageUrl == null || imageUrl.isBlank() || "none".equals(imageUrl)) {
@@ -151,13 +156,14 @@ public class ImageInteractionService {
         }
     }
 
-    public Container createLoadingContainer(String avatarUrl) {
+    public Container createLoadingContainer(User user) {
+        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
         return Container.of(
                 Section.of(
-                        Thumbnail.fromUrl(avatarUrl),
-                        TextDisplay.of("## <a:loading:1350829863157891094> Generating Image..."),
-                        TextDisplay.of("**Please wait while we fetch your random image...**"),
-                        TextDisplay.of("*This may take a few seconds*")
+                        Thumbnail.fromUrl(user.getEffectiveAvatarUrl()),
+                        TextDisplay.of("## <a:loading:1350829863157891094> " + locale.get("info.generating_image")),
+                        TextDisplay.of("**" + locale.get("info.please_wait") + "**"),
+                        TextDisplay.of("*" + locale.get("info.may_take_seconds") + "*")
                 )
         ).withAccentColor(new Color(88, 101, 242));
     }
@@ -180,15 +186,37 @@ public class ImageInteractionService {
         try {
             MessageComponentTree tree = event.getMessage().getComponentTree();
             ComponentReplacer replacer = ComponentReplacer.of(Button.class, b -> buttonId.equals(b.getCustomId()), Button::asDisabled);
-            event.getHook().editOriginalComponents(tree.replace(replacer)).useComponentsV2().queue();
-        } catch (Exception ignored) {}
+            event.getHook().editOriginalComponents(tree.replace(replacer)).useComponentsV2().queue(
+                    success -> {},
+                    failure -> {
+                        if (failure.getMessage() != null && failure.getMessage().contains("40005")) {
+                            LOGGER.debug("Could not disable button '{}' due to large media - action still completed", buttonId);
+                        } else {
+                            LOGGER.warn("Failed to disable button '{}': {}", buttonId, failure.getMessage());
+                        }
+                    }
+            );
+        } catch (Exception e) {
+            LOGGER.debug("Exception in disableButton: {}", e.getMessage());
+        }
     }
 
     private void disableAllButtons(ButtonInteractionEvent event) {
         try {
             MessageComponentTree tree = event.getMessage().getComponentTree();
             ComponentReplacer replacer = ComponentReplacer.of(Button.class, b -> true, Button::asDisabled);
-            event.getHook().editOriginalComponents(tree.replace(replacer)).useComponentsV2().queue();
-        } catch (Exception ignored) {}
+            event.getHook().editOriginalComponents(tree.replace(replacer)).useComponentsV2().queue(
+                    success -> {},
+                    failure -> {
+                        if (failure.getMessage() != null && failure.getMessage().contains("40005")) {
+                            LOGGER.debug("Could not disable buttons due to large media - action still completed");
+                        } else {
+                            LOGGER.warn("Failed to disable all buttons: {}", failure.getMessage());
+                        }
+                    }
+            );
+        } catch (Exception e) {
+            LOGGER.debug("Exception in disableAllButtons: {}", e.getMessage());
+        }
     }
 }

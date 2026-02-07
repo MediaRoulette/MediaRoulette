@@ -152,4 +152,9 @@ public class PicsumProvider implements MediaProvider {
     public String getProviderName() {
         return "Picsum";
     }
+    
+    @Override
+    public boolean isNsfw() {
+        return false;
+    }
 }

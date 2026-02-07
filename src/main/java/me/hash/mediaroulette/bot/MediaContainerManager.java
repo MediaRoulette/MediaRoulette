@@ -113,8 +113,8 @@ public class MediaContainerManager {
     // ===== DELEGATED PAGINATION HELPERS =====
 
     public static ActionRow createPaginationButtons(String baseId, int currentPage, int totalPages,
-                                                    String additionalData) {
-        return EmbedFactory.createPaginationButtons(baseId, currentPage, totalPages, additionalData);
+                                                    String additionalData, String prevLabel, String nextLabel, String refreshLabel) {
+        return EmbedFactory.createPaginationButtons(baseId, currentPage, totalPages, additionalData, prevLabel, nextLabel, refreshLabel);
     }
 
     public static EmbedBuilder addPaginationFooter(EmbedBuilder embed, int currentPage, int totalPages,

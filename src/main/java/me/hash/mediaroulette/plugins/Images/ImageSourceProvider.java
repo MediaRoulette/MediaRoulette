@@ -102,4 +102,14 @@ public interface ImageSourceProvider {
     default Map<String, PreferenceSetting> getPreferencesSchema() {
         return Collections.emptyMap();
     }
+    
+    /**
+     * Check if this source provides NSFW content.
+     * If true, the source requires NSFW channel or DM access.
+     * If false, the source can be used in any channel.
+     * @return true if the source is NSFW (default), false if SFW
+     */
+    default boolean isNsfw() {
+        return true; // Safe default - assume NSFW unless explicitly marked SFW
+    }
 }
