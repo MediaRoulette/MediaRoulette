@@ -52,7 +52,7 @@ dependencies {
     implementation("org.mongodb:mongodb-driver-sync:5.6.4")
     implementation("ch.qos.logback:logback-classic:1.5.32")
     implementation("org.fusesource.jansi:jansi:2.4.2")
-    implementation("org.yaml:snakeyaml:2.5")
+    implementation("org.yaml:snakeyaml:2.6")
     implementation("org.jline:jline:3.30.6")
 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
