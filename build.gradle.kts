@@ -40,7 +40,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     
     // JDA without audio support (saves ~12 MB - opus-java, tink)
-    implementation("net.dv8tion:JDA:6.3.0") {
+    implementation("net.dv8tion:JDA:6.3.1") {
         exclude(module = "opus-java")
     }
 
@@ -50,19 +50,19 @@ dependencies {
     implementation("io.github.cdimascio:dotenv-java:3.2.0")
     implementation("club.minnced:discord-webhooks:0.8.4")
     implementation("org.mongodb:mongodb-driver-sync:5.6.4")
-    implementation("ch.qos.logback:logback-classic:1.5.27")
+    implementation("ch.qos.logback:logback-classic:1.5.32")
     implementation("org.fusesource.jansi:jansi:2.4.2")
     implementation("org.yaml:snakeyaml:2.5")
     implementation("org.jline:jline:3.30.6")
 
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.21.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.21.1")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
 
     implementation("com.bettercloud:vault-java-driver:5.1.0")
 
     // Testing
-    testImplementation(platform("org.junit:junit-bom:6.0.2"))
+    testImplementation(platform("org.junit:junit-bom:6.0.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.mockito:mockito-core:5.21.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.21.0")
