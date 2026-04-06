@@ -55,8 +55,8 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.6")
     implementation("org.jline:jline:3.30.6")
 
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.21.1")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.21.2")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
 
     implementation("com.bettercloud:vault-java-driver:5.1.0")
