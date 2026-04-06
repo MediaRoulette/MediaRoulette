@@ -53,7 +53,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.32")
     implementation("org.fusesource.jansi:jansi:2.4.2")
     implementation("org.yaml:snakeyaml:2.6")
-    implementation("org.jline:jline:3.30.6")
+    implementation("org.jline:jline:4.0.10")
 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
     implementation("com.fasterxml.jackson.core:jackson-core:2.21.1")
