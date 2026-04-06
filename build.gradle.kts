@@ -2,7 +2,7 @@ plugins {
     application
     `java-library`
     `maven-publish`
-    id("com.gradleup.shadow") version "9.3.2"
+    id("com.gradleup.shadow") version "9.4.1"
 }
 
 group = "me.hash"
