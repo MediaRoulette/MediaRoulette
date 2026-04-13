@@ -95,7 +95,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release with version tag
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: "Release ${{ steps.tag.outputs.tag }}"
@@ -125,7 +125,7 @@ jobs:
           generate_release_notes: true
 
       - name: Create/Update latest tag and release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: latest
           name: "Latest Release"
