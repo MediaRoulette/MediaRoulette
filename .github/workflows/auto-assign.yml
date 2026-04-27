@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: 'Auto-assign issue or PR'
-        uses: pozil/auto-assign-issue@v2
+        uses: pozil/auto-assign-issue@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           assignees: Zotixlx,Hashyies,yemss
