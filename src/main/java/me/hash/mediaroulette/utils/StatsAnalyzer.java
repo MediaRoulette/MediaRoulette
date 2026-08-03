@@ -24,6 +24,15 @@ public class StatsAnalyzer {
     private static final String REPORTS_DIR = "reports";
     private static final String CHARTS_DIR = "reports/charts";
 
+    private static long parseLong(String value) {
+        if (value == null) return 0;
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     public static class HourlyStats {
         public String hour;
         public long imagesGenerated;
@@ -60,14 +69,6 @@ public class StatsAnalyzer {
                 this.totalImagesInDb = parseLong(csvRow[14]);
             }
         }
-
-        private long parseLong(String value) {
-            try {
-                return Long.parseLong(value);
-            } catch (NumberFormatException e) {
-                return 0;
-            }
-        }
     }
 
     public static class SourceUsageStats {
@@ -82,14 +83,6 @@ public class StatsAnalyzer {
                 this.usageCount = parseLong(csvRow[2]);
             }
         }
-
-        private long parseLong(String value) {
-            try {
-                return Long.parseLong(value);
-            } catch (NumberFormatException e) {
-                return 0;
-            }
-        }
     }
 
     public static class CommandUsageStats {
@@ -102,14 +95,6 @@ public class StatsAnalyzer {
                 this.hour = csvRow[0];
                 this.command = csvRow[1];
                 this.usageCount = parseLong(csvRow[2]);
-            }
-        }
-
-        private long parseLong(String value) {
-            try {
-                return Long.parseLong(value);
-            } catch (NumberFormatException e) {
-                return 0;
             }
         }
     }

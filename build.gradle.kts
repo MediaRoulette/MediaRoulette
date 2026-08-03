@@ -60,6 +60,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
 
     implementation("com.bettercloud:vault-java-driver:5.1.0")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
     // Testing
     testImplementation(platform("org.junit:junit-bom:6.0.3"))
@@ -73,10 +74,8 @@ tasks.test {
     useJUnitPlatform()
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
+tasks.withType<JavaCompile> {
+    options.release.set(21)
 }
 
 application {

@@ -35,11 +35,14 @@ public class ColorExtractor {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
     
-    private static final FFmpegService ffmpegService = new FFmpegService();
+    private static final FFmpegService ffmpegService = FFmpegService.getInstance();
     
-    // Simple LRU-like cache for extracted colors
-    private static final int MAX_CACHE_SIZE = 500;
-    private static final Map<String, Color> colorCache = new ConcurrentHashMap<>();
+    // Bounded LRU cache using Caffeine
+    private static final com.github.benmanes.caffeine.cache.Cache<String, Color> colorCache = 
+            com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
+                    .maximumSize(500)
+                    .expireAfterAccess(1, java.util.concurrent.TimeUnit.HOURS)
+                    .build();
     
     // Extensions that Java ImageIO can handle natively
     private static final Set<String> NATIVE_IMAGE_EXTENSIONS = Set.of(
@@ -70,7 +73,7 @@ public class ColorExtractor {
         }
         
         // Check cache first
-        Color cached = colorCache.get(imageUrl);
+        Color cached = colorCache.getIfPresent(imageUrl);
         if (cached != null) {
             return CompletableFuture.completedFuture(cached);
         }
@@ -278,15 +281,6 @@ public class ColorExtractor {
     }
     
     private static void cacheColor(String url, Color color) {
-        // Simple cache management - remove oldest entries if too large
-        if (colorCache.size() >= MAX_CACHE_SIZE) {
-            // Remove first quarter of entries (rough LRU behavior)
-            int toRemove = MAX_CACHE_SIZE / 4;
-            colorCache.keySet().stream()
-                    .limit(toRemove)
-                    .toList()
-                    .forEach(colorCache::remove);
-        }
         colorCache.put(url, color);
     }
     
@@ -294,7 +288,7 @@ public class ColorExtractor {
      * Clears the color cache.
      */
     public static void clearCache() {
-        colorCache.clear();
+        colorCache.invalidateAll();
         logger.debug("Color cache cleared");
     }
     
@@ -302,6 +296,6 @@ public class ColorExtractor {
      * Gets the current cache size.
      */
     public static int getCacheSize() {
-        return colorCache.size();
+        return (int) colorCache.estimatedSize();
     }
 }

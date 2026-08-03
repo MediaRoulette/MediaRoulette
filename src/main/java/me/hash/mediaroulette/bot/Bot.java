@@ -16,7 +16,7 @@ import me.hash.mediaroulette.bot.commands.config.ChancesCommand;
 import me.hash.mediaroulette.bot.commands.dictionary.DictionaryCommand;
 import me.hash.mediaroulette.bot.commands.config.SettingsCommand;
 import me.hash.mediaroulette.bot.commands.images.FavoritesCommand;
-import me.hash.mediaroulette.bot.commands.images.getRandomImage;
+import me.hash.mediaroulette.bot.commands.images.GetRandomImageCommand;
 
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
@@ -30,18 +30,12 @@ import java.util.stream.Collectors;
 
 public class Bot extends ListenerAdapter {
     private final ShardManager shardManager;
-    private final ThreadPoolExecutor executor;
+    private final java.util.concurrent.ExecutorService executor;
     private final List<ListenerAdapter> listeners = new ArrayList<>();
     private final CooldownManager cooldownManager;
 
     public Bot(String token) {
-        this.executor = new ThreadPoolExecutor(
-                Runtime.getRuntime().availableProcessors() * 4, // core
-                1000,
-                60L, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(2000),
-                new ThreadPoolExecutor.AbortPolicy()
-        );
+        this.executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
 
         // Check if maintenance mode is enabled at startup
         boolean maintenanceMode = Main.getLocalConfig().getMaintenanceMode();
@@ -61,7 +55,7 @@ public class Bot extends ListenerAdapter {
 
         addCommands(
                 new FavoritesCommand(),
-                new getRandomImage(),
+                new GetRandomImageCommand(),
                 new ChancesCommand(),
                 new DictionaryCommand(Main.getDictionaryService()),
                 new SettingsCommand(Main.getDictionaryService()),
@@ -95,7 +89,7 @@ public class Bot extends ListenerAdapter {
         return shardManager;
     }
 
-    public ThreadPoolExecutor getExecutor() {
+    public java.util.concurrent.ExecutorService getExecutor() {
         return executor;
     }
 
@@ -104,8 +98,12 @@ public class Bot extends ListenerAdapter {
     }
 
     @Override
-    @SuppressWarnings("ALL")
     public void onReady(@NotNull ReadyEvent event) {
-        getShardManager().getGuildById(Main.getEnv("ADMIN_COMMAND_GUILD_ID")).updateCommands().addCommands(new AdminCommand().getCommandData()).queue();
+        net.dv8tion.jda.api.entities.Guild guild = getShardManager().getGuildById(Main.getEnv("ADMIN_COMMAND_GUILD_ID"));
+        if (guild != null) {
+            guild.updateCommands().addCommands(new AdminCommand().getCommandData()).queue();
+        } else {
+            System.err.println("Admin command guild not found/cached yet on startup");
+        }
     }
 }

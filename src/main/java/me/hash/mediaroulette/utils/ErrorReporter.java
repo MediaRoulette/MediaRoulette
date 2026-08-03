@@ -92,18 +92,14 @@ public class ErrorReporter {
         if (webhookClient == null) {
             // Fallback to console logging if webhook is not configured
             switch (logLevel) {
-                case "ERROR":
-                    logger.error("[{}] {} - {}: {} (User: {}, Source: {})",
-                            logLevel, title, description, details, userId != null ? userId : "unknown", source);
-                    break;
-                case "WARNING":
-                    logger.warn("[{}] {} - {}: {} (User: {}, Source: {})",
-                            logLevel, title, description, details, userId != null ? userId : "unknown", source);
-                    break;
-                case "INFO":
-                    logger.info("[{}] {} - {}: {} (User: {}, Source: {})",
-                            logLevel, title, description, details, userId != null ? userId : "unknown", source);
-                    break;
+                case "ERROR" -> logger.error("[{}] {} - {}: {} (User: {}, Source: {})",
+                        logLevel, title, description, details, userId != null ? userId : "unknown", source);
+                case "WARNING" -> logger.warn("[{}] {} - {}: {} (User: {}, Source: {})",
+                        logLevel, title, description, details, userId != null ? userId : "unknown", source);
+                case "INFO" -> logger.info("[{}] {} - {}: {} (User: {}, Source: {})",
+                        logLevel, title, description, details, userId != null ? userId : "unknown", source);
+                default -> logger.debug("[{}] {} - {}: {} (User: {}, Source: {})",
+                        logLevel, title, description, details, userId != null ? userId : "unknown", source);
             }
             return;
         }

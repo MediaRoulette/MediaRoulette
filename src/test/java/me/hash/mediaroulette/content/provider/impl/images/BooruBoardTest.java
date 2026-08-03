@@ -33,27 +33,29 @@ class BooruBoardTest {
     @Test
     void values_ContainsAllBoards() {
         BooruBoard[] boards = BooruBoard.values();
-        assertEquals(2, boards.length);
+        assertEquals(4, boards.length);
         assertEquals(BooruBoard.RULE34, boards[0]);
         assertEquals(BooruBoard.GELBOORU, boards[1]);
+        assertEquals(BooruBoard.SAFEBOORU, boards[2]);
+        assertEquals(BooruBoard.TBIB, boards[3]);
     }
 
     @RepeatedTest(10)
     void random_ReturnsValidBoard() {
         BooruBoard board = BooruBoard.random();
         assertNotNull(board);
-        assertTrue(board == BooruBoard.RULE34 || board == BooruBoard.GELBOORU);
+        assertTrue(board == BooruBoard.RULE34 || board == BooruBoard.GELBOORU || board == BooruBoard.SAFEBOORU || board == BooruBoard.TBIB);
     }
 
     @Test
     void random_HasReasonableDistribution() {
-        // Run many times to verify both boards are returned
+        // Run many times to verify all boards are returned
         Set<BooruBoard> seenBoards = new HashSet<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 200; i++) {
             seenBoards.add(BooruBoard.random());
-            if (seenBoards.size() == 2) break;
+            if (seenBoards.size() == 4) break;
         }
-        assertEquals(2, seenBoards.size(), "Both boards should be returned randomly");
+        assertEquals(4, seenBoards.size(), "All 4 boards should be returned randomly");
     }
 
     @Test
@@ -109,8 +111,10 @@ class BooruBoardTest {
     @Test
     void getAll_ReturnsAllBoards() {
         List<BooruBoard> all = BooruBoard.getAll();
-        assertEquals(2, all.size());
+        assertEquals(4, all.size());
         assertTrue(all.contains(BooruBoard.RULE34));
         assertTrue(all.contains(BooruBoard.GELBOORU));
+        assertTrue(all.contains(BooruBoard.SAFEBOORU));
+        assertTrue(all.contains(BooruBoard.TBIB));
     }
 }

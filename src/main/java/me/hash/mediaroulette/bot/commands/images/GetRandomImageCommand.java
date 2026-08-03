@@ -3,7 +3,7 @@ package me.hash.mediaroulette.bot.commands.images;
 import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
-import me.hash.mediaroulette.bot.MediaContainerManager;
+import me.hash.mediaroulette.bot.utils.EmbedFactory;
 import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.model.MessageData;
 import me.hash.mediaroulette.model.User;
@@ -25,12 +25,12 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 
 import java.util.Map;
 
-public class getRandomImage extends BaseCommand {
+public class GetRandomImageCommand extends BaseCommand {
 
     private final ImageRequestService requestService;
     private final ImageInteractionService interactionService;
 
-    public getRandomImage() {
+    public GetRandomImageCommand() {
         this.requestService = ImageRequestService.getInstance();
         this.interactionService = ImageInteractionService.getInstance();
     }
@@ -104,7 +104,7 @@ public class getRandomImage extends BaseCommand {
 
                         requestService.trackStats(user.getUserId(), subcommand, user);
 
-                        MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
+                        me.hash.mediaroulette.bot.MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
                                 .thenAccept(msg -> {
                                     interactionService.registerMessage(msg.getIdLong(),
                                             new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));

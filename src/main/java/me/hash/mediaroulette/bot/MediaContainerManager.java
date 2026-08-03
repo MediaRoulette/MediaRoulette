@@ -36,91 +36,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Unified manager for Discord embeds and containers.
+ * unified manager for discord embeds and containers.
  * Optimized with timeout handling and delegation to helper classes.
  */
 public class MediaContainerManager {
     private static final Logger logger = LoggerFactory.getLogger(MediaContainerManager.class);
 
-    private static final FFmpegService ffmpegService = new FFmpegService();
+    private static final FFmpegService ffmpegService = FFmpegService.getInstance();
     private static boolean ffmpegInitialized = false;
-
-    // ===== DELEGATED EMBED BUILDERS =====
-
-    public static EmbedBuilder createBase() {
-        return EmbedFactory.createBase();
-    }
-
-    public static EmbedBuilder createSuccess(String title, String description) {
-        return EmbedFactory.createSuccess(title, description);
-    }
-
-    public static EmbedBuilder createError(String title, String description) {
-        return EmbedFactory.createError(title, description);
-    }
-
-    public static EmbedBuilder createWarning(String title, String description) {
-        return EmbedFactory.createWarning(title, description);
-    }
-
-    public static EmbedBuilder createInfo(String title, String description) {
-        return EmbedFactory.createInfo(title, description);
-    }
-
-    public static EmbedBuilder createCooldown(String duration) {
-        return EmbedFactory.createCooldown(duration);
-    }
-
-    public static EmbedBuilder createLoading(String title, String description) {
-        return EmbedFactory.createLoading(title, description);
-    }
-
-    public static EmbedBuilder createEconomy(String title, String description, boolean isPremium) {
-        return EmbedFactory.createEconomy(title, description, isPremium);
-    }
-
-    public static EmbedBuilder createUserEmbed(String title, String description,
-                                               net.dv8tion.jda.api.entities.User discordUser,
-                                               User botUser) {
-        return EmbedFactory.createUserEmbed(title, description, discordUser, botUser);
-    }
-
-    public static EmbedBuilder createWithAuthor(String title, String description, Color color,
-                                                net.dv8tion.jda.api.entities.User user) {
-        return EmbedFactory.createWithAuthor(title, description, color, user);
-    }
-
-    // ===== DELEGATED FIELD HELPERS =====
-
-    public static EmbedBuilder addCodeField(EmbedBuilder embed, String name, String value, boolean inline) {
-        return EmbedFactory.addCodeField(embed, name, value, inline);
-    }
-
-    public static EmbedBuilder addEmojiField(EmbedBuilder embed, String emoji, String name,
-                                             String value, boolean inline) {
-        return EmbedFactory.addEmojiField(embed, emoji, name, value, inline);
-    }
-
-    public static EmbedBuilder addCoinField(EmbedBuilder embed, String name, long amount, boolean inline) {
-        return EmbedFactory.addCoinField(embed, name, amount, inline);
-    }
-
-    public static EmbedBuilder addCountField(EmbedBuilder embed, String name, long count,
-                                             String unit, boolean inline) {
-        return EmbedFactory.addCountField(embed, name, count, unit, inline);
-    }
-
-    // ===== DELEGATED PAGINATION HELPERS =====
-
-    public static ActionRow createPaginationButtons(String baseId, int currentPage, int totalPages,
-                                                    String additionalData, String prevLabel, String nextLabel, String refreshLabel) {
-        return EmbedFactory.createPaginationButtons(baseId, currentPage, totalPages, additionalData, prevLabel, nextLabel, refreshLabel);
-    }
-
-    public static EmbedBuilder addPaginationFooter(EmbedBuilder embed, int currentPage, int totalPages,
-                                                   int totalItems) {
-        return EmbedFactory.addPaginationFooter(embed, currentPage, totalPages, totalItems);
-    }
 
     // ===== CONTAINER OPERATIONS =====
 

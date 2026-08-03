@@ -8,18 +8,30 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class UserService {
     private final UserRepository userRepository;
-    // Simple in-memory cache; replace with a more robust solution if needed.
-    private final ConcurrentHashMap<String, User> cache = new ConcurrentHashMap<>();
+    // Bounded LRU cache using Caffeine
+    private final com.github.benmanes.caffeine.cache.Cache<String, User> cache = 
+            com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
+                    .maximumSize(5000)
+                    .expireAfterAccess(30, java.util.concurrent.TimeUnit.MINUTES)
+                    .build();
+    private final java.util.Set<String> dirtyUserIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.concurrent.ScheduledExecutorService writeScheduler;
 
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
+        this.writeScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "UserService-Writer");
+            t.setDaemon(true);
+            return t;
+        });
+        this.writeScheduler.scheduleAtFixedRate(this::flushDirtyUsers, 5, 5, java.util.concurrent.TimeUnit.SECONDS);
     }
 
     /**
      * Fetches an existing user or creates a new one if not found.
      */
     public User getOrCreateUser(String userId) {
-        return cache.computeIfAbsent(userId, id -> userRepository.findById(id)
+        return cache.get(userId, id -> userRepository.findById(id)
                 .orElseGet(() -> {
                     User newUser = new User(id);
                     User savedUser = userRepository.save(newUser);
@@ -37,7 +49,7 @@ public class UserService {
      * Checks if a user exists.
      */
     public boolean userExists(String userId) {
-        return cache.containsKey(userId) || userRepository.exists(userId);
+        return cache.getIfPresent(userId) != null || userRepository.exists(userId);
     }
 
     /**
@@ -53,8 +65,8 @@ public class UserService {
      * Generic update method for a user.
      */
     public void updateUser(User user) {
-        userRepository.save(user);
         cache.put(user.getUserId(), user);
+        dirtyUserIds.add(user.getUserId());
     }
 
     // --- Convenience Methods for Updating User Properties ---
@@ -181,12 +193,45 @@ public class UserService {
      * Returns user IDs from the in-memory cache (recently active users).
      */
     public java.util.List<String> getRecentUserIds(int limit) {
-        return cache.keySet().stream()
+        return cache.asMap().keySet().stream()
                 .limit(limit)
                 .collect(java.util.stream.Collectors.toList());
     }
 
     public UserRepository getUserRepository() {
         return userRepository;
+    }
+
+    private void flushDirtyUsers() {
+        if (dirtyUserIds.isEmpty()) return;
+        java.util.List<String> idsToFlush = new java.util.ArrayList<>(dirtyUserIds);
+        dirtyUserIds.removeAll(idsToFlush);
+        for (String id : idsToFlush) {
+            User user = cache.getIfPresent(id);
+            if (user != null) {
+                try {
+                    userRepository.save(user);
+                } catch (Exception e) {
+                    org.slf4j.LoggerFactory.getLogger(UserService.class)
+                            .error("Failed to save user {} during flush: {}", id, e.getMessage());
+                    dirtyUserIds.add(id); // Retry next time
+                }
+            }
+        }
+    }
+
+    public void shutdown() {
+        if (writeScheduler != null) {
+            writeScheduler.shutdown();
+            try {
+                if (!writeScheduler.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    writeScheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                writeScheduler.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        flushDirtyUsers();
     }
 }

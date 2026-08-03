@@ -21,6 +21,12 @@ import java.util.concurrent.CompletableFuture;
  * color analysis, and GIF creation.
  */
 public class FFmpegService {
+    private static final FFmpegService INSTANCE = new FFmpegService();
+
+    public static FFmpegService getInstance() {
+        return INSTANCE;
+    }
+
     private final FFmpegConfig config;
     private final VideoProcessor videoProcessor;
     private final ThumbnailProcessor thumbnailProcessor;

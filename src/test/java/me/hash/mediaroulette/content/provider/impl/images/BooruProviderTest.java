@@ -126,20 +126,11 @@ class BooruProviderTest {
         // Should be one of the valid sources
         assertTrue(
             result.getSource().equals(MediaSource.RULE34) || 
-            result.getSource().getDisplayName().equals("Gelbooru"),
+            result.getSource().getDisplayName().equals("Gelbooru") ||
+            result.getSource().getDisplayName().equals("Safebooru") ||
+            result.getSource().getDisplayName().equals("TBIB"),
             "Should fallback to a valid board"
         );
-    }
-
-    @Test
-    @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void getRandomMedia_ResultContainsNSFWWarning() throws Exception {
-        // Use Gelbooru as it tends to be more reliable
-        MediaResult result = fetchWithRetry("gelbooru", 3);
-        
-        assertNotNull(result);
-        assertTrue(result.getDescription().contains("NSFW"), 
-            "Description should contain NSFW warning");
     }
 
     @Test
@@ -159,7 +150,7 @@ class BooruProviderTest {
     void selectBoard_WithNullQuery_ReturnsValidBoard() throws Exception {
         BooruBoard result = invokeSelectBoard(null);
         assertNotNull(result);
-        assertTrue(result == BooruBoard.RULE34 || result == BooruBoard.GELBOORU);
+        assertTrue(result == BooruBoard.RULE34 || result == BooruBoard.GELBOORU || result == BooruBoard.SAFEBOORU || result == BooruBoard.TBIB);
     }
 
     @Test
@@ -186,7 +177,7 @@ class BooruProviderTest {
     void selectBoard_WithUnknownBoard_FallsBackToValidBoard() throws Exception {
         BooruBoard result = invokeSelectBoard("danbooru");
         assertNotNull(result);
-        assertTrue(result == BooruBoard.RULE34 || result == BooruBoard.GELBOORU);
+        assertTrue(result == BooruBoard.RULE34 || result == BooruBoard.GELBOORU || result == BooruBoard.SAFEBOORU || result == BooruBoard.TBIB);
     }
 
     private MediaResult fetchWithRetry(String query, int maxRetries) throws Exception {

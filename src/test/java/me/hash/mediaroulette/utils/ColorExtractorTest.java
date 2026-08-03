@@ -64,11 +64,11 @@ class ColorExtractorTest {
     }
 
     @Nested
-    @DisplayName("getExtensionFromUrl tests (via reflection)")
-    class GetExtensionFromUrlTests {
+    @DisplayName("getExtension tests (via reflection)")
+    class GetExtensionTests {
 
-        private String getExtensionFromUrl(String url) throws Exception {
-            Method method = ColorExtractor.class.getDeclaredMethod("getExtensionFromUrl", String.class);
+        private String getExtension(String url) throws Exception {
+            Method method = ColorExtractor.class.getDeclaredMethod("getExtension", String.class);
             method.setAccessible(true);
             return (String) method.invoke(null, url);
         }
@@ -83,7 +83,7 @@ class ColorExtractorTest {
             "https://example.com/file.webm, webm"
         })
         void shouldExtractSimpleExtension(String url, String expected) throws Exception {
-            assertEquals(expected, getExtensionFromUrl(url));
+            assertEquals(expected, getExtension(url));
         }
 
         @ParameterizedTest
@@ -95,7 +95,7 @@ class ColorExtractorTest {
             "https://cdn.example.com/file.webm?v=2&format=hd, webm"
         })
         void shouldExtractExtensionWithQueryParams(String url, String expected) throws Exception {
-            assertEquals(expected, getExtensionFromUrl(url));
+            assertEquals(expected, getExtension(url));
         }
 
         @ParameterizedTest
@@ -105,7 +105,7 @@ class ColorExtractorTest {
             "https://example.com/page.jpg#anchor, jpg"
         })
         void shouldExtractExtensionWithFragment(String url, String expected) throws Exception {
-            assertEquals(expected, getExtensionFromUrl(url));
+            assertEquals(expected, getExtension(url));
         }
 
         @ParameterizedTest
@@ -115,7 +115,7 @@ class ColorExtractorTest {
             "https://example.com/image.jpg?v=1&t=2#anchor, jpg"
         })
         void shouldExtractExtensionWithQueryAndFragment(String url, String expected) throws Exception {
-            assertEquals(expected, getExtensionFromUrl(url));
+            assertEquals(expected, getExtension(url));
         }
 
         @ParameterizedTest
@@ -126,13 +126,13 @@ class ColorExtractorTest {
             "https://api.v2.example.com/files/doc.pdf, pdf"
         })
         void shouldHandleDotsInPath(String url, String expected) throws Exception {
-            assertEquals(expected, getExtensionFromUrl(url));
+            assertEquals(expected, getExtension(url));
         }
 
         @Test
         @DisplayName("Should return null for null URL")
         void shouldReturnNullForNull() throws Exception {
-            assertNull(getExtensionFromUrl(null));
+            assertNull(getExtension(null));
         }
 
         @ParameterizedTest
@@ -143,82 +143,7 @@ class ColorExtractorTest {
             "https://redgifs.com/watch/happycat"
         })
         void shouldReturnNullForNoExtension(String url) throws Exception {
-            assertNull(getExtensionFromUrl(url));
-        }
-    }
-
-    @Nested
-    @DisplayName("detectMediaType tests (via reflection)")
-    class DetectMediaTypeTests {
-
-        private Object detectMediaType(String url) throws Exception {
-            Method method = ColorExtractor.class.getDeclaredMethod("detectMediaType", String.class);
-            method.setAccessible(true);
-            return method.invoke(null, url);
-        }
-
-        @ParameterizedTest
-        @DisplayName("Should detect VIDEO type for video extensions")
-        @ValueSource(strings = {
-            "https://example.com/video.mp4",
-            "https://example.com/video.mp4?token=abc",
-            "https://example.com/video.webm",
-            "https://example.com/video.mov",
-            "https://example.com/video.avi",
-            "https://example.com/video.mkv",
-            "https://example.com/video.m4v",
-            "https://example.com/video.m4s",
-            "https://example.com/video.3gp",
-            "https://example.com/video.ogv",
-            "https://example.com/video.ts"
-        })
-        void shouldDetectVideoType(String url) throws Exception {
-            Object mediaType = detectMediaType(url);
-            assertEquals("VIDEO", mediaType.toString());
-        }
-
-        @ParameterizedTest
-        @DisplayName("Should detect IMAGE type for image extensions")
-        @ValueSource(strings = {
-            "https://example.com/image.jpg",
-            "https://example.com/image.jpeg",
-            "https://example.com/image.png",
-            "https://example.com/image.gif",
-            "https://example.com/image.webp",
-            "https://example.com/image.bmp",
-            "https://example.com/image.ico",
-            "https://example.com/image.tiff"
-        })
-        void shouldDetectImageType(String url) throws Exception {
-            Object mediaType = detectMediaType(url);
-            assertEquals("IMAGE", mediaType.toString());
-        }
-
-        @ParameterizedTest
-        @DisplayName("Should detect VIDEO type for video platforms without extension")
-        @ValueSource(strings = {
-            "https://redgifs.com/watch/happycat",
-            "https://gfycat.com/happycatrunning",
-            "https://youtube.com/watch?v=abc",
-            "https://youtu.be/abc123",
-            "https://streamable.com/xyz"
-        })
-        void shouldDetectVideoPlatforms(String url) throws Exception {
-            Object mediaType = detectMediaType(url);
-            assertEquals("VIDEO", mediaType.toString());
-        }
-
-        @ParameterizedTest
-        @DisplayName("Should handle mixed case extensions")
-        @CsvSource({
-            "https://example.com/video.MP4, VIDEO",
-            "https://example.com/video.Mp4, VIDEO",
-            "https://example.com/image.JPG, IMAGE",
-            "https://example.com/image.Jpeg, IMAGE"
-        })
-        void shouldHandleMixedCaseExtensions(String url, String expectedType) throws Exception {
-            Object mediaType = detectMediaType(url);
-            assertEquals(expectedType, mediaType.toString());
+            assertNull(getExtension(url));
         }
     }
 
@@ -227,25 +152,12 @@ class ColorExtractorTest {
     class EdgeCaseTests {
 
         @Test
-        @DisplayName("Should handle double slashes in URL path")
-        void shouldHandleDoubleSlashesInPath() throws Exception {
-            String url = "https://wimg.rule34.xxx//images/6783/e08c9fcfd438faec66a4bbdcc3a93406.mp4?7743470";
-            
-            Method method = ColorExtractor.class.getDeclaredMethod("detectMediaType", String.class);
-            method.setAccessible(true);
-            Object mediaType = method.invoke(null, url);
-            
-            assertEquals("VIDEO", mediaType.toString(), 
-                "Should correctly detect video with double slashes and query params");
-        }
-
-        @Test
         @DisplayName("Should handle very long query strings")
         void shouldHandleLongQueryStrings() throws Exception {
             String longQuery = "?token=" + "a".repeat(1000) + "&timestamp=123456789";
             String url = "https://example.com/video.mp4" + longQuery;
             
-            Method method = ColorExtractor.class.getDeclaredMethod("getExtensionFromUrl", String.class);
+            Method method = ColorExtractor.class.getDeclaredMethod("getExtension", String.class);
             method.setAccessible(true);
             String extension = (String) method.invoke(null, url);
             
@@ -257,7 +169,7 @@ class ColorExtractorTest {
         void shouldHandleEncodedCharacters() throws Exception {
             String url = "https://example.com/video%20file.mp4?name=test%20video";
             
-            Method method = ColorExtractor.class.getDeclaredMethod("getExtensionFromUrl", String.class);
+            Method method = ColorExtractor.class.getDeclaredMethod("getExtension", String.class);
             method.setAccessible(true);
             String extension = (String) method.invoke(null, url);
             

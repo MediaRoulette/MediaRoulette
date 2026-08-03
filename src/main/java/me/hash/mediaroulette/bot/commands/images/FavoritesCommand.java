@@ -1,8 +1,8 @@
 package me.hash.mediaroulette.bot.commands.images;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.MediaContainerManager;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
+import me.hash.mediaroulette.bot.utils.EmbedFactory;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.bot.utils.ErrorHandler;
 import me.hash.mediaroulette.model.Favorite;
@@ -318,7 +318,7 @@ public class FavoritesCommand extends BaseCommand {
         actionRows.add(ActionRow.of(menuBuilder.build()));
 
         int displayPage = page + 1;
-        ActionRow pagination = MediaContainerManager.createPaginationButtons("favorite", displayPage, Math.max(1, totalPages), 
+        ActionRow pagination = EmbedFactory.createPaginationButtons("favorite", displayPage, Math.max(1, totalPages), 
                 null, locale.get("ui.previous"), locale.get("ui.next"), locale.get("ui.refresh"));
         actionRows.add(pagination);
 

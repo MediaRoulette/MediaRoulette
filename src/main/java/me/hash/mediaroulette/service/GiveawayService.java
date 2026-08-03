@@ -42,11 +42,6 @@ public class GiveawayService {
         collection.insertOne(doc);
     }
 
-    public void saveGiveaway(Giveaway giveaway) {
-        Document doc = giveawayToDocument(giveaway);
-        collection.insertOne(doc);
-    }
-
     public void updateGiveaway(Giveaway giveaway) {
         Document doc = giveawayToDocument(giveaway);
         collection.replaceOne(Filters.eq("_id", giveaway.getId()), doc);

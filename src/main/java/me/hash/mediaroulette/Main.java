@@ -175,8 +175,6 @@ public class Main {
                         "awesome", "nice", "good", "best", "amazing"
                 );
                 basicDict.addWords(defaultWords);
-
-                // logger.info("Default dictionary initialized with {} words", defaultWords.size());
             }
         } catch (Exception e) {
             logger.error("Failed to initialize default dictionaries", e);
@@ -273,6 +271,10 @@ public class Main {
     private static void shutdownServices() {
         if (statsService != null) {
             safeShutdown("Stats Service", statsService::shutdown);
+        }
+
+        if (userService != null) {
+            safeShutdown("User Service", userService::shutdown);
         }
 
         safeShutdown("Giveaway Service", GiveawayManager::shutdown);

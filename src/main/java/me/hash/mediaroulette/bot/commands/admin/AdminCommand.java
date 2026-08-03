@@ -4,7 +4,7 @@ import me.hash.mediaroulette.Main;
 import me.hash.mediaroulette.bot.commands.BaseCommand;
 import me.hash.mediaroulette.bot.utils.CommandCooldown;
 import me.hash.mediaroulette.config.LocalConfig;
-import me.hash.mediaroulette.bot.MediaContainerManager;
+import me.hash.mediaroulette.bot.utils.EmbedFactory;
 import me.hash.mediaroulette.model.BotInventoryItem;
 import me.hash.mediaroulette.model.User;
 import me.hash.mediaroulette.service.BotInventoryService;
@@ -483,14 +483,14 @@ public class AdminCommand extends BaseCommand {
     }
 
     private void sendModalError(ModalInteractionEvent event, String message) {
-        event.replyEmbeds(MediaContainerManager.createError("Error", message).build()).setEphemeral(true).queue();
+        event.replyEmbeds(EmbedFactory.createError("Error", message).build()).setEphemeral(true).queue();
     }
     
     private void handleUserLookup(SlashCommandInteractionEvent event) {
         net.dv8tion.jda.api.entities.User targetDiscordUser = event.getOption("user").getAsUser();
         User targetUser = Main.getUserService().getOrCreateUser(targetDiscordUser.getId());
         
-        EmbedBuilder embed = MediaContainerManager.createUserEmbed("User Lookup", null, targetDiscordUser, targetUser);
+        EmbedBuilder embed = EmbedFactory.createUserEmbed("User Lookup", null, targetDiscordUser, targetUser);
         
         // Basic Information
         embed.addField("👤 Basic Info", 
@@ -509,9 +509,9 @@ public class AdminCommand extends BaseCommand {
                         targetUser.getTheme() != null ? targetUser.getTheme() : "Default"), true);
         
         // Economy Information
-        MediaContainerManager.addCoinField(embed, "💰 Current Balance", targetUser.getCoins(), true);
-        MediaContainerManager.addCoinField(embed, "📈 Total Earned", targetUser.getTotalCoinsEarned(), true);
-        MediaContainerManager.addCoinField(embed, "📉 Total Spent", targetUser.getTotalCoinsSpent(), true);
+        EmbedFactory.addCoinField(embed, "💰 Current Balance", targetUser.getCoins(), true);
+        EmbedFactory.addCoinField(embed, "📈 Total Earned", targetUser.getTotalCoinsEarned(), true);
+        EmbedFactory.addCoinField(embed, "📉 Total Spent", targetUser.getTotalCoinsSpent(), true);
         
         // Quest Information
         embed.addField("🎯 Quest Stats", 
@@ -549,7 +549,7 @@ public class AdminCommand extends BaseCommand {
         net.dv8tion.jda.api.entities.User targetDiscordUser = event.getOption("user").getAsUser();
         User targetUser = Main.getUserService().getOrCreateUser(targetDiscordUser.getId());
         
-        EmbedBuilder embed = MediaContainerManager.createUserEmbed("User Usage Statistics", null, targetDiscordUser, targetUser);
+        EmbedBuilder embed = EmbedFactory.createUserEmbed("User Usage Statistics", null, targetDiscordUser, targetUser);
         
         // Command Usage Statistics
         StringBuilder commandStats = new StringBuilder();
@@ -647,7 +647,7 @@ public class AdminCommand extends BaseCommand {
             String status = enabled ? "DO_NOT_DISTURB" : "ONLINE";
             String activity = enabled ? "🔧 Under Maintenance" : "Use /support for help! | Alpha :3";
             
-            EmbedBuilder embed = MediaContainerManager.createSuccess(
+            EmbedBuilder embed = EmbedFactory.createSuccess(
                 enabled ? "Maintenance Mode Enabled" : "Maintenance Mode Disabled",
                 String.format("**Status:** %s\n**Activity:** %s\n**Shards:** %d\n**Saved to:** config.json", 
                         status, activity, Main.getBot().getShardManager().getShards().size()));
@@ -667,7 +667,7 @@ public class AdminCommand extends BaseCommand {
         // Update source status
         config.setSourceEnabled(source, enabled);
         
-        EmbedBuilder embed = MediaContainerManager.createSuccess("Source Updated", 
+        EmbedBuilder embed = EmbedFactory.createSuccess("Source Updated", 
                 String.format("**Source:** %s\n**Status:** %s\n**Saved to:** config.json", 
                         source, enabled ? "✅ Enabled" : "❌ Disabled"));
         
@@ -678,7 +678,7 @@ public class AdminCommand extends BaseCommand {
         LocalConfig config = LocalConfig.getInstance();
         Map<String, Boolean> sources = config.getEnabledSources();
         
-        EmbedBuilder embed = MediaContainerManager.createInfo("Source Status", null);
+        EmbedBuilder embed = EmbedFactory.createInfo("Source Status", null);
         
         StringBuilder enabledSources = new StringBuilder();
         StringBuilder disabledSources = new StringBuilder();

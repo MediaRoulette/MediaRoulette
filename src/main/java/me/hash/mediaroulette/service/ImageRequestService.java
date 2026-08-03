@@ -16,7 +16,7 @@ public class ImageRequestService {
 
     private static ImageRequestService instance;
 
-    public static ImageRequestService getInstance() {
+    public static synchronized ImageRequestService getInstance() {
         if (instance == null) {
             instance = new ImageRequestService();
         }

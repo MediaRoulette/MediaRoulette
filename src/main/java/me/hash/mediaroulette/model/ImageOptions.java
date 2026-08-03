@@ -48,22 +48,17 @@ public class ImageOptions {
     }
 
     public static List<ImageOptions> getDefaultOptions() {
-        InputStream is = null;
         try {
-            // Try external resources folder first
-            if (Files.exists(EXTERNAL_CONFIG)) {
-                is = Files.newInputStream(EXTERNAL_CONFIG);
-            } else {
-                // Fallback to classpath
-                is = ImageOptions.class.getResourceAsStream("/config/randomWeightValues.json");
-            }
+            InputStream is = Files.exists(EXTERNAL_CONFIG)
+                    ? Files.newInputStream(EXTERNAL_CONFIG)
+                    : ImageOptions.class.getResourceAsStream("/config/randomWeightValues.json");
             
             if (is == null) {
                 logger.warn("randomWeightValues.json not found, returning empty options");
                 return new ArrayList<>();
             }
             
-            try (Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+            try (is; Scanner scanner = new Scanner(is, StandardCharsets.UTF_8)) {
                 String json = scanner.useDelimiter("\\A").next();
                 JSONArray array = new JSONArray(json);
                 List<ImageOptions> options = new ArrayList<>();
@@ -79,10 +74,6 @@ public class ImageOptions {
         } catch (Exception e) {
             logger.error("Failed to load randomWeightValues.json: {}", e.getMessage());
             return new ArrayList<>();
-        } finally {
-            if (is != null) {
-                try { is.close(); } catch (Exception ignored) {}
-            }
         }
     }
 }

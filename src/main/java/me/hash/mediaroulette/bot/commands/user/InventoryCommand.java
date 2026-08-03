@@ -1,7 +1,7 @@
 package me.hash.mediaroulette.bot.commands.user;
 
 import me.hash.mediaroulette.Main;
-import me.hash.mediaroulette.bot.MediaContainerManager;
+import me.hash.mediaroulette.bot.utils.EmbedFactory;
 import me.hash.mediaroulette.bot.commands.CommandHandler;
 import me.hash.mediaroulette.locale.LocaleManager;
 import me.hash.mediaroulette.model.InventoryItem;
@@ -148,7 +148,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         Main.getUserService().updateUser(user);
 
         String description = locale.get("inventory.sorted", sortBy);
-        EmbedBuilder embed = MediaContainerManager.createSuccess(locale.get("inventory.sorted_title"), description);
+        EmbedBuilder embed = EmbedFactory.createSuccess(locale.get("inventory.sorted_title"), description);
 
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
@@ -198,7 +198,7 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
             return;
         }
 
-        EmbedBuilder embed = MediaContainerManager.createBase()
+        EmbedBuilder embed = EmbedFactory.createBase()
                 .setTitle(item.getTypeEmoji() + " " + item.getName())
                 .setDescription(item.getDescription())
                 .setColor(PRIMARY_COLOR);
@@ -300,6 +300,6 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
     }
 
     private void sendError(SlashCommandInteractionEvent event, String message, LocaleManager locale) {
-        event.getHook().sendMessageEmbeds(MediaContainerManager.createError(locale.get("error.title"), message).build()).queue();
+        event.getHook().sendMessageEmbeds(EmbedFactory.createError(locale.get("error.title"), message).build()).queue();
     }
 }

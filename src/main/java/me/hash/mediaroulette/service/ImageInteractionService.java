@@ -160,7 +160,7 @@ public class ImageInteractionService {
         LocaleManager locale = LocaleManager.getInstance(user.getLocale());
         return Container.of(
                 Section.of(
-                        Thumbnail.fromUrl(user.getEffectiveAvatarUrl()),
+                        Thumbnail.fromUrl(Main.getBot().getShardManager().getUserById(user.getUserId()).getEffectiveAvatarUrl()),
                         TextDisplay.of("## <a:loading:1350829863157891094> " + locale.get("info.generating_image")),
                         TextDisplay.of("**" + locale.get("info.please_wait") + "**"),
                         TextDisplay.of("*" + locale.get("info.may_take_seconds") + "*")

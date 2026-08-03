@@ -1,7 +1,5 @@
 package me.hash.mediaroulette.model;
 
-import me.hash.mediaroulette.exceptions.InvalidChancesException;
-import me.hash.mediaroulette.exceptions.NoEnabledOptionsException;
 import me.hash.mediaroulette.utils.user.ImageSelector;
 
 import java.util.*;
@@ -306,7 +304,7 @@ public class User {
      * @throws NoEnabledOptionsException if no enabled options exist.
      * @throws InvalidChancesException if the chance values are invalid.
      */
-    public Map<String, String> getImage() throws NoEnabledOptionsException, InvalidChancesException, me.hash.mediaroulette.exceptions.InvalidChancesException, me.hash.mediaroulette.exceptions.NoEnabledOptionsException {
+    public Map<String, String> getImage() throws me.hash.mediaroulette.exceptions.InvalidChancesException, me.hash.mediaroulette.exceptions.NoEnabledOptionsException {
         ImageSelector selector = new ImageSelector(imageOptions);
         return selector.selectImage(this.userId);
     }
