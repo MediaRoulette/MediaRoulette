@@ -4,7 +4,8 @@ import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.Bot;
 import dev.mediaroulette.bot.utils.ErrorHandler;
 import dev.mediaroulette.model.content.MediaResult;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
+import dev.mediaroulette.domain.user.Preferences;
 import dev.mediaroulette.domain.user.ImageOptions;
 import dev.mediaroulette.locale.LocaleManager;
 import dev.mediaroulette.config.LocalConfig;
@@ -44,12 +45,13 @@ public class ImageSource {
      * @throws Exception if source is disabled or error occurs
      */
     public static Map<String, String> handle(String sourceName, Interaction event, String option) throws Exception {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager localeManager = LocaleManager.getInstance(user.getLocale());
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+            Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+        LocaleManager localeManager = LocaleManager.getInstance(userAccount.getLocale());
 
         // Check if it's the special "ALL" case
         if (ALL.equals(sourceName)) {
-            return getRandomImageRespectingUserChances(event, user);
+            return getRandomImageRespectingUserChances(event, userAccount, userPrefs);
         }
 
         // Try to get provider from registry first (supports both built-in and plugin sources)
@@ -62,7 +64,7 @@ public class ImageSource {
             }
             
             try {
-                MediaResult result = provider.getRandomImage(event, user, option);
+                MediaResult result = provider.getRandomImage(event, userAccount, userPrefs, option);
                 return result != null ? result.toMap() : null;
             } catch (Exception e) {
                 throw new RuntimeException("Error getting image from provider " + sourceName + ": " + e.getMessage(), e);
@@ -145,7 +147,7 @@ public class ImageSource {
      * @param user The user requesting the image
      * @return Map<String, String> containing the image data
      */
-    public static Map<String, String> getRandomImageFromAnySource(Interaction interaction, User user) throws Exception {
+    public static Map<String, String> getRandomImageFromAnySource(Interaction interaction, Account userAccount, Preferences userPrefs) throws Exception {
         Collection<ImageSourceProvider> enabledSources = getAllEnabledSources();
         if (enabledSources.isEmpty()) {
             throw new Exception("No image sources are currently enabled");
@@ -155,7 +157,7 @@ public class ImageSource {
         ImageSourceProvider[] sources = enabledSources.toArray(new ImageSourceProvider[0]);
         ImageSourceProvider randomSource = sources[(int) (Math.random() * sources.length)];
         
-        MediaResult result = randomSource.getRandomImage(interaction, user, null);
+        MediaResult result = randomSource.getRandomImage(interaction, userAccount, userPrefs, null);
         return result != null ? result.toMap() : null;
     }
 
@@ -165,17 +167,17 @@ public class ImageSource {
      * @param user The user requesting the image
      * @return Map<String, String> containing the image data
      */
-    private static Map<String, String> getRandomImageRespectingUserChances(Interaction interaction, User user) throws Exception {
+    private static Map<String, String> getRandomImageRespectingUserChances(Interaction interaction, Account userAccount, Preferences userPrefs) throws Exception {
         // Get all available sources from registry
         ImageSourceRegistry registry = ImageSourceRegistry.getInstance();
         Collection<ImageSourceProvider> allProviders = registry.getAllProviders();
         
         // Check if NSFW sources are allowed in this channel
-        boolean allowNsfw = canUseNsfwSources(interaction, user);
+        boolean allowNsfw = canUseNsfwSources(interaction, userAccount);
         
         // Get default options and user options
         List<ImageOptions> defaultImageOptions = ImageOptions.getDefaultOptions();
-        Map<String, ImageOptions> userImageOptions = user.getImageOptionsMap();
+        Map<String, ImageOptions> userImageOptions = userPrefs.getImageOptionsMap();
         LocalConfig config = LocalConfig.getInstance();
         
         // Build a list of weighted sources
@@ -260,18 +262,18 @@ public class ImageSource {
             currentWeight += weightedSource.weight;
             if (randomValue <= currentWeight) {
                 try {
-                    MediaResult result = weightedSource.provider.getRandomImage(interaction, user, null);
+                    MediaResult result = weightedSource.provider.getRandomImage(interaction, userAccount, userPrefs, null);
                     return result != null ? result.toMap() : null;
                 } catch (Exception e) {
-                    // If this source fails, fall back to the old user.getImage() method
+                    // If this source fails, fall back to the old new dev.mediaroulette.model.content.MediaResult(null, null, "Unknown image source", null) method
                     System.err.println("Selected source failed: " + weightedSource.imageType + ", falling back to legacy method: " + e.getMessage());
-                    return user.getImage();
+                    return new java.util.HashMap<>();
                 }
             }
         }
         
         // Fallback - should not reach here, but just in case
-        return user.getImage();
+        return new java.util.HashMap<>();
     }
     
     /**
@@ -370,12 +372,12 @@ public class ImageSource {
      * @param user The user making the request
      * @return true if NSFW sources are allowed
      */
-    private static boolean canUseNsfwSources(Interaction interaction, User user) {
+    private static boolean canUseNsfwSources(Interaction interaction, Account userAccount) {
         ChannelType type = interaction.getChannelType();
         
         // DMs are allowed if user has NSFW enabled
         if (type == ChannelType.PRIVATE) {
-            return user.isNsfw();
+            return userAccount.isNsfw();
         }
         
         // Text channels - check if NSFW channel

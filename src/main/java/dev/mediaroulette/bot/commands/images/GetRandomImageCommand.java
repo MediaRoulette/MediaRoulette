@@ -6,7 +6,8 @@ import dev.mediaroulette.bot.utils.CommandCooldown;
 import dev.mediaroulette.bot.utils.EmbedFactory;
 import dev.mediaroulette.bot.utils.ErrorHandler;
 import dev.mediaroulette.model.MessageData;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
+import dev.mediaroulette.domain.quest.QuestProgress;
 import dev.mediaroulette.plugins.images.ImageSourceProvider;
 import dev.mediaroulette.plugins.images.ImageSourceRegistry;
 import dev.mediaroulette.service.ImageInteractionService;
@@ -70,28 +71,30 @@ public class GetRandomImageCommand extends BaseCommand {
         String subcommand = event.getSubcommandName();
         String query = event.getOption("query") != null ? event.getOption("query").getAsString() : null;
 
-        Main.getUserService().trackCommandUsage(userId, "random");
+        Main.getStatsService().trackCommandUsed(userId, "random", false);
         requestService.trackSourceUsage(userId, subcommand, query);
 
-        User user = Main.getUserService().getOrCreateUser(userId);
+        Account userAccount = Main.getAccountService().getAccount(userId);
+        QuestProgress userQuest = Main.getQuestProgressService().getQuestProgress(userId);
         
         // For specific sources, validate NSFW access upfront
         // For "all", skip upfront validation - ImageSource.handle() already filters sources based on channel type
         if (!"all".equals(subcommand)) {
             ImageSourceProvider provider = ImageSourceRegistry.getInstance().getProvider(subcommand.toUpperCase());
-            if (!requestService.validateChannelAccess(event, user, provider)) return;
+            if (!requestService.validateChannelAccess(event, userAccount, provider)) return;
         }
 
-        Main.getUserService().updateUser(user);
+        Main.getAccountService().updateAccount(userAccount);
+                                    Main.getQuestProgressService().updateQuestProgress(userQuest);
 
-        event.getHook().sendMessageComponents(interactionService.createLoadingContainer(user))
+        event.getHook().sendMessageComponents(interactionService.createLoadingContainer(userAccount))
                 .useComponentsV2()
-                .queue(msg -> Main.getBot().getExecutor().execute(() -> processImageRequest(event, user, subcommand, query, event.getHook())),
+                .queue(msg -> Main.getBot().getExecutor().execute(() -> processImageRequest(event, userAccount, userQuest, subcommand, query, event.getHook())),
                        err -> ErrorHandler.handleException(event, "Error", "Failed to send loading message", err));
     }
 
-    private void processImageRequest(SlashCommandInteractionEvent event, User user, String subcommand, String query, InteractionHook hook) {
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+    private void processImageRequest(SlashCommandInteractionEvent event, Account userAccount, QuestProgress userQuest, String subcommand, String query, InteractionHook hook) {
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
         boolean shouldContinue = event.getOption("shouldcontinue") != null && event.getOption("shouldcontinue").getAsBoolean();
 
         try {
@@ -102,14 +105,15 @@ public class GetRandomImageCommand extends BaseCommand {
                             return;
                         }
 
-                        requestService.trackStats(user.getUserId(), subcommand, user);
+                        requestService.trackStats(userAccount.getUserId(), subcommand, userAccount);
 
                         dev.mediaroulette.bot.MediaContainerManager.editLoadingToImageContainer(hook, image, shouldContinue)
                                 .thenAccept(msg -> {
                                     interactionService.registerMessage(msg.getIdLong(),
                                             new MessageData(msg.getIdLong(), subcommand, query, shouldContinue, event.getUser().getIdLong(), event.getChannel().getIdLong()));
-                                    QuestGenerator.onImageGenerated(user, subcommand);
-                                    Main.getUserService().updateUser(user);
+                                    QuestGenerator.onImageGenerated(userQuest, subcommand);
+                                    Main.getAccountService().updateAccount(userAccount);
+                                    Main.getQuestProgressService().updateQuestProgress(userQuest);
                                 })
                                 .exceptionally(ex -> {
                                     ErrorHandler.editToErrorContainer(event, locale.get("error.unexpected_error"), locale.get("error.failed_to_send_image"));
@@ -121,8 +125,9 @@ public class GetRandomImageCommand extends BaseCommand {
                         return null;
                     });
 
-            user.incrementImagesGenerated();
-            Main.getUserService().updateUser(user);
+            userAccount.incrementImagesGenerated();
+            Main.getAccountService().updateAccount(userAccount);
+                                    Main.getQuestProgressService().updateQuestProgress(userQuest);
         } catch (Exception e) {
             ErrorHandler.editToErrorContainer(event, locale.get("error.unexpected_error"), e.getMessage());
         }

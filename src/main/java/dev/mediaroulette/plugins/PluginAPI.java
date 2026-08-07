@@ -6,7 +6,6 @@ import dev.mediaroulette.service.DictionaryService;
 import dev.mediaroulette.service.StatsTrackingService;
 import dev.mediaroulette.database.Database;
 import dev.mediaroulette.config.LocalConfig;
-import dev.mediaroulette.utils.user.UserService;
 /**
  * Public API for plugins to access MediaRoulette services and components.
  * This prevents plugins from accessing private fields directly.
@@ -18,10 +17,6 @@ public final class PluginAPI {
     }
     
     // Core Services
-    
-    public static UserService getUserService() {
-        return Main.getUserService();
-    }
     
     public static DictionaryService getDictionaryService() {
         return Main.getDictionaryService();

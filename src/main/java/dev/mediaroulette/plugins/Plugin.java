@@ -5,7 +5,7 @@ import dev.mediaroulette.service.DictionaryService;
 import dev.mediaroulette.service.StatsTrackingService;
 import dev.mediaroulette.database.Database;
 import dev.mediaroulette.config.LocalConfig;
-import dev.mediaroulette.utils.user.UserService;
+
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,9 +180,7 @@ public abstract class Plugin {
 
     // ==================== Plugin API Helpers ====================
 
-    protected final UserService getUserService() {
-        return PluginAPI.getUserService();
-    }
+    
 
     protected final DictionaryService getDictionaryService() {
         return PluginAPI.getDictionaryService();

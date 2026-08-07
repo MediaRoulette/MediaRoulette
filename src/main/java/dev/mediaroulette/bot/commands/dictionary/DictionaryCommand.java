@@ -4,7 +4,7 @@ import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.commands.BaseCommand;
 import dev.mediaroulette.bot.utils.CommandCooldown;
 import dev.mediaroulette.model.Dictionary;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
 import dev.mediaroulette.service.DictionaryService;
 import dev.mediaroulette.locale.LocaleManager;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -68,8 +68,8 @@ public class DictionaryCommand extends BaseCommand {
         Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
-            User user = Main.getUserService().getOrCreateUser(userId);
-            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            Account userAccount = Main.getAccountService().getAccount(userId);
+            LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
             
             switch (subcommand) {
                 case "create" -> handleCreate(event, userId, locale);
@@ -215,8 +215,8 @@ public class DictionaryCommand extends BaseCommand {
         String userId = event.getUser().getId();
         
         Main.getBot().getExecutor().execute(() -> {
-            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+            LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
             String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
             if (!event.getUser().getId().equals(originalUserId)) {
@@ -250,8 +250,8 @@ public class DictionaryCommand extends BaseCommand {
             String dictId = parts.length > 1 ? parts[1] : null;
             String userId = event.getUser().getId();
             
-            User user = Main.getUserService().getOrCreateUser(userId);
-            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            Account userAccount = Main.getAccountService().getAccount(userId);
+            LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
             
             Optional<Dictionary> dictOpt = dictionaryService.getDictionary(dictId);
             if (dictOpt.isEmpty() || !dictOpt.get().canBeEditedBy(userId)) {

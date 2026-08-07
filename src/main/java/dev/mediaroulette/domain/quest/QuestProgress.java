@@ -40,6 +40,41 @@ public class QuestProgress {
     public java.time.LocalDate getLastQuestCompletionDate() { return lastQuestCompletionDate; }
     public void setLastQuestCompletionDate(java.time.LocalDate lastQuestCompletionDate) { this.lastQuestCompletionDate = lastQuestCompletionDate; }
 
+            public dev.mediaroulette.domain.economy.Transaction claimQuestReward(Quest quest, dev.mediaroulette.domain.economy.Wallet wallet) {
+        if (quest.canClaim()) {
+            quest.claim();
+            
+            // Update quest completion tracking
+            this.totalQuestsCompleted++;
+            
+            java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+            if (this.lastQuestCompletionDate == null || !this.lastQuestCompletionDate.equals(today)) {
+                // Reset daily count if it's a new day
+                this.questsCompletedToday = 1;
+                this.lastQuestCompletionDate = today;
+            } else {
+                // Same day, increment count
+                this.questsCompletedToday++;
+            }
+            
+            long balanceBefore = wallet.getCoins();
+            // Add coins
+            wallet.addCoins(quest.getCoinReward());
+            
+            // Create transaction record
+            dev.mediaroulette.domain.economy.Transaction transaction = new dev.mediaroulette.domain.economy.Transaction(
+                wallet.getUserId(),
+                dev.mediaroulette.domain.economy.Transaction.TransactionType.QUEST_REWARD,
+                quest.getCoinReward(),
+                balanceBefore,
+                "Completed quest: " + quest.getTitle()
+            );
+            
+            return transaction;
+        }
+        return null;
+    }
+
     public void addQuest(Quest quest) {
         this.dailyQuests.add(quest);
     }

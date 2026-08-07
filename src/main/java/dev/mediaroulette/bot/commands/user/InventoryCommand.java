@@ -5,7 +5,7 @@ import dev.mediaroulette.bot.utils.EmbedFactory;
 import dev.mediaroulette.bot.commands.CommandHandler;
 import dev.mediaroulette.locale.LocaleManager;
 import dev.mediaroulette.domain.economy.InventoryItem;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.economy.Inventory;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -56,14 +56,15 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         Main.getBot().getExecutor().execute(() -> {
             String subcommand = event.getSubcommandName();
             String userId = event.getUser().getId();
-            User user = Main.getUserService().getOrCreateUser(userId);
-            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            dev.mediaroulette.domain.user.Account account = Main.getAccountService().getAccount(userId);
+            Inventory inventory = Main.getInventoryService().getInventory(userId);
+            LocaleManager locale = LocaleManager.getInstance(account.getLocale());
 
             switch (subcommand) {
-                case "view" -> handleView(event, user, locale);
-                case "sort" -> handleSort(event, user, locale);
-                case "use" -> handleUse(event, user, locale);
-                case "info" -> handleInfo(event, user, locale);
+                case "view" -> handleView(event, inventory, account, locale);
+                case "sort" -> handleSort(event, inventory, locale);
+                case "use" -> handleUse(event, inventory, locale);
+                case "info" -> handleInfo(event, inventory, locale);
             }
         });
     }
@@ -78,11 +79,11 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         }
     }
 
-    private void handleView(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
+    private void handleView(SlashCommandInteractionEvent event, Inventory inventory, dev.mediaroulette.domain.user.Account account, LocaleManager locale) {
         String filter = event.getOption("filter") != null ? event.getOption("filter").getAsString() : null;
         int page = event.getOption("page") != null ? event.getOption("page").getAsInt() : 1;
 
-        List<InventoryItem> items = user.getInventory();
+        List<InventoryItem> items = inventory.getItems();
         
         if (filter != null) {
             String filterLower = filter.toLowerCase();
@@ -117,8 +118,8 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
                 .setTimestamp(Instant.now());
 
         StringBuilder description = new StringBuilder();
-        description.append(locale.get("inventory.usage", user.getUniqueInventoryItems(), User.MAX_INVENTORY_SIZE)).append("\n");
-        description.append(locale.get("inventory.total", user.getTotalInventoryItems())).append("\n\n");
+        description.append(locale.get("inventory.usage", inventory.getUniqueItemsCount(), Inventory.MAX_INVENTORY_SIZE)).append("\n");
+        description.append(locale.get("inventory.total", inventory.getTotalItems())).append("\n\n");
 
         for (InventoryItem item : pageItems) {
             description.append(String.format("%s **%s** (x%d)\n", 
@@ -141,11 +142,11 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         event.getHook().sendMessageEmbeds(embed.build()).setComponents(buttons).queue();
     }
 
-    private void handleSort(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
+    private void handleSort(SlashCommandInteractionEvent event, Inventory inventory, LocaleManager locale) {
         String sortBy = event.getOption("by").getAsString();
 
-        user.sortInventory(sortBy);
-        Main.getUserService().updateUser(user);
+        inventory.sortItems(sortBy);
+        Main.getInventoryService().updateInventory(inventory);
 
         String description = locale.get("inventory.sorted", sortBy);
         EmbedBuilder embed = EmbedFactory.createSuccess(locale.get("inventory.sorted_title"), description);
@@ -153,17 +154,17 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         event.getHook().sendMessageEmbeds(embed.build()).queue();
     }
 
-    private void handleUse(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
+    private void handleUse(SlashCommandInteractionEvent event, Inventory inventory, LocaleManager locale) {
         String itemId = event.getOption("item").getAsString();
         int quantity = event.getOption("quantity") != null ? event.getOption("quantity").getAsInt() : 1;
 
-        InventoryItem item = user.getInventoryItem(itemId);
+        InventoryItem item = inventory.getItem(itemId);
         if (item == null) {
             sendError(event, locale.get("inventory.item_not_found", itemId), locale);
             return;
         }
 
-        if (!user.hasInventoryItem(itemId, quantity)) {
+        if (!inventory.hasItem(itemId, quantity)) {
             sendError(event, locale.get("inventory.not_enough", item.getQuantity(), quantity), locale);
             return;
         }
@@ -173,9 +174,9 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
             return;
         }
 
-        boolean success = user.removeInventoryItem(itemId, quantity);
+        boolean success = inventory.removeItem(itemId, quantity);
         if (success) {
-            Main.getUserService().updateUser(user);
+            Main.getInventoryService().updateInventory(inventory);
             
             EmbedBuilder embed = new EmbedBuilder()
                     .setTitle(locale.get("inventory.item_used"))
@@ -189,10 +190,10 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
         }
     }
 
-    private void handleInfo(SlashCommandInteractionEvent event, User user, LocaleManager locale) {
+    private void handleInfo(SlashCommandInteractionEvent event, Inventory inventory, LocaleManager locale) {
         String itemId = event.getOption("item").getAsString();
 
-        InventoryItem item = user.getInventoryItem(itemId);
+        InventoryItem item = inventory.getItem(itemId);
         if (item == null) {
             sendError(event, locale.get("inventory.item_not_found", itemId), locale);
             return;
@@ -227,20 +228,21 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
 
         String action = parts[1];
         String userId = event.getUser().getId();
-        User user = Main.getUserService().getOrCreateUser(userId);
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        dev.mediaroulette.domain.user.Account account = Main.getAccountService().getAccount(userId);
+            Inventory inventory = Main.getInventoryService().getInventory(userId);
+        LocaleManager locale = LocaleManager.getInstance(account.getLocale());
 
         switch (action) {
             case "prev", "next", "refresh" -> {
                 int page = Integer.parseInt(parts[2]);
                 String filter = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : null;
-                updateInventoryView(event, user, filter, page, locale);
+                updateInventoryView(event, inventory, account, filter, page, locale);
             }
         }
     }
 
-    private void updateInventoryView(ButtonInteractionEvent event, User user, String filter, int page, LocaleManager locale) {
-        List<InventoryItem> items = user.getInventory();
+    private void updateInventoryView(ButtonInteractionEvent event, Inventory inventory, dev.mediaroulette.domain.user.Account account, String filter, int page, LocaleManager locale) {
+        List<InventoryItem> items = inventory.getItems();
         
         if (filter != null) {
             String filterLower = filter.toLowerCase();
@@ -275,8 +277,8 @@ public class InventoryCommand extends ListenerAdapter implements CommandHandler 
                 .setTimestamp(Instant.now());
 
         StringBuilder description = new StringBuilder();
-        description.append(locale.get("inventory.usage", user.getUniqueInventoryItems(), User.MAX_INVENTORY_SIZE)).append("\n");
-        description.append(locale.get("inventory.total", user.getTotalInventoryItems())).append("\n\n");
+        description.append(locale.get("inventory.usage", inventory.getUniqueItemsCount(), Inventory.MAX_INVENTORY_SIZE)).append("\n");
+        description.append(locale.get("inventory.total", inventory.getTotalItems())).append("\n\n");
 
         for (InventoryItem item : pageItems) {
             description.append(String.format("%s **%s** (x%d)\n", 

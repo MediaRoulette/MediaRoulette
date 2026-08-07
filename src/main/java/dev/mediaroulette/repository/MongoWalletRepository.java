@@ -34,14 +34,18 @@ public class MongoWalletRepository implements WalletRepository {
         return collection.find(new Document("_id", userId)).first() != null;
     }
 
-    // TODO: implement mapping logic
     private Wallet mapToEntity(Document doc) {
-        // Dummy mapping for now
-        return new Wallet(doc.getString("_id"));
+        Wallet wallet = new Wallet(doc.getString("_id"));
+        if (doc.containsKey("coins")) wallet.setCoins(doc.getLong("coins"));
+        if (doc.containsKey("totalCoinsEarned")) wallet.setTotalCoinsEarned(doc.getLong("totalCoinsEarned"));
+        if (doc.containsKey("totalCoinsSpent")) wallet.setTotalCoinsSpent(doc.getLong("totalCoinsSpent"));
+        return wallet;
     }
 
     private Document mapToDocument(Wallet entity) {
-        // Dummy mapping for now
-        return new Document("_id", entity.getUserId());
+        return new Document("_id", entity.getUserId())
+                .append("coins", entity.getCoins())
+                .append("totalCoinsEarned", entity.getTotalCoinsEarned())
+                .append("totalCoinsSpent", entity.getTotalCoinsSpent());
     }
 }

@@ -6,22 +6,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import dev.mediaroulette.Main;
-import dev.mediaroulette.bot.Bot;
-import dev.mediaroulette.bot.commands.CommandHandler;
 import dev.mediaroulette.domain.economy.BotInventoryItem;
 import dev.mediaroulette.model.Giveaway;
-import dev.mediaroulette.model.User;
+
 import dev.mediaroulette.service.BotInventoryService;
 import dev.mediaroulette.service.GiveawayService;
 import dev.mediaroulette.locale.LocaleManager;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -30,25 +26,9 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import java.awt.Color;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import dev.mediaroulette.domain.economy.Transaction;
-import dev.mediaroulette.domain.economy.InventoryItem;
-import dev.mediaroulette.domain.quest.Quest;
-import dev.mediaroulette.domain.user.Favorite;
-import dev.mediaroulette.domain.user.SourcePreference;
-import dev.mediaroulette.domain.user.ImageOptions;
-import dev.mediaroulette.domain.user.PreferenceSetting;
-import dev.mediaroulette.exceptions.InvalidChancesException;
-import dev.mediaroulette.exceptions.NoEnabledOptionsException;
+
 import java.util.List;
-import dev.mediaroulette.domain.economy.Transaction;
-import dev.mediaroulette.domain.economy.InventoryItem;
-import dev.mediaroulette.domain.quest.Quest;
-import dev.mediaroulette.domain.user.Favorite;
-import dev.mediaroulette.domain.user.SourcePreference;
-import dev.mediaroulette.domain.user.ImageOptions;
-import dev.mediaroulette.domain.user.PreferenceSetting;
-import dev.mediaroulette.exceptions.InvalidChancesException;
-import dev.mediaroulette.exceptions.NoEnabledOptionsException;
+
 import java.util.Optional;
 
 public class GiveawayCommand extends BaseCommand {
@@ -76,25 +56,27 @@ public class GiveawayCommand extends BaseCommand {
                                 .addOption(OptionType.STRING, "description", "Giveaway description", true)
                                 .addOption(OptionType.STRING, "item_id", "Bot inventory item ID to give away", true)
                                 .addOption(OptionType.INTEGER, "duration_hours", "Duration in hours", true)
-                                .addOption(OptionType.CHANNEL, "channel", "Channel to post giveaway (default: current)", false)
-                                .addOption(OptionType.INTEGER, "max_entries", "Maximum entries (default: unlimited)", false),
+                                .addOption(OptionType.CHANNEL, "channel", "Channel to post giveaway (default: current)",
+                                        false)
+                                .addOption(OptionType.INTEGER, "max_entries", "Maximum entries (default: unlimited)",
+                                        false),
                         new SubcommandData("end", "End a giveaway early")
                                 .addOption(OptionType.STRING, "giveaway_id", "Giveaway ID", true),
                         new SubcommandData("reroll", "Reroll a giveaway winner")
                                 .addOption(OptionType.STRING, "giveaway_id", "Giveaway ID", true),
                         new SubcommandData("list", "List active giveaways"),
                         new SubcommandData("cancel", "Cancel a giveaway")
-                                .addOption(OptionType.STRING, "giveaway_id", "Giveaway ID", true)
-                );
+                                .addOption(OptionType.STRING, "giveaway_id", "Giveaway ID", true));
     }
 
     @Override
-    @CommandCooldown(value = 3, commands = {"giveaway"})
+    @CommandCooldown(value = 3, commands = { "giveaway" })
     public void handleCommand(SlashCommandInteractionEvent event) {
-        if (!event.getName().equals("giveaway")) return;
+        if (!event.getName().equals("giveaway"))
+            return;
 
         // Check if user is admin
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+        dev.mediaroulette.domain.user.Account user = Main.getAccountService().getAccount(event.getUser().getId());
         if (!user.isAdmin()) {
             sendError(event, "❌ **Access Denied**\n\nYou don't have permission to manage giveaways.");
             return;
@@ -114,7 +96,7 @@ public class GiveawayCommand extends BaseCommand {
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
         String componentId = event.getComponentId();
-        
+
         if (componentId.startsWith("giveaway:enter:")) {
             handleGiveawayEntry(event, componentId);
         }
@@ -125,11 +107,10 @@ public class GiveawayCommand extends BaseCommand {
         String description = event.getOption("description").getAsString();
         String itemId = event.getOption("item_id").getAsString();
         int durationHours = event.getOption("duration_hours").getAsInt();
-        TextChannel channel = event.getOption("channel") != null ? 
-            event.getOption("channel").getAsChannel().asTextChannel() : 
-            event.getChannel().asTextChannel();
-        Integer maxEntries = event.getOption("max_entries") != null ? 
-            event.getOption("max_entries").getAsInt() : null;
+        TextChannel channel = event.getOption("channel") != null
+                ? event.getOption("channel").getAsChannel().asTextChannel()
+                : event.getChannel().asTextChannel();
+        Integer maxEntries = event.getOption("max_entries") != null ? event.getOption("max_entries").getAsInt() : null;
 
         if (durationHours < 1 || durationHours > 168) { // Max 1 week
             sendError(event, "Duration must be between 1 and 168 hours (1 week)");
@@ -152,14 +133,14 @@ public class GiveawayCommand extends BaseCommand {
         // Create giveaway
         Instant endTime = Instant.now().plus(durationHours, ChronoUnit.HOURS);
         Giveaway giveaway = new Giveaway(title, description, channel.getId(), event.getUser().getId(), item, endTime);
-        
+
         if (maxEntries != null) {
             giveaway.setMaxEntries(maxEntries);
         }
 
         // Create giveaway embed
         EmbedBuilder embed = createGiveawayEmbed(giveaway);
-        
+
         Button enterButton = Button.primary("giveaway:enter:" + giveaway.getId(), "🎉 Enter Giveaway");
         ActionRow actionRow = ActionRow.of(enterButton);
 
@@ -170,33 +151,33 @@ public class GiveawayCommand extends BaseCommand {
                 .queue(message -> {
                     giveaway.setMessageId(message.getId());
                     giveawayService.createGiveaway(giveaway);
-                    
+
                     // Mark item as used in bot inventory
                     botInventoryService.markItemAsUsed(itemId);
-                    
+
                     EmbedBuilder successEmbed = new EmbedBuilder()
                             .setTitle("✅ Giveaway Created")
-                            .setDescription(String.format("Giveaway **%s** has been created in %s!", 
-                                title, channel.getAsMention()))
+                            .setDescription(String.format("Giveaway **%s** has been created in %s!",
+                                    title, channel.getAsMention()))
                             .addField("Giveaway ID", "`" + giveaway.getId() + "`", false)
                             .addField("Duration", durationHours + " hours", true)
                             .addField("Prize", item.toString(), true)
                             .setColor(SUCCESS_COLOR)
                             .setTimestamp(Instant.now());
-                    
+
                     event.getHook().sendMessageEmbeds(successEmbed.build()).queue();
-                    
+
                     // Schedule giveaway end
                     scheduleGiveawayEnd(giveaway);
-                }, 
-                error -> {
-                    sendError(event, "Failed to create giveaway message: " + error.getMessage());
-                });
+                },
+                        error -> {
+                            sendError(event, "Failed to create giveaway message: " + error.getMessage());
+                        });
     }
 
     private void handleEnd(SlashCommandInteractionEvent event) {
         String giveawayId = event.getOption("giveaway_id").getAsString();
-        
+
         Optional<Giveaway> giveawayOpt = giveawayService.getGiveaway(giveawayId);
         if (giveawayOpt.isEmpty()) {
             sendError(event, "Giveaway not found: " + giveawayId);
@@ -222,7 +203,7 @@ public class GiveawayCommand extends BaseCommand {
 
     private void handleReroll(SlashCommandInteractionEvent event) {
         String giveawayId = event.getOption("giveaway_id").getAsString();
-        
+
         Optional<Giveaway> giveawayOpt = giveawayService.getGiveaway(giveawayId);
         if (giveawayOpt.isEmpty()) {
             sendError(event, "Giveaway not found: " + giveawayId);
@@ -252,8 +233,8 @@ public class GiveawayCommand extends BaseCommand {
 
         EmbedBuilder embed = new EmbedBuilder()
                 .setTitle("🔄 Giveaway Rerolled")
-                .setDescription(String.format("New winner selected for **%s**: <@%s>", 
-                    giveaway.getTitle(), newWinner))
+                .setDescription(String.format("New winner selected for **%s**: <@%s>",
+                        giveaway.getTitle(), newWinner))
                 .setColor(SUCCESS_COLOR)
                 .setTimestamp(Instant.now());
 
@@ -262,10 +243,10 @@ public class GiveawayCommand extends BaseCommand {
 
     private void handleList(SlashCommandInteractionEvent event) {
         event.deferReply(true).queue();
-        
+
         Main.getBot().getExecutor().execute(() -> {
             List<Giveaway> activeGiveaways = giveawayService.getActiveGiveaways();
-            
+
             EmbedBuilder embed = new EmbedBuilder()
                     .setTitle("🎉 Active Giveaways")
                     .setColor(GIVEAWAY_COLOR)
@@ -277,8 +258,8 @@ public class GiveawayCommand extends BaseCommand {
                 StringBuilder description = new StringBuilder();
                 for (Giveaway giveaway : activeGiveaways) {
                     description.append(String.format("**%s**\n", giveaway.getTitle()));
-                    description.append(String.format("ID: `%s` | Entries: %d | Ends: <t:%d:R>\n", 
-                        giveaway.getId(), giveaway.getEntryCount(), giveaway.getEndTime().getEpochSecond()));
+                    description.append(String.format("ID: `%s` | Entries: %d | Ends: <t:%d:R>\n",
+                            giveaway.getId(), giveaway.getEntryCount(), giveaway.getEndTime().getEpochSecond()));
                     description.append(String.format("Prize: %s\n\n", giveaway.getPrize().toString()));
                 }
                 embed.setDescription(description.toString());
@@ -290,7 +271,7 @@ public class GiveawayCommand extends BaseCommand {
 
     private void handleCancel(SlashCommandInteractionEvent event) {
         String giveawayId = event.getOption("giveaway_id").getAsString();
-        
+
         Optional<Giveaway> giveawayOpt = giveawayService.getGiveaway(giveawayId);
         if (giveawayOpt.isEmpty()) {
             sendError(event, "Giveaway not found: " + giveawayId);
@@ -327,7 +308,7 @@ public class GiveawayCommand extends BaseCommand {
     private void handleGiveawayEntry(ButtonInteractionEvent event, String componentId) {
         String giveawayId = componentId.substring("giveaway:enter:".length());
         String userId = event.getUser().getId();
-        User user = Main.getUserService().getOrCreateUser(userId);
+        dev.mediaroulette.domain.user.Account user = Main.getAccountService().getAccount(userId);
         LocaleManager locale = LocaleManager.getInstance(user.getLocale());
 
         Optional<Giveaway> giveawayOpt = giveawayService.getGiveaway(giveawayId);
@@ -349,7 +330,7 @@ public class GiveawayCommand extends BaseCommand {
             } else {
                 reason = locale.get("giveaway.cannot_enter");
             }
-            
+
             event.reply("❌ " + reason).setEphemeral(true).queue();
             return;
         }
@@ -372,10 +353,10 @@ public class GiveawayCommand extends BaseCommand {
                 .setTimestamp(Instant.now());
 
         embed.addField("🏆 Prize", giveaway.getPrize().toString(), false);
-        embed.addField("⏰ Ends", String.format("<t:%d:F> (<t:%d:R>)", 
-            giveaway.getEndTime().getEpochSecond(), giveaway.getEndTime().getEpochSecond()), true);
+        embed.addField("⏰ Ends", String.format("<t:%d:F> (<t:%d:R>)",
+                giveaway.getEndTime().getEpochSecond(), giveaway.getEndTime().getEpochSecond()), true);
         embed.addField("👥 Entries", String.valueOf(giveaway.getEntryCount()), true);
-        
+
         if (giveaway.getMaxEntries() > 0) {
             embed.addField("📊 Max Entries", String.valueOf(giveaway.getMaxEntries()), true);
         }
@@ -389,17 +370,18 @@ public class GiveawayCommand extends BaseCommand {
     private void updateGiveawayMessage(Giveaway giveaway, boolean isEnded) {
         try {
             TextChannel channel = Main.getBot().getShardManager().getTextChannelById(giveaway.getChannelId());
-            if (channel == null) return;
+            if (channel == null)
+                return;
 
             channel.retrieveMessageById(giveaway.getMessageId()).queue(message -> {
                 EmbedBuilder embed;
-                
+
                 if (isEnded) {
                     embed = new EmbedBuilder()
                             .setTitle("🎉 " + giveaway.getTitle() + " - ENDED")
                             .setDescription(giveaway.getDescription())
                             .setColor(SUCCESS_COLOR);
-                    
+
                     if (giveaway.getWinnerId() != null) {
                         embed.addField("🏆 Winner", "<@" + giveaway.getWinnerId() + ">", false);
                     } else {
@@ -447,12 +429,13 @@ public class GiveawayCommand extends BaseCommand {
     private void sendWinnerNotification(Giveaway giveaway, String winnerId, boolean isReroll) {
         try {
             TextChannel channel = Main.getBot().getShardManager().getTextChannelById(giveaway.getChannelId());
-            if (channel == null) return;
+            if (channel == null)
+                return;
 
             EmbedBuilder embed = new EmbedBuilder()
                     .setTitle("🎊 Giveaway Winner" + (isReroll ? " (Rerolled)" : ""))
-                    .setDescription(String.format("Congratulations <@%s>! You won **%s**!", 
-                        winnerId, giveaway.getTitle()))
+                    .setDescription(String.format("Congratulations <@%s>! You won **%s**!",
+                            winnerId, giveaway.getTitle()))
                     .addField("🏆 Prize", giveaway.getPrize().toString(), false)
                     .setColor(SUCCESS_COLOR)
                     .setTimestamp(Instant.now());
@@ -460,7 +443,7 @@ public class GiveawayCommand extends BaseCommand {
             // For Discord Nitro, send the gift link privately
             if ("discord_nitro".equals(giveaway.getPrize().getType())) {
                 embed.addField("🎁 Your Prize", "Check your DMs for your Discord Nitro gift link!", false);
-                
+
                 // Send DM with nitro link
                 Main.getBot().getShardManager().retrieveUserById(winnerId).queue(user -> {
                     user.openPrivateChannel().queue(dm -> {
@@ -468,27 +451,29 @@ public class GiveawayCommand extends BaseCommand {
                                 .setTitle("🎉 Congratulations! You Won Discord Nitro!")
                                 .setDescription(String.format("You won the giveaway: **%s**", giveaway.getTitle()))
                                 .addField("🎁 Your Discord Nitro Gift Link", giveaway.getPrize().getValue(), false)
-                                .addField("⚠️ Important", "This link is for you only. Do not share it with anyone!", false)
+                                .addField("⚠️ Important", "This link is for you only. Do not share it with anyone!",
+                                        false)
                                 .setColor(SUCCESS_COLOR)
                                 .setTimestamp(Instant.now());
-                        
+
                         dm.sendMessageEmbeds(dmEmbed.build()).queue();
                     });
                 });
             } else {
                 // For other prizes, show the value publicly or handle accordingly
                 embed.addField("🎁 Prize Details", giveaway.getPrize().getDisplayValue(), false);
-                
+
                 // If it's coins, add them to user's account
                 if ("coins".equals(giveaway.getPrize().getType())) {
                     try {
                         int coinAmount = Integer.parseInt(giveaway.getPrize().getValue());
-                        User user = Main.getUserService().getOrCreateUser(winnerId);
-                        user.addCoins(coinAmount, dev.mediaroulette.domain.economy.Transaction.TransactionType.GIVEAWAY_WIN, 
-                            "Won giveaway: " + giveaway.getTitle());
-                        Main.getUserService().updateUser(user);
-                        
-                        embed.addField("💰 Coins Added", String.format("%,d coins have been added to your account!", coinAmount), false);
+                        dev.mediaroulette.domain.economy.Wallet userWallet = Main.getWalletService()
+                                .getWallet(winnerId);
+                        userWallet.setCoins(userWallet.getCoins() + coinAmount);
+                        Main.getWalletService().updateWallet(userWallet);
+
+                        embed.addField("💰 Coins Added",
+                                String.format("%,d coins have been added to your account!", coinAmount), false);
                     } catch (NumberFormatException e) {
                         logger.error("Invalid coin amount in giveaway prize: {}", giveaway.getPrize().getValue());
                     }

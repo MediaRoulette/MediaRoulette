@@ -2,7 +2,7 @@ package dev.mediaroulette.utils;
 
 import dev.mediaroulette.config.LocalConfig;
 import dev.mediaroulette.Main;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -30,8 +30,8 @@ public class MaintenanceChecker {
         }
         
         // Check if user is admin - admins can use commands during maintenance
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        if (user.isAdmin()) {
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        if (userAccount.isAdmin()) {
             return false; // Allow admins to use commands during maintenance
         }
         

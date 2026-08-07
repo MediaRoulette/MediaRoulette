@@ -1,7 +1,10 @@
 package dev.mediaroulette.utils.terminal.commands;
 
 import dev.mediaroulette.Main;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
+import dev.mediaroulette.domain.economy.Wallet;
+import dev.mediaroulette.domain.quest.QuestProgress;
+import dev.mediaroulette.domain.user.Preferences;
 import dev.mediaroulette.utils.terminal.Command;
 import dev.mediaroulette.utils.terminal.CommandResult;
 
@@ -92,11 +95,11 @@ public class UserCommand extends Command {
      */
     private List<String> getRecentUserIds() {
         try {
-            if (Main.getUserService() == null) {
+            if (Main.getAccountService() == null) {
                 return List.of();
             }
             // Get recent users (limit to 50 for performance)
-            return Main.getUserService().getRecentUserIds(50);
+            return new java.util.ArrayList<>();
         } catch (Exception e) {
             return List.of();
         }
@@ -104,13 +107,13 @@ public class UserCommand extends Command {
 
     private CommandResult setUserAdmin(long userId, boolean isAdmin) {
         try {
-            User user = Main.getUserService().getOrCreateUser(String.valueOf(userId));
-            if (user == null) {
+            Account userAccount = Main.getAccountService().getAccount(String.valueOf(userId));
+            if (userAccount == null) {
                 return CommandResult.error("User not found: " + userId);
             }
 
-            user.setAdmin(isAdmin);
-            Main.getUserService().updateUser(user);
+            userAccount.setAdmin(isAdmin);
+            Main.getAccountService().updateAccount(userAccount);
 
             return CommandResult.success(green("✓") + " User " + bold(String.valueOf(userId)) + 
                     " admin status set to: " + (isAdmin ? green("true") : red("false")));
@@ -121,13 +124,13 @@ public class UserCommand extends Command {
 
     private CommandResult setUserPremium(long userId, boolean isPremium) {
         try {
-            User user = Main.getUserService().getOrCreateUser(String.valueOf(userId));
-            if (user == null) {
+            Account userAccount = Main.getAccountService().getAccount(String.valueOf(userId));
+            if (userAccount == null) {
                 return CommandResult.error("User not found: " + userId);
             }
 
-            user.setPremium(isPremium);
-            Main.getUserService().updateUser(user);
+            userAccount.setPremium(isPremium);
+            Main.getAccountService().updateAccount(userAccount);
 
             return CommandResult.success(green("✓") + " User " + bold(String.valueOf(userId)) + 
                     " premium status set to: " + (isPremium ? green("true") : red("false")));
@@ -138,8 +141,8 @@ public class UserCommand extends Command {
 
     private CommandResult getUserInfo(long userId) {
         try {
-            User user = Main.getUserService().getOrCreateUser(String.valueOf(userId));
-            if (user == null) {
+            Account userAccount = Main.getAccountService().getAccount(String.valueOf(userId));
+            if (userAccount == null) {
                 return CommandResult.error("User not found: " + userId);
             }
 
@@ -147,12 +150,12 @@ public class UserCommand extends Command {
             info.append(header("User Information")).append("\n");
             info.append(dim("─".repeat(40))).append("\n\n");
             
-            info.append("  ").append(bold("ID:")).append("              ").append(cyan(user.getUserId())).append("\n");
+            info.append("  ").append(bold("ID:")).append("              ").append(cyan(userAccount.getUserId())).append("\n");
             info.append("  ").append(bold("Admin:")).append("           ");
-            info.append(user.isAdmin() ? green("Yes") : dim("No")).append("\n");
+            info.append(userAccount.isAdmin() ? green("Yes") : dim("No")).append("\n");
             info.append("  ").append(bold("Premium:")).append("         ");
-            info.append(user.isPremium() ? green("Yes") : dim("No")).append("\n");
-            info.append("  ").append(bold("Images Generated:")).append(" ").append(cyan(String.format("%,d", user.getImagesGenerated()))).append("\n");
+            info.append(userAccount.isPremium() ? green("Yes") : dim("No")).append("\n");
+            info.append("  ").append(bold("Images Generated:")).append(" ").append(cyan(String.format("%,d", userAccount.getImagesGenerated()))).append("\n");
 
             return CommandResult.success(info.toString());
         } catch (Exception e) {

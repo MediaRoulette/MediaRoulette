@@ -6,7 +6,7 @@ import dev.mediaroulette.bot.utils.CommandCooldown;
 import dev.mediaroulette.config.LocalConfig;
 import dev.mediaroulette.bot.utils.EmbedFactory;
 import dev.mediaroulette.domain.economy.BotInventoryItem;
-import dev.mediaroulette.model.User;
+
 import dev.mediaroulette.service.BotInventoryService;
 import dev.mediaroulette.service.GiveawayService;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -89,7 +89,7 @@ public class AdminCommand extends BaseCommand {
     public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("admin")) return;
 
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+        dev.mediaroulette.domain.user.Account user = Main.getAccountService().getAccount(event.getUser().getId());
         // Check if user is admin
         if (!user.isAdmin()) {
             sendError(event, "Access Denied - You don't have permission to use admin commands.");
@@ -304,15 +304,17 @@ public class AdminCommand extends BaseCommand {
         
         Main.getBot().getExecutor().submit(() -> {
             try {
-                User user = Main.getUserService().getOrCreateUser(targetUser.getId());
-                user.setCoins(user.getCoins() + amount);
-                Main.getUserService().updateUser(user);
+                dev.mediaroulette.domain.user.Account userAccount = Main.getAccountService().getAccount(targetUser.getId());
+                dev.mediaroulette.domain.economy.Wallet userWallet = Main.getWalletService().getWallet(targetUser.getId());
+                userWallet.setCoins(userWallet.getCoins() + amount);
+                Main.getAccountService().updateAccount(userAccount);
+                Main.getWalletService().updateWallet(userWallet);
                 
                 EmbedBuilder embed = new EmbedBuilder()
                         .setTitle("Coins Given")
                         .setDescription(String.format("Given **%,d coins** to %s", amount, targetUser.getAsMention()))
                         .addField("Reason", reason, false)
-                        .addField("New Balance", String.format("%,d coins", user.getCoins()), false)
+                        .addField("New Balance", String.format("%,d coins", userWallet.getCoins()), false)
                         .setColor(SUCCESS_COLOR)
                         .setTimestamp(Instant.now());
                 
@@ -332,9 +334,11 @@ public class AdminCommand extends BaseCommand {
         
         Main.getBot().getExecutor().submit(() -> {
             try {
-                User user = Main.getUserService().getOrCreateUser(targetUser.getId());
-                user.setPremium(premium);
-                Main.getUserService().updateUser(user);
+                dev.mediaroulette.domain.user.Account userAccount = Main.getAccountService().getAccount(targetUser.getId());
+                dev.mediaroulette.domain.economy.Wallet userWallet = Main.getWalletService().getWallet(targetUser.getId());
+                userAccount.setPremium(premium);
+                Main.getAccountService().updateAccount(userAccount);
+                Main.getWalletService().updateWallet(userWallet);
                 
                 EmbedBuilder embed = new EmbedBuilder()
                         .setTitle("Premium Status Updated")
@@ -355,8 +359,8 @@ public class AdminCommand extends BaseCommand {
         event.deferReply(true).queue();
         
         Main.getBot().getExecutor().submit(() -> {
-            long totalUsers = Main.getUserService().getTotalUsers();
-            long totalImages = Main.getUserService().getTotalImagesGenerated();
+            long totalUsers = 0; // TODO Main.getAccountService().getTotalUsers();
+            long totalImages = 0; // TODO Main.getAccountService().getTotalImagesGenerated();
             List<BotInventoryItem> botItems = botInventoryService.getAllItems();
             
             EmbedBuilder embed = new EmbedBuilder()
@@ -488,7 +492,12 @@ public class AdminCommand extends BaseCommand {
     
     private void handleUserLookup(SlashCommandInteractionEvent event) {
         net.dv8tion.jda.api.entities.User targetDiscordUser = event.getOption("user").getAsUser();
-        User targetUser = Main.getUserService().getOrCreateUser(targetDiscordUser.getId());
+        dev.mediaroulette.domain.user.Account targetUser = Main.getAccountService().getAccount(targetDiscordUser.getId());
+        dev.mediaroulette.domain.economy.Wallet targetWallet = Main.getWalletService().getWallet(targetDiscordUser.getId());
+        dev.mediaroulette.domain.quest.QuestProgress targetQuests = Main.getQuestProgressService().getQuestProgress(targetDiscordUser.getId());
+        dev.mediaroulette.domain.economy.Inventory targetInventory = Main.getInventoryService().getInventory(targetDiscordUser.getId());
+        dev.mediaroulette.domain.user.Preferences targetPrefs = Main.getPreferencesService().getPreferences(targetDiscordUser.getId());
+        dev.mediaroulette.domain.user.UsageStats targetStats = Main.getUsageStatsService().getUsageStats(targetDiscordUser.getId());
         
         EmbedBuilder embed = EmbedFactory.createUserEmbed("User Lookup", null, targetDiscordUser, targetUser);
         
@@ -509,25 +518,25 @@ public class AdminCommand extends BaseCommand {
                         targetUser.getTheme() != null ? targetUser.getTheme() : "Default"), true);
         
         // Economy Information
-        EmbedFactory.addCoinField(embed, "💰 Current Balance", targetUser.getCoins(), true);
-        EmbedFactory.addCoinField(embed, "📈 Total Earned", targetUser.getTotalCoinsEarned(), true);
-        EmbedFactory.addCoinField(embed, "📉 Total Spent", targetUser.getTotalCoinsSpent(), true);
+        EmbedFactory.addCoinField(embed, "💰 Current Balance", targetWallet.getCoins(), true);
+        EmbedFactory.addCoinField(embed, "📈 Total Earned", targetWallet.getTotalCoinsEarned(), true);
+        EmbedFactory.addCoinField(embed, "📉 Total Spent", targetWallet.getTotalCoinsSpent(), true);
         
         // Quest Information
         embed.addField("🎯 Quest Stats", 
                 String.format("**Total Completed:** %,d\n**Today:** %d\n**Active Quests:** %d", 
-                        targetUser.getTotalQuestsCompleted(),
-                        targetUser.getQuestsCompletedToday(),
-                        targetUser.getDailyQuests().size()), true);
+                        targetQuests.getTotalQuestsCompleted(),
+                        targetQuests.getQuestsCompletedToday(),
+                        targetQuests.getDailyQuests().size()), true);
         
         // Inventory Information
         embed.addField("📦 Inventory", 
                 String.format("**Unique Items:** %d/%d\n**Total Items:** %d\n**Favorites:** %d/%d", 
-                        targetUser.getUniqueInventoryItems(),
-                        User.MAX_INVENTORY_SIZE,
-                        targetUser.getTotalInventoryItems(),
-                        targetUser.getFavorites().size(),
-                        targetUser.getFavoriteLimit()), true);
+                        targetInventory.getUniqueItemsCount(),
+                        dev.mediaroulette.domain.economy.Inventory.MAX_INVENTORY_SIZE,
+                        targetInventory.getTotalItems(),
+                        targetPrefs.getFavorites().size(),
+                        targetPrefs.getFavoriteLimit(targetUser.isPremium())), true);
         
         // Activity Information
         if (targetUser.getAccountCreatedDate() != null) {
@@ -547,16 +556,21 @@ public class AdminCommand extends BaseCommand {
     
     private void handleUserStats(SlashCommandInteractionEvent event) {
         net.dv8tion.jda.api.entities.User targetDiscordUser = event.getOption("user").getAsUser();
-        User targetUser = Main.getUserService().getOrCreateUser(targetDiscordUser.getId());
+        dev.mediaroulette.domain.user.Account targetUser = Main.getAccountService().getAccount(targetDiscordUser.getId());
+        dev.mediaroulette.domain.economy.Wallet targetWallet = Main.getWalletService().getWallet(targetDiscordUser.getId());
+        dev.mediaroulette.domain.quest.QuestProgress targetQuests = Main.getQuestProgressService().getQuestProgress(targetDiscordUser.getId());
+        dev.mediaroulette.domain.economy.Inventory targetInventory = Main.getInventoryService().getInventory(targetDiscordUser.getId());
+        dev.mediaroulette.domain.user.Preferences targetPrefs = Main.getPreferencesService().getPreferences(targetDiscordUser.getId());
+        dev.mediaroulette.domain.user.UsageStats targetStats = Main.getUsageStatsService().getUsageStats(targetDiscordUser.getId());
         
         EmbedBuilder embed = EmbedFactory.createUserEmbed("User Usage Statistics", null, targetDiscordUser, targetUser);
         
         // Command Usage Statistics
         StringBuilder commandStats = new StringBuilder();
-        commandStats.append(String.format("**Total Commands Used:** %,d\n", targetUser.getTotalCommandsUsed()));
-        commandStats.append(String.format("**Most Used Command:** %s\n", targetUser.getMostUsedCommand()));
+        commandStats.append(String.format("**Total Commands Used:** %,d\n", targetStats.getTotalCommandsUsed()));
+        commandStats.append(String.format("**Most Used Command:** %s\n", targetStats.getMostUsedCommand()));
         
-        var topCommands = targetUser.getCommandUsageCount().entrySet().stream()
+        var topCommands = targetStats.getCommandUsageCount().entrySet().stream()
                 .sorted(java.util.Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(3)
                 .toList();
@@ -572,9 +586,9 @@ public class AdminCommand extends BaseCommand {
         
         // Source Usage Statistics
         StringBuilder sourceStats = new StringBuilder();
-        sourceStats.append(String.format("**Most Used Source:** %s\n", targetUser.getMostUsedSource()));
+        sourceStats.append(String.format("**Most Used Source:** %s\n", targetStats.getMostUsedSource()));
         
-        var topSources = targetUser.getSourceUsageCount().entrySet().stream()
+        var topSources = targetStats.getSourceUsageCount().entrySet().stream()
                 .sorted(java.util.Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(5)
                 .toList();
@@ -590,12 +604,12 @@ public class AdminCommand extends BaseCommand {
         
         // Subreddit Usage Statistics
         StringBuilder subredditStats = new StringBuilder();
-        var topSubreddits = targetUser.getTopSubreddits(5);
+        var topSubreddits = targetStats.getTopSubreddits(5);
         
         if (!topSubreddits.isEmpty()) {
             subredditStats.append("**Top Subreddits:**\n");
             for (String subreddit : topSubreddits) {
-                int count = targetUser.getSubredditUsageCount().getOrDefault(subreddit, 0);
+                int count = targetStats.getSubredditUsageCount().getOrDefault(subreddit, 0);
                 subredditStats.append(String.format("• r/%s: %d times\n", subreddit, count));
             }
         } else {
@@ -603,7 +617,7 @@ public class AdminCommand extends BaseCommand {
         }
         
         subredditStats.append(String.format("\n**Custom Subreddits Saved:** %d/%d", 
-                targetUser.getCustomSubreddits().size(), User.MAX_CUSTOM_SUBREDDITS));
+                targetStats.getCustomSubreddits().size(), dev.mediaroulette.domain.user.UsageStats.MAX_CUSTOM_SUBREDDITS));
         
         embed.addField("🔍 Subreddit Usage", subredditStats.toString(), false);
         
@@ -614,7 +628,7 @@ public class AdminCommand extends BaseCommand {
                     java.time.LocalDate.now());
             
             double avgCommandsPerDay = daysSinceCreation > 0 ? 
-                    (double) targetUser.getTotalCommandsUsed() / daysSinceCreation : 0;
+                    (double) targetStats.getTotalCommandsUsed() / daysSinceCreation : 0;
             
             embed.addField("📈 Activity Pattern", 
                     String.format("**Account Age:** %d days\n**Avg Commands/Day:** %.1f\n**Images/Day:** %.1f", 

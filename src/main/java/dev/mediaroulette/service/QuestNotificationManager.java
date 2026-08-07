@@ -4,7 +4,9 @@ import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.Bot;
 import dev.mediaroulette.domain.quest.Quest;
 import dev.mediaroulette.domain.economy.Transaction;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.quest.QuestProgress;
+import dev.mediaroulette.domain.economy.Wallet;
+import dev.mediaroulette.domain.user.Account;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
@@ -31,8 +33,8 @@ public class QuestNotificationManager {
      * Handles quest completion notification and auto-claiming
      * This should be called whenever quest progress is updated
      */
-    public static void handleQuestCompletion(User user, String userId) {
-        List<Quest> newlyCompletedQuests = user.getDailyQuests().stream()
+    public static void handleQuestCompletion(QuestProgress userQuest, Wallet userWallet, String userId) {
+        List<Quest> newlyCompletedQuests = userQuest.getDailyQuests().stream()
                 .filter(quest -> quest.isCompleted() && !quest.isClaimed())
                 .toList();
         
@@ -43,14 +45,15 @@ public class QuestNotificationManager {
         // Auto-claim all completed quests
         long totalReward = 0;
         for (Quest quest : newlyCompletedQuests) {
-            Transaction transaction = user.claimQuestReward(quest);
+            Transaction transaction = userQuest.claimQuestReward(quest, userWallet);
             if (transaction != null) {
                 totalReward += transaction.getAmount();
             }
         }
         
         // Save user data
-        Main.getUserService().updateUser(user);
+        Main.getQuestProgressService().updateQuestProgress(userQuest);
+        Main.getWalletService().updateWallet(userWallet);
         
         // Send notification
         if (totalReward > 0) {
@@ -167,31 +170,31 @@ public class QuestNotificationManager {
     /**
      * Enhanced quest progress update with auto-completion handling
      */
-    public static void updateQuestProgressWithNotification(User user, Quest.QuestType questType, int amount, String userId) {
+    public static void updateQuestProgressWithNotification(QuestProgress userQuest, Quest.QuestType questType, int amount, String userId) {
         // Store quests that were completed before the update
-        List<String> previouslyCompletedQuestIds = user.getDailyQuests().stream()
+        List<String> previouslyCompletedQuestIds = userQuest.getDailyQuests().stream()
                 .filter(Quest::isCompleted)
                 .map(Quest::getQuestId)
                 .toList();
         
         // Update quest progress
-        user.updateQuestProgress(questType, amount);
+        userQuest.updateQuestProgress(questType, amount);
         
         // Find newly completed quests
-        List<Quest> newlyCompletedQuests = user.getDailyQuests().stream()
+        List<Quest> newlyCompletedQuests = userQuest.getDailyQuests().stream()
                 .filter(quest -> quest.isCompleted() && !previouslyCompletedQuestIds.contains(quest.getQuestId()))
                 .toList();
         
         // Handle completion if there are newly completed quests
         if (!newlyCompletedQuests.isEmpty()) {
-            handleQuestCompletion(user, userId);
+            handleQuestCompletion(userQuest, Main.getWalletService().getWallet(userId), userId);
         }
     }
     
     /**
      * Convenience method for single progress increment
      */
-    public static void updateQuestProgressWithNotification(User user, Quest.QuestType questType, String userId) {
-        updateQuestProgressWithNotification(user, questType, 1, userId);
+    public static void updateQuestProgressWithNotification(QuestProgress userQuest, Quest.QuestType questType, String userId) {
+        updateQuestProgressWithNotification(userQuest, questType, 1, userId);
     }
 }

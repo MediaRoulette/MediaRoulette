@@ -24,7 +24,6 @@ import dev.mediaroulette.utils.media.MediaInitializer;
 import dev.mediaroulette.utils.resources.ResourceManager;
 import dev.mediaroulette.utils.startup.StartupManager;
 import dev.mediaroulette.utils.terminal.TerminalInterface;
-import dev.mediaroulette.utils.user.UserService;
 
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
@@ -42,7 +41,12 @@ public class Main {
     private static TerminalInterface terminal;
 
     // Services
-    private static UserService userService;
+    private static dev.mediaroulette.service.domain.AccountService accountService;
+    private static dev.mediaroulette.service.domain.WalletService walletService;
+    private static dev.mediaroulette.service.domain.PreferencesService preferencesService;
+    private static dev.mediaroulette.service.domain.UsageStatsService usageStatsService;
+    private static dev.mediaroulette.service.domain.QuestProgressService questProgressService;
+    private static dev.mediaroulette.service.domain.InventoryService inventoryService;
     private static DictionaryService dictionaryService;
     private static StatsTrackingService statsService;
 
@@ -125,15 +129,19 @@ public class Main {
         MongoCollection<Document> dictionaryCollection = database.getCollection("dictionary");
         MongoCollection<Document> assignmentCollection = database.getCollection("dictionary_assignment");
 
-        UserRepository userRepository = new MongoUserRepository(userCollection);
         DictionaryRepository dictionaryRepository = new MongoDictionaryRepository(
                 dictionaryCollection,
                 assignmentCollection
         );
 
-        userService = new UserService(userRepository);
+        accountService = new dev.mediaroulette.service.domain.AccountService(new MongoAccountRepository(database.getCollection("accounts")));
+        walletService = new dev.mediaroulette.service.domain.WalletService(new MongoWalletRepository(database.getCollection("wallets")));
+        preferencesService = new dev.mediaroulette.service.domain.PreferencesService(new MongoPreferencesRepository(database.getCollection("preferences")));
+        usageStatsService = new dev.mediaroulette.service.domain.UsageStatsService(new MongoUsageStatsRepository(database.getCollection("usage_stats")));
+        questProgressService = new dev.mediaroulette.service.domain.QuestProgressService(new MongoQuestProgressRepository(database.getCollection("quest_progress")));
+        inventoryService = new dev.mediaroulette.service.domain.InventoryService(new MongoInventoryRepository(database.getCollection("inventories")));
         dictionaryService = new DictionaryService(dictionaryRepository);
-        statsService = new StatsTrackingService(userRepository);
+        statsService = new StatsTrackingService(new MongoAccountRepository(database.getCollection("accounts")));
 
         initializeDefaultDictionaries();
     }
@@ -252,9 +260,12 @@ public class Main {
             safeShutdown("Stats Service", statsService::shutdown);
         }
 
-        if (userService != null) {
-            safeShutdown("User Service", userService::shutdown);
-        }
+        if (accountService != null) safeShutdown("Account Service", accountService::shutdown);
+        if (walletService != null) safeShutdown("Wallet Service", walletService::shutdown);
+        if (preferencesService != null) safeShutdown("Preferences Service", preferencesService::shutdown);
+        if (usageStatsService != null) safeShutdown("UsageStats Service", usageStatsService::shutdown);
+        if (questProgressService != null) safeShutdown("QuestProgress Service", questProgressService::shutdown);
+        if (inventoryService != null) safeShutdown("Inventory Service", inventoryService::shutdown);
 
         safeShutdown("Giveaway Service", GiveawayManager::shutdown);
 
@@ -333,10 +344,12 @@ public class Main {
         return pluginManager;
     }
 
-    public static UserService getUserService() {
-        return userService;
-    }
-
+    public static dev.mediaroulette.service.domain.AccountService getAccountService() { return accountService; }
+    public static dev.mediaroulette.service.domain.WalletService getWalletService() { return walletService; }
+    public static dev.mediaroulette.service.domain.PreferencesService getPreferencesService() { return preferencesService; }
+    public static dev.mediaroulette.service.domain.UsageStatsService getUsageStatsService() { return usageStatsService; }
+    public static dev.mediaroulette.service.domain.QuestProgressService getQuestProgressService() { return questProgressService; }
+    public static dev.mediaroulette.service.domain.InventoryService getInventoryService() { return inventoryService; }
     public static DictionaryService getDictionaryService() {
         return dictionaryService;
     }

@@ -2,7 +2,7 @@ package dev.mediaroulette.bot;
 
 import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.utils.EmbedFactory;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
 import dev.mediaroulette.utils.ColorExtractor;
 import dev.mediaroulette.utils.media.FFmpegDownloader;
 import dev.mediaroulette.utils.media.ffmpeg.FFmpegService;
@@ -319,8 +319,8 @@ public class MediaContainerManager {
     private static void handleGeneratedImageContainer(Interaction event, Container container, Map<String, String> map,
                                                       boolean isEdit, CompletableFuture<Message> future) {
         try {
-            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-            byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
+            Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+            byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), userAccount.getTheme());
             FileUpload file = FileUpload.fromData(imageBytes, "image.png");
 
             if (isEdit) {
@@ -340,8 +340,8 @@ public class MediaContainerManager {
     private static void handleGeneratedImageContainerFromHook(InteractionHook hook, Container container, Map<String, String> map,
                                                               boolean isEdit, CompletableFuture<Message> future) {
         try {
-            User user = Main.getUserService().getOrCreateUser(hook.getInteraction().getUser().getId());
-            byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), user.getTheme());
+            Account userAccount = Main.getAccountService().getAccount(hook.getInteraction().getUser().getId());
+            byte[] imageBytes = new ImageGenerator().generateImage(map.get("image_content"), userAccount.getTheme());
             FileUpload file = FileUpload.fromData(imageBytes, "image.png");
 
             if (isEdit) {

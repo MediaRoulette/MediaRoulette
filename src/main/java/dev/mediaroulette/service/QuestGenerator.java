@@ -1,7 +1,8 @@
 package dev.mediaroulette.service;
 
 import dev.mediaroulette.domain.quest.Quest;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.quest.QuestProgress;
+import dev.mediaroulette.domain.user.Account;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,7 +39,7 @@ public class QuestGenerator {
             new QuestTemplate(Quest.QuestType.RATE_IMAGES, "⚡ Premium Rater", "Rate {target} images with premium accuracy bonus", "⚡", 15, 25)
     );
 
-    public static List<Quest> generateDailyQuests(User user) {
+    public static List<Quest> generateDailyQuests(Account userAccount, QuestProgress userQuest) {
         List<Quest> quests = new ArrayList<>();
         
         // Always add one easy quest
@@ -48,7 +49,7 @@ public class QuestGenerator {
         quests.add(generateQuest(HARD_QUESTS, Quest.QuestDifficulty.HARD));
         
         // Premium users get an additional premium quest
-        if (user.isPremium()) {
+        if (userAccount.isPremium()) {
             quests.add(generateQuest(PREMIUM_QUESTS, Quest.QuestDifficulty.PREMIUM));
         }
         
@@ -65,43 +66,43 @@ public class QuestGenerator {
         return new Quest(template.type, difficulty, title, description, template.emoji, targetValue);
     }
 
-    public static void updateQuestProgress(User user, Quest.QuestType questType, int amount) {
-        QuestNotificationManager.updateQuestProgressWithNotification(user, questType, amount, user.getUserId());
+    public static void updateQuestProgress(QuestProgress userQuest, Quest.QuestType questType, int amount) {
+        QuestNotificationManager.updateQuestProgressWithNotification(userQuest, questType, amount, userQuest.getUserId());
     }
 
-    public static void updateQuestProgress(User user, Quest.QuestType questType) {
-        updateQuestProgress(user, questType, 1);
+    public static void updateQuestProgress(QuestProgress userQuest, Quest.QuestType questType) {
+        updateQuestProgress(userQuest, questType, 1);
     }
 
     // Helper method to update quest progress based on user actions
-    public static void onImageGenerated(User user, String source) {
-        updateQuestProgress(user, Quest.QuestType.GENERATE_IMAGES);
+    public static void onImageGenerated(QuestProgress userQuest, String source) {
+        updateQuestProgress(userQuest, Quest.QuestType.GENERATE_IMAGES);
         
         // Check if it's a specific source quest
-        for (Quest quest : user.getDailyQuests()) {
+        for (Quest quest : userQuest.getDailyQuests()) {
             if (quest.getType() == Quest.QuestType.USE_SPECIFIC_SOURCE && !quest.isCompleted()) {
                 // This would need to be enhanced to check specific sources
-                updateQuestProgress(user, Quest.QuestType.USE_SPECIFIC_SOURCE);
+                updateQuestProgress(userQuest, Quest.QuestType.USE_SPECIFIC_SOURCE);
                 break;
             }
         }
     }
 
-    public static void onImageFavorited(User user) {
-        updateQuestProgress(user, Quest.QuestType.FAVORITE_IMAGES);
+    public static void onImageFavorited(QuestProgress userQuest) {
+        updateQuestProgress(userQuest, Quest.QuestType.FAVORITE_IMAGES);
     }
 
-    public static void onThemeChanged(User user) {
-        updateQuestProgress(user, Quest.QuestType.CHANGE_THEME);
+    public static void onThemeChanged(QuestProgress userQuest) {
+        updateQuestProgress(userQuest, Quest.QuestType.CHANGE_THEME);
     }
 
-    public static void onImageRated(User user) {
-        updateQuestProgress(user, Quest.QuestType.RATE_IMAGES);
+    public static void onImageRated(QuestProgress userQuest) {
+        updateQuestProgress(userQuest, Quest.QuestType.RATE_IMAGES);
     }
 
-    public static void onBalanceChecked(User user, String targetUserId) {
-        if (!user.getUserId().equals(targetUserId)) {
-            updateQuestProgress(user, Quest.QuestType.SOCIAL_INTERACTION);
+    public static void onBalanceChecked(QuestProgress userQuest, String targetUserId) {
+        if (!userQuest.getUserId().equals(targetUserId)) {
+            updateQuestProgress(userQuest, Quest.QuestType.SOCIAL_INTERACTION);
         }
     }
 

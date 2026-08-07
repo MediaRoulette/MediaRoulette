@@ -3,10 +3,9 @@ package dev.mediaroulette.bot.commands.config;
 import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.commands.BaseCommand;
 import dev.mediaroulette.bot.utils.CommandCooldown;
-import dev.mediaroulette.bot.utils.ContainerFactory;
 import dev.mediaroulette.bot.utils.Emoji;
 import dev.mediaroulette.domain.user.ImageOptions;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Preferences;
 import dev.mediaroulette.locale.LocaleManager;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -59,13 +58,13 @@ public class ChancesCommand extends BaseCommand {
         registerSource("4chan", "4Chan", Emoji._4CHAN_LOGO.getFormat(), "Images");
         registerSource("picsum", "Picsum", "🖼️", "Images");
         registerSource("google", "Google", Emoji.GOOGLE_LOGO.getFormat(), "Images");
-        
+
         registerSource("movies", "Movies", "🎬", "Media");
         registerSource("tvshow", "TV Shows", "📺", "Media");
         registerSource("youtube", "YouTube", Emoji.YT_LOGO.getFormat(), "Media");
         registerSource("short", "YouTube Shorts", Emoji.YT_SHORTS_LOGO.getFormat(), "Media");
         registerSource("tenor", "Tenor", Emoji.TENOR_LOGO.getFormat(), "Media");
-        
+
         registerSource("booru", "Booru", "🔞", "NSFW");
         registerSource("urban", "Urban Dictionary", Emoji.URBAN_DICTIONARY_LOGO.getFormat(), "Text");
     }
@@ -73,9 +72,10 @@ public class ChancesCommand extends BaseCommand {
     public static void registerSource(String key, String name, String emoji, String category) {
         SOURCE_METADATA.put(key, new SourceMetadata(name, emoji, category));
     }
-    
+
     /**
      * Get source display names for autocomplete.
+     * 
      * @return Map of source key to display name
      */
     public static Map<String, String> getSourceDisplayNames() {
@@ -98,28 +98,28 @@ public class ChancesCommand extends BaseCommand {
                                 .addChoice("📚 Text", "text"),
                         new OptionData(OptionType.STRING, "status", "🔘 Filter by enabled/disabled status")
                                 .addChoice("🟢 Enabled Only", "enabled")
-                                .addChoice("🔴 Disabled Only", "disabled")
-                )
+                                .addChoice("🔴 Disabled Only", "disabled"))
                 .setIntegrationTypes(IntegrationType.ALL)
                 .setContexts(InteractionContextType.ALL);
     }
 
     @Override
-    @CommandCooldown(value = 3, commands = {"chances"})
+    @CommandCooldown(value = 3, commands = { "chances" })
     public void handleCommand(SlashCommandInteractionEvent event) {
-        if (!event.getName().equals("chances")) return;
+        if (!event.getName().equals("chances"))
+            return;
 
         event.deferReply().queue();
         Main.getBot().getExecutor().execute(() -> {
             ChancesSession session = getOrCreateSession(event.getUser());
-            
+
             // Apply command options if provided
             OptionMapping searchOpt = event.getOption("search");
             OptionMapping categoryOpt = event.getOption("category");
             OptionMapping statusOpt = event.getOption("status");
-            
+
             String message = null;
-            
+
             if (searchOpt != null) {
                 session.setSearchQuery(searchOpt.getAsString());
                 message = "🔍 Searching for: " + searchOpt.getAsString();
@@ -129,18 +129,20 @@ public class ChancesCommand extends BaseCommand {
             }
             if (statusOpt != null) {
                 session.setStatusFilter(statusOpt.getAsString());
-                message = (message != null ? message + " | " : "") + 
+                message = (message != null ? message + " | " : "") +
                         ("enabled".equals(statusOpt.getAsString()) ? "🟢 Showing enabled" : "🔴 Showing disabled");
             }
-            
+
             updateDisplay(event.getHook(), session, event.getUser(), message);
         });
     }
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
-        if (!event.getComponentId().startsWith("chances:")) return;
-        if (!validateUser(event)) return;
+        if (!event.getComponentId().startsWith("chances:"))
+            return;
+        if (!validateUser(event))
+            return;
 
         String action = event.getComponentId().split(":")[1];
 
@@ -161,7 +163,10 @@ public class ChancesCommand extends BaseCommand {
                 case "save" -> session.saveChanges();
                 case "toggle_all_on" -> session.toggleAll(true);
                 case "toggle_all_off" -> session.toggleAll(false);
-                case "clear_filters" -> { session.clearAllFilters(); yield "✨ All filters cleared."; }
+                case "clear_filters" -> {
+                    session.clearAllFilters();
+                    yield "✨ All filters cleared.";
+                }
                 // Quick Filter Buttons
                 case "filter_enabled" -> session.toggleStatusFilter("enabled");
                 case "filter_disabled" -> session.toggleStatusFilter("disabled");
@@ -175,8 +180,10 @@ public class ChancesCommand extends BaseCommand {
 
     @Override
     public void onStringSelectInteraction(StringSelectInteractionEvent event) {
-        if (!event.getComponentId().startsWith("chances:")) return;
-        if (!validateUser(event)) return;
+        if (!event.getComponentId().startsWith("chances:"))
+            return;
+        if (!validateUser(event))
+            return;
 
         event.deferEdit().queue();
         Main.getBot().getExecutor().execute(() -> {
@@ -192,7 +199,7 @@ public class ChancesCommand extends BaseCommand {
                 SourceMetadata meta = SOURCE_METADATA.get(value);
                 ImageOptions opt = session.getImageOption(value);
                 if (meta != null && opt != null) {
-                    message = String.format("📌 Selected: %s %s (%.1f%% chance)", 
+                    message = String.format("📌 Selected: %s %s (%.1f%% chance)",
                             meta.emoji(), meta.displayName(), opt.getChance());
                 }
             }
@@ -214,37 +221,39 @@ public class ChancesCommand extends BaseCommand {
             event.deferEdit().queue();
             Main.getBot().getExecutor().execute(() -> {
                 ChancesSession session = getOrCreateSession(event.getUser());
-                
+
                 // Get search query
-                String query = event.getValue("search_query") != null 
-                        ? event.getValue("search_query").getAsString().trim() 
+                String query = event.getValue("search_query") != null
+                        ? event.getValue("search_query").getAsString().trim()
                         : "";
-                
+
                 // Get category filter
                 net.dv8tion.jda.api.interactions.modals.ModalMapping catMapping = event.getValue("category_filter");
                 String categoryFilter = "";
                 if (catMapping != null) {
                     List<String> values = catMapping.getAsStringList();
-                    if (!values.isEmpty()) categoryFilter = values.get(0).trim().toLowerCase();
+                    if (!values.isEmpty())
+                        categoryFilter = values.get(0).trim().toLowerCase();
                 }
-                
+
                 // Get status filter
                 net.dv8tion.jda.api.interactions.modals.ModalMapping statusMapping = event.getValue("status_filter");
                 String statusFilter = "";
                 if (statusMapping != null) {
                     List<String> values = statusMapping.getAsStringList();
-                    if (!values.isEmpty()) statusFilter = values.get(0).trim().toLowerCase();
+                    if (!values.isEmpty())
+                        statusFilter = values.get(0).trim().toLowerCase();
                 }
-                
+
                 // Get chance filter
-                String chanceFilter = event.getValue("chance_filter") != null 
-                        ? event.getValue("chance_filter").getAsString().trim() 
+                String chanceFilter = event.getValue("chance_filter") != null
+                        ? event.getValue("chance_filter").getAsString().trim()
                         : "";
-                
+
                 // Apply filters
                 StringBuilder appliedFilters = new StringBuilder("🔍 Filters applied:");
                 boolean hasFilters = false;
-                
+
                 if (!query.isEmpty()) {
                     session.setSearchQuery(query);
                     appliedFilters.append(" **Search:** `").append(query).append("`");
@@ -252,42 +261,45 @@ public class ChancesCommand extends BaseCommand {
                 } else {
                     session.setSearchQuery(null);
                 }
-                
+
                 if (!categoryFilter.isEmpty() && isValidCategory(categoryFilter)) {
                     session.setSelectedCategory(categoryFilter);
-                    appliedFilters.append(hasFilters ? " |" : "").append(" **Category:** `").append(categoryFilter).append("`");
+                    appliedFilters.append(hasFilters ? " |" : "").append(" **Category:** `").append(categoryFilter)
+                            .append("`");
                     hasFilters = true;
                 }
-                
+
                 if (!statusFilter.isEmpty() && (statusFilter.equals("enabled") || statusFilter.equals("disabled"))) {
                     session.setStatusFilter(statusFilter);
-                    appliedFilters.append(hasFilters ? " |" : "").append(" **Status:** `").append(statusFilter).append("`");
+                    appliedFilters.append(hasFilters ? " |" : "").append(" **Status:** `").append(statusFilter)
+                            .append("`");
                     hasFilters = true;
                 } else {
                     session.setStatusFilter(null);
                 }
-                
+
                 if (!chanceFilter.isEmpty()) {
                     Double chanceValue = parseChanceFilter(chanceFilter);
                     if (chanceValue != null) {
                         session.setChanceFilter(chanceFilter);
-                        appliedFilters.append(hasFilters ? " |" : "").append(" **Chance:** `").append(chanceFilter).append("`");
+                        appliedFilters.append(hasFilters ? " |" : "").append(" **Chance:** `").append(chanceFilter)
+                                .append("`");
                         hasFilters = true;
                     }
                 } else {
                     session.setChanceFilter(null);
                 }
-                
+
                 String message = hasFilters ? appliedFilters.toString() : "No filters applied.";
                 updateDisplay(event.getHook(), session, event.getUser(), message);
             });
         }
     }
-    
+
     private boolean isValidCategory(String category) {
         return Set.of("all", "images", "media", "nsfw", "text").contains(category);
     }
-    
+
     private Double parseChanceFilter(String filter) {
         try {
             filter = filter.trim();
@@ -307,14 +319,17 @@ public class ChancesCommand extends BaseCommand {
         ChancesSession session = getOrCreateSession(event.getUser());
         ImageOptions option = session.getImageOption(imageType);
         SourceMetadata meta = SOURCE_METADATA.get(imageType);
-        
-        if (option == null || meta == null) return;
+
+        if (option == null || meta == null)
+            return;
 
         // Use Select Menu for Boolean Option
         StringSelectMenu enabledMenu = StringSelectMenu.create("enabled_select")
                 .setPlaceholder("Enable or Disable?")
-                .addOption("Enabled", "true", "Enable this source", net.dv8tion.jda.api.entities.emoji.Emoji.fromUnicode("🟢"))
-                .addOption("Disabled", "false", "Disable this source", net.dv8tion.jda.api.entities.emoji.Emoji.fromUnicode("🔴"))
+                .addOption("Enabled", "true", "Enable this source",
+                        net.dv8tion.jda.api.entities.emoji.Emoji.fromUnicode("🟢"))
+                .addOption("Disabled", "false", "Disable this source",
+                        net.dv8tion.jda.api.entities.emoji.Emoji.fromUnicode("🔴"))
                 .setDefaultValues(String.valueOf(option.isEnabled()))
                 .build();
 
@@ -337,9 +352,10 @@ public class ChancesCommand extends BaseCommand {
         net.dv8tion.jda.api.interactions.modals.ModalMapping enabledMapping = event.getValue("enabled_select");
         if (enabledMapping != null) {
             List<String> values = enabledMapping.getAsStringList();
-            if (!values.isEmpty()) enabledStr = values.get(0);
+            if (!values.isEmpty())
+                enabledStr = values.get(0);
         }
-        
+
         String chanceStr = event.getValue("chance_input").getAsString();
         SourceMetadata meta = SOURCE_METADATA.get(imageType);
         String name = meta != null ? meta.displayName() : imageType;
@@ -348,7 +364,8 @@ public class ChancesCommand extends BaseCommand {
             boolean enabled = parseBoolean(enabledStr);
             double chance = Double.parseDouble(chanceStr);
 
-            if (chance < 0 || chance > 100) return "❌ Chance must be between 0 and 100!";
+            if (chance < 0 || chance > 100)
+                return "❌ Chance must be between 0 and 100!";
 
             session.updateSource(imageType, enabled, chance);
             return String.format("✅ %s updated: %s, %.1f%% chance!", name, enabled ? "Enabled" : "Disabled", chance);
@@ -359,7 +376,7 @@ public class ChancesCommand extends BaseCommand {
 
     private void handleSearchRequest(ButtonInteractionEvent event) {
         ChancesSession session = getOrCreateSession(event.getUser());
-        
+
         // 1. Search Query (Text Input)
         TextInput.Builder searchBuilder = TextInput.create("search_query", TextInputStyle.SHORT)
                 .setPlaceholder("e.g., reddit, youtube, movies...")
@@ -370,8 +387,9 @@ public class ChancesCommand extends BaseCommand {
 
         // 2. Category (Select Menu)
         String currentCategory = session.getSelectedCategoryKey();
-        if (currentCategory == null || currentCategory.isEmpty()) currentCategory = "all";
-        
+        if (currentCategory == null || currentCategory.isEmpty())
+            currentCategory = "all";
+
         StringSelectMenu categoryMenu = StringSelectMenu.create("category_filter")
                 .setPlaceholder("Select Category...")
                 .addOption("🌐 All Sources", "all")
@@ -383,11 +401,12 @@ public class ChancesCommand extends BaseCommand {
                 .setMinValues(1)
                 .setMaxValues(1)
                 .build();
-        
+
         // 3. Status (Select Menu)
         String currentStatus = session.getStatusFilter();
-        if (currentStatus == null) currentStatus = "any";
-        
+        if (currentStatus == null)
+            currentStatus = "any";
+
         StringSelectMenu statusMenu = StringSelectMenu.create("status_filter")
                 .setPlaceholder("Filter by Status...")
                 .addOption("⚪ Any Status", "any")
@@ -397,7 +416,7 @@ public class ChancesCommand extends BaseCommand {
                 .setMinValues(1)
                 .setMaxValues(1)
                 .build();
-        
+
         // 4. Chance (Text Input)
         TextInput.Builder chanceBuilder = TextInput.create("chance_filter", TextInputStyle.SHORT)
                 .setPlaceholder("e.g., >25, <10, 50")
@@ -411,16 +430,17 @@ public class ChancesCommand extends BaseCommand {
                         Label.of("Search Query", searchBuilder.build()),
                         Label.of("Category", categoryMenu),
                         Label.of("Status", statusMenu),
-                        Label.of("Chance (e.g., >50, <10)", chanceBuilder.build())
-                )
+                        Label.of("Chance (e.g., >50, <10)", chanceBuilder.build()))
                 .build();
 
         event.replyModal(modal).queue();
     }
 
     private boolean parseBoolean(String value) {
-        if (Set.of("true", "1", "yes").contains(value)) return true;
-        if (Set.of("false", "0", "no").contains(value)) return false;
+        if (Set.of("true", "1", "yes").contains(value))
+            return true;
+        if (Set.of("false", "0", "no").contains(value))
+            return false;
         throw new IllegalArgumentException("Invalid boolean value! Use true/false.");
     }
 
@@ -428,14 +448,14 @@ public class ChancesCommand extends BaseCommand {
         String eventUserId = event.getUser().getId();
 
         if (event instanceof ButtonInteractionEvent bie) {
-             if (!bie.getMessage().getInteractionMetadata().getUser().getId().equals(eventUserId)) {
-                 bie.reply(LocaleManager.getInstance(Main.getUserService().getOrCreateUser(eventUserId).getLocale())
-                         .get("error.not_your_menu")).setEphemeral(true).queue();
-                 return false;
-             }
+            if (!bie.getMessage().getInteractionMetadata().getUser().getId().equals(eventUserId)) {
+                bie.reply(LocaleManager.getInstance(Main.getAccountService().getAccount(eventUserId).getLocale())
+                        .get("error.not_your_menu")).setEphemeral(true).queue();
+                return false;
+            }
         } else if (event instanceof StringSelectInteractionEvent ssie) {
             if (!ssie.getMessage().getInteractionMetadata().getUser().getId().equals(eventUserId)) {
-                ssie.reply(LocaleManager.getInstance(Main.getUserService().getOrCreateUser(eventUserId).getLocale())
+                ssie.reply(LocaleManager.getInstance(Main.getAccountService().getAccount(eventUserId).getLocale())
                         .get("error.not_your_menu")).setEphemeral(true).queue();
                 return false;
             }
@@ -445,62 +465,65 @@ public class ChancesCommand extends BaseCommand {
 
     private ChancesSession getOrCreateSession(net.dv8tion.jda.api.entities.User discordUser) {
         return USER_SESSIONS.computeIfAbsent(discordUser.getIdLong(), k -> {
-            User user = Main.getUserService().getOrCreateUser(discordUser.getId());
-            if (user.getImageOptionsMap().isEmpty()) {
-                initializeDefaultOptions(user);
+            Preferences prefs = Main.getPreferencesService().getPreferences(discordUser.getId());
+            if (prefs.getImageOptionsMap().isEmpty()) {
+                initializeDefaultOptions(prefs);
             }
-            return new ChancesSession(user);
+            return new ChancesSession(prefs);
         });
     }
 
-    private void initializeDefaultOptions(User user) {
-        ImageOptions.getDefaultOptions().forEach(user::setChances);
-        Main.getUserService().updateUser(user);
+    private void initializeDefaultOptions(Preferences prefs) {
+        ImageOptions.getDefaultOptions().forEach(prefs::setChances);
+        Main.getPreferencesService().updatePreferences(prefs);
     }
 
     // --- UI Generation (Container-based) ---
 
-    private void updateDisplay(InteractionHook hook, ChancesSession session, net.dv8tion.jda.api.entities.User user, String statusMessage) {
+    private void updateDisplay(InteractionHook hook, ChancesSession session, net.dv8tion.jda.api.entities.User user,
+            String statusMessage) {
         Container container = createContainer(session, user, statusMessage);
         List<ActionRow> componentRows = createComponentRows(session);
-        
-        if (hook.isExpired()) return; 
-        
+
+        if (hook.isExpired())
+            return;
+
         // Build combined component list: container first, then action rows
         List<MessageTopLevelComponent> allComponents = new ArrayList<>();
         allComponents.add(container);
         allComponents.addAll(componentRows);
-        
-        hook.editOriginalComponents(allComponents).useComponentsV2().queue(null, e -> {});
+
+        hook.editOriginalComponents(allComponents).useComponentsV2().queue(null, e -> {
+        });
     }
 
     /**
      * Create the main container with source configuration display.
      */
-    private Container createContainer(ChancesSession session, net.dv8tion.jda.api.entities.User user, String statusMessage) {
+    private Container createContainer(ChancesSession session, net.dv8tion.jda.api.entities.User user,
+            String statusMessage) {
         List<ContainerChildComponent> components = new ArrayList<>();
-        
+
         // Header Section
         components.add(Section.of(
                 Thumbnail.fromUrl(user.getEffectiveAvatarUrl()),
                 TextDisplay.of("## 🎲 Image Source Configuration"),
-                TextDisplay.of("**Select a category, search, or use quick filters to configure sources**")
-        ));
-        
+                TextDisplay.of("**Select a category, search, or use quick filters to configure sources**")));
+
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
-        
+
         // Active Filters Display
         String activeFilters = session.getActiveFiltersDescription();
         if (!activeFilters.isEmpty()) {
             components.add(TextDisplay.of("### 🏷️ Active Filters\n" + activeFilters));
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
         }
-        
+
         // Source List
         List<ImageOptions> items = session.getCategoryItems();
-        
-        String listTitle = session.hasSearchQuery() 
-                ? "🔍 Search Results: \"" + session.getSearchQuery() + "\"" 
+
+        String listTitle = session.hasSearchQuery()
+                ? "🔍 Search Results: \"" + session.getSearchQuery() + "\""
                 : "📋 " + session.getSelectedCategoryName() + " Sources";
 
         if (items.isEmpty()) {
@@ -508,40 +531,42 @@ public class ChancesCommand extends BaseCommand {
         } else {
             StringBuilder sourceContent = new StringBuilder();
             sourceContent.append("### ").append(listTitle).append("\n");
-            
+
             for (ImageOptions opt : items) {
-                SourceMetadata meta = SOURCE_METADATA.getOrDefault(opt.getImageType(), 
+                SourceMetadata meta = SOURCE_METADATA.getOrDefault(opt.getImageType(),
                         new SourceMetadata(opt.getImageType(), "❓", "Unknown"));
-                
+
                 String statusIcon = opt.isEnabled() ? "🟢" : "🔴";
-                String line = String.format("%s %s **%s** `%.1f%%`", 
+                String line = String.format("%s %s **%s** `%.1f%%`",
                         statusIcon, meta.emoji(), meta.displayName(), opt.getChance());
-                        
+
                 sourceContent.append(line).append("\n");
             }
-            
+
             components.add(TextDisplay.of(sourceContent.toString()));
         }
-        
+
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
-        
+
         // Statistics
         Map<String, Number> stats = session.getStatistics();
-        components.add(TextDisplay.of(String.format("### 📊 Statistics\n**Total:** %d sources | **Enabled:** %d | **Total Chance:** %.1f%%",
-                stats.get("total"), stats.get("enabled"), stats.get("totalChance"))));
-        
+        components.add(TextDisplay.of(
+                String.format("### 📊 Statistics\n**Total:** %d sources | **Enabled:** %d | **Total Chance:** %.1f%%",
+                        stats.get("total"), stats.get("enabled"), stats.get("totalChance"))));
+
         // Unsaved Changes Banner
         if (session.hasUnsavedChanges()) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
-            components.add(TextDisplay.of("### ⚠️ Unsaved Changes\n*You have unsaved changes. Click **Save Changes** to apply them.*"));
+            components.add(TextDisplay
+                    .of("### ⚠️ Unsaved Changes\n*You have unsaved changes. Click **Save Changes** to apply them.*"));
         }
-        
+
         // Status Message
         if (statusMessage != null) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
             components.add(TextDisplay.of("📢 " + statusMessage));
         }
-        
+
         // Selected Source Details
         String lastSel = session.getLastSelectedSource();
         if (lastSel != null && !session.hasSearchQuery()) {
@@ -549,18 +574,21 @@ public class ChancesCommand extends BaseCommand {
             SourceMetadata selMeta = SOURCE_METADATA.get(lastSel);
             if (selOpt != null && selMeta != null) {
                 components.add(Separator.createDivider(Separator.Spacing.SMALL));
-                components.add(TextDisplay.of(String.format("### 🎯 Selected Source\n**%s %s**\nStatus: %s\nChance: `%.1f%%`", 
-                        selMeta.emoji(), selMeta.displayName(), 
-                        selOpt.isEnabled() ? "🟢 Enabled" : "🔴 Disabled",
-                        selOpt.getChance())));
+                components.add(
+                        TextDisplay.of(String.format("### 🎯 Selected Source\n**%s %s**\nStatus: %s\nChance: `%.1f%%`",
+                                selMeta.emoji(), selMeta.displayName(),
+                                selOpt.isEnabled() ? "🟢 Enabled" : "🔴 Disabled",
+                                selOpt.getChance())));
             }
         }
-        
-        return Container.of((java.util.Collection<? extends ContainerChildComponent>) components).withAccentColor(PRIMARY_COLOR);
+
+        return Container.of((java.util.Collection<? extends ContainerChildComponent>) components)
+                .withAccentColor(PRIMARY_COLOR);
     }
 
     /**
-     * Create the component rows (select menus and buttons) that go outside the container.
+     * Create the component rows (select menus and buttons) that go outside the
+     * container.
      */
     private List<ActionRow> createComponentRows(ChancesSession session) {
         List<ActionRow> rows = new ArrayList<>();
@@ -575,27 +603,27 @@ public class ChancesCommand extends BaseCommand {
                 .addOption("📚 Text", "text", "Text-based content")
                 .setDefaultValues(session.getSelectedCategoryKey())
                 .setDisabled(session.hasSearchQuery());
-                
+
         rows.add(ActionRow.of(catMenu.build()));
 
         // 2. Source Menu
         StringSelectMenu.Builder sourceMenu = StringSelectMenu.create("chances:source_select")
                 .setPlaceholder("🎯 Select source to configure...");
-        
+
         List<ImageOptions> items = session.getCategoryItems();
         if (items.isEmpty()) {
             sourceMenu.addOption("No sources found", "none", "Try a different category or search").setDisabled(true);
         } else {
-             int count = 0;
+            int count = 0;
             for (ImageOptions opt : items) {
-                if (count >= 25) break; 
-                SourceMetadata meta = SOURCE_METADATA.getOrDefault(opt.getImageType(), 
+                if (count >= 25)
+                    break;
+                SourceMetadata meta = SOURCE_METADATA.getOrDefault(opt.getImageType(),
                         new SourceMetadata(opt.getImageType(), "❓", "Unknown"));
                 sourceMenu.addOption(
                         String.format("%s %s", opt.isEnabled() ? "🟢" : "🔴", meta.displayName()),
                         opt.getImageType(),
-                        String.format("%.1f%% chance", opt.getChance())
-                );
+                        String.format("%.1f%% chance", opt.getChance()));
                 count++;
             }
         }
@@ -603,18 +631,26 @@ public class ChancesCommand extends BaseCommand {
 
         // 3. Quick Filter Buttons
         List<Button> filterButtons = new ArrayList<>();
-        filterButtons.add(Button.secondary("chances:filter_enabled", 
+        filterButtons.add(Button.secondary("chances:filter_enabled",
                 session.isStatusFilterActive("enabled") ? "✓ Enabled" : "🟢 Enabled")
-                .withStyle(session.isStatusFilterActive("enabled") ? net.dv8tion.jda.api.components.buttons.ButtonStyle.SUCCESS : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
-        filterButtons.add(Button.secondary("chances:filter_disabled", 
+                .withStyle(session.isStatusFilterActive("enabled")
+                        ? net.dv8tion.jda.api.components.buttons.ButtonStyle.SUCCESS
+                        : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
+        filterButtons.add(Button.secondary("chances:filter_disabled",
                 session.isStatusFilterActive("disabled") ? "✓ Disabled" : "🔴 Disabled")
-                .withStyle(session.isStatusFilterActive("disabled") ? net.dv8tion.jda.api.components.buttons.ButtonStyle.DANGER : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
-        filterButtons.add(Button.secondary("chances:filter_high", 
+                .withStyle(session.isStatusFilterActive("disabled")
+                        ? net.dv8tion.jda.api.components.buttons.ButtonStyle.DANGER
+                        : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
+        filterButtons.add(Button.secondary("chances:filter_high",
                 session.isChanceFilterActive("high") ? "✓ High (>25%)" : "📈 High (>25%)")
-                .withStyle(session.isChanceFilterActive("high") ? net.dv8tion.jda.api.components.buttons.ButtonStyle.PRIMARY : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
-        filterButtons.add(Button.secondary("chances:filter_low", 
+                .withStyle(session.isChanceFilterActive("high")
+                        ? net.dv8tion.jda.api.components.buttons.ButtonStyle.PRIMARY
+                        : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
+        filterButtons.add(Button.secondary("chances:filter_low",
                 session.isChanceFilterActive("low") ? "✓ Low (<10%)" : "📉 Low (<10%)")
-                .withStyle(session.isChanceFilterActive("low") ? net.dv8tion.jda.api.components.buttons.ButtonStyle.PRIMARY : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
+                .withStyle(
+                        session.isChanceFilterActive("low") ? net.dv8tion.jda.api.components.buttons.ButtonStyle.PRIMARY
+                                : net.dv8tion.jda.api.components.buttons.ButtonStyle.SECONDARY));
         rows.add(ActionRow.of(filterButtons));
 
         // 4. Selection Buttons (if a source is selected)
@@ -624,10 +660,9 @@ public class ChancesCommand extends BaseCommand {
             SourceMetadata selMeta = SOURCE_METADATA.get(lastSel);
             if (selOpt != null && selMeta != null) {
                 rows.add(ActionRow.of(
-                        Button.secondary("chances:toggle_" + lastSel, 
+                        Button.secondary("chances:toggle_" + lastSel,
                                 (selOpt.isEnabled() ? "🔴 Disable " : "🟢 Enable ") + selMeta.displayName()),
-                        Button.primary("chances:edit_" + lastSel, "✏️ Edit " + selMeta.displayName())
-                ));
+                        Button.primary("chances:edit_" + lastSel, "✏️ Edit " + selMeta.displayName())));
             }
         }
 
@@ -635,13 +670,13 @@ public class ChancesCommand extends BaseCommand {
         List<Button> globalButtons = new ArrayList<>();
         globalButtons.add(Button.success("chances:save", "💾 Save").withDisabled(!session.hasUnsavedChanges()));
         globalButtons.add(Button.secondary("chances:search", "🔍 Search"));
-        
+
         if (session.hasActiveFilters()) {
             globalButtons.add(Button.secondary("chances:clear_filters", "✖️ Clear Filters"));
         }
-        
+
         globalButtons.add(Button.danger("chances:reset", "🔄 Reset"));
-        
+
         rows.add(ActionRow.of(globalButtons));
 
         return rows;
@@ -649,75 +684,92 @@ public class ChancesCommand extends BaseCommand {
 
     // --- Inner Classes ---
 
-    private record SourceMetadata(String displayName, String emoji, String category) {}
+    private record SourceMetadata(String displayName, String emoji, String category) {
+    }
 
     private static class ChancesSession {
-        private final User user;
+        private final Preferences preferences;
         private final Map<String, ImageOptions> workingOptions = new HashMap<>();
         private String selectedCategoryKey = "all";
         private String lastSelectedSource = null;
         private boolean hasUnsavedChanges = false;
         private String searchQuery = null;
-        private String statusFilter = null;  // "enabled" or "disabled"
-        private String chanceFilter = null;  // e.g., ">25", "<10"
+        private String statusFilter = null; // "enabled" or "disabled"
+        private String chanceFilter = null; // e.g., ">25", "<10"
 
-        public ChancesSession(User user) {
-            this.user = user;
+        public ChancesSession(Preferences preferences) {
+            this.preferences = preferences;
             resetFromUser();
         }
 
         private void resetFromUser() {
             workingOptions.clear();
-            user.getImageOptionsMap().forEach((k, v) -> 
-                workingOptions.put(k, new ImageOptions(v.getImageType(), v.isEnabled(), v.getChance())));
+            preferences.getImageOptionsMap().forEach(
+                    (k, v) -> workingOptions.put(k, new ImageOptions(v.getImageType(), v.isEnabled(), v.getChance())));
             hasUnsavedChanges = false;
             searchQuery = null;
             statusFilter = null;
             chanceFilter = null;
         }
 
-        public void setSelectedCategory(String key) { 
-            this.selectedCategoryKey = key; 
+        public void setSelectedCategory(String key) {
+            this.selectedCategoryKey = key;
         }
-        public String getSelectedCategoryKey() { return selectedCategoryKey; }
-        
-        public void setSearchQuery(String query) { 
-            this.searchQuery = query != null && !query.trim().isEmpty() ? query.toLowerCase().trim() : null; 
+
+        public String getSelectedCategoryKey() {
+            return selectedCategoryKey;
         }
-        public String getSearchQuery() { return searchQuery; }
-        public boolean hasSearchQuery() { return searchQuery != null && !searchQuery.isEmpty(); }
-        
+
+        public void setSearchQuery(String query) {
+            this.searchQuery = query != null && !query.trim().isEmpty() ? query.toLowerCase().trim() : null;
+        }
+
+        public String getSearchQuery() {
+            return searchQuery;
+        }
+
+        public boolean hasSearchQuery() {
+            return searchQuery != null && !searchQuery.isEmpty();
+        }
+
         public void setStatusFilter(String filter) {
             this.statusFilter = filter;
         }
-        public String getStatusFilter() { return statusFilter; }
-        
+
+        public String getStatusFilter() {
+            return statusFilter;
+        }
+
         public void setChanceFilter(String filter) {
             this.chanceFilter = filter;
         }
-        public String getChanceFilter() { return chanceFilter; }
-        
+
+        public String getChanceFilter() {
+            return chanceFilter;
+        }
+
         public boolean hasActiveFilters() {
             return hasSearchQuery() || statusFilter != null || chanceFilter != null;
         }
-        
+
         public void clearAllFilters() {
             this.searchQuery = null;
             this.statusFilter = null;
             this.chanceFilter = null;
             this.selectedCategoryKey = "all";
         }
-        
+
         public String toggleStatusFilter(String filter) {
             if (filter.equals(statusFilter)) {
                 statusFilter = null;
                 return "🔄 Status filter cleared.";
             } else {
                 statusFilter = filter;
-                return "enabled".equals(filter) ? "🟢 Showing enabled sources only." : "🔴 Showing disabled sources only.";
+                return "enabled".equals(filter) ? "🟢 Showing enabled sources only."
+                        : "🔴 Showing disabled sources only.";
             }
         }
-        
+
         public String toggleChanceFilter(String filter) {
             String currentActive = getActiveChanceFilterType();
             if (filter.equals(currentActive)) {
@@ -725,28 +777,35 @@ public class ChancesCommand extends BaseCommand {
                 return "🔄 Chance filter cleared.";
             } else {
                 chanceFilter = "high".equals(filter) ? ">25" : "<10";
-                return "high".equals(filter) ? "📈 Showing high chance sources (>25%)." : "📉 Showing low chance sources (<10%).";
+                return "high".equals(filter) ? "📈 Showing high chance sources (>25%)."
+                        : "📉 Showing low chance sources (<10%).";
             }
         }
-        
+
         public boolean isStatusFilterActive(String filter) {
             return filter.equals(statusFilter);
         }
-        
+
         public boolean isChanceFilterActive(String filter) {
-            if (chanceFilter == null) return false;
-            if ("high".equals(filter)) return chanceFilter.startsWith(">");
-            if ("low".equals(filter)) return chanceFilter.startsWith("<");
+            if (chanceFilter == null)
+                return false;
+            if ("high".equals(filter))
+                return chanceFilter.startsWith(">");
+            if ("low".equals(filter))
+                return chanceFilter.startsWith("<");
             return false;
         }
-        
+
         private String getActiveChanceFilterType() {
-            if (chanceFilter == null) return null;
-            if (chanceFilter.startsWith(">")) return "high";
-            if (chanceFilter.startsWith("<")) return "low";
+            if (chanceFilter == null)
+                return null;
+            if (chanceFilter.startsWith(">"))
+                return "high";
+            if (chanceFilter.startsWith("<"))
+                return "low";
             return null;
         }
-        
+
         public String getActiveFiltersDescription() {
             List<String> filters = new ArrayList<>();
             if (hasSearchQuery()) {
@@ -771,57 +830,77 @@ public class ChancesCommand extends BaseCommand {
             };
         }
 
-        public void setLastSelectedSource(String source) { this.lastSelectedSource = source; }
-        public String getLastSelectedSource() { return lastSelectedSource; }
-        public ImageOptions getImageOption(String type) { return workingOptions.get(type); }
-        public boolean hasUnsavedChanges() { return hasUnsavedChanges; }
-        public User getUser() { return user; }
+        public void setLastSelectedSource(String source) {
+            this.lastSelectedSource = source;
+        }
+
+        public String getLastSelectedSource() {
+            return lastSelectedSource;
+        }
+
+        public ImageOptions getImageOption(String type) {
+            return workingOptions.get(type);
+        }
+
+        public boolean hasUnsavedChanges() {
+            return hasUnsavedChanges;
+        }
+
+        public Preferences getPreferences() {
+            return preferences;
+        }
 
         public List<ImageOptions> getCategoryItems() {
             return workingOptions.values().stream()
                     .filter(opt -> {
                         SourceMetadata meta = SOURCE_METADATA.get(opt.getImageType());
                         String name = meta != null ? meta.displayName() : opt.getImageType();
-                        
+
                         // Apply search filter
                         if (hasSearchQuery()) {
-                            if (!name.toLowerCase().contains(searchQuery) && !opt.getImageType().toLowerCase().contains(searchQuery)) {
+                            if (!name.toLowerCase().contains(searchQuery)
+                                    && !opt.getImageType().toLowerCase().contains(searchQuery)) {
                                 return false;
                             }
                         }
-                        
+
                         // Apply category filter
                         if (!selectedCategoryKey.equals("all")) {
                             if (meta == null || !meta.category().equalsIgnoreCase(getSelectedCategoryName())) {
                                 return false;
                             }
                         }
-                        
+
                         // Apply status filter
                         if (statusFilter != null) {
                             boolean isEnabled = opt.isEnabled();
-                            if ("enabled".equals(statusFilter) && !isEnabled) return false;
-                            if ("disabled".equals(statusFilter) && isEnabled) return false;
+                            if ("enabled".equals(statusFilter) && !isEnabled)
+                                return false;
+                            if ("disabled".equals(statusFilter) && isEnabled)
+                                return false;
                         }
-                        
+
                         // Apply chance filter
                         if (chanceFilter != null) {
                             double chance = opt.getChance();
                             if (chanceFilter.startsWith(">")) {
                                 double threshold = Double.parseDouble(chanceFilter.substring(1).trim());
-                                if (chance <= threshold) return false;
+                                if (chance <= threshold)
+                                    return false;
                             } else if (chanceFilter.startsWith("<")) {
                                 double threshold = Double.parseDouble(chanceFilter.substring(1).trim());
-                                if (chance >= threshold) return false;
+                                if (chance >= threshold)
+                                    return false;
                             } else {
                                 double exactValue = Double.parseDouble(chanceFilter.trim());
-                                if (Math.abs(chance - exactValue) > 0.1) return false;
+                                if (Math.abs(chance - exactValue) > 0.1)
+                                    return false;
                             }
                         }
-                        
+
                         return true;
                     })
-                    .sorted(Comparator.comparing(a -> SOURCE_METADATA.getOrDefault(a.getImageType(), 
+                    .sorted(Comparator.comparing(a -> SOURCE_METADATA.getOrDefault(a.getImageType(),
                             new SourceMetadata(a.getImageType(), "", "")).displayName()))
                     .collect(Collectors.toList());
         }
@@ -840,7 +919,7 @@ public class ChancesCommand extends BaseCommand {
             if (opt != null) {
                 updateSource(type, !opt.isEnabled(), opt.getChance());
                 SourceMetadata meta = SOURCE_METADATA.get(type);
-                return String.format("✅ %s %s %s", meta.displayName(), 
+                return String.format("✅ %s %s %s", meta.displayName(),
                         opt.isEnabled() ? "enabled" : "disabled", opt.isEnabled() ? "🟢" : "🔴");
             }
             return null;
@@ -854,8 +933,8 @@ public class ChancesCommand extends BaseCommand {
 
         public String resetToDefaults() {
             workingOptions.clear();
-            ImageOptions.getDefaultOptions().forEach(opt -> 
-                workingOptions.put(opt.getImageType(), new ImageOptions(opt.getImageType(), opt.isEnabled(), opt.getChance())));
+            ImageOptions.getDefaultOptions().forEach(opt -> workingOptions.put(opt.getImageType(),
+                    new ImageOptions(opt.getImageType(), opt.isEnabled(), opt.getChance())));
             hasUnsavedChanges = true;
             clearAllFilters();
             return "🔄 All sources reset to default values!";
@@ -863,8 +942,8 @@ public class ChancesCommand extends BaseCommand {
 
         public String saveChanges() {
             try {
-                workingOptions.values().forEach(user::setChances);
-                Main.getUserService().updateUser(user);
+                workingOptions.values().forEach(preferences::setChances);
+                Main.getPreferencesService().updatePreferences(preferences);
                 hasUnsavedChanges = false;
                 return "✅ Changes saved successfully!";
             } catch (Exception e) {
@@ -878,7 +957,7 @@ public class ChancesCommand extends BaseCommand {
                     .filter(ImageOptions::isEnabled)
                     .mapToDouble(ImageOptions::getChance)
                     .sum();
-            return Map.of("total", workingOptions.size(), "enabled", (int)enabled, "totalChance", totalChance);
+            return Map.of("total", workingOptions.size(), "enabled", (int) enabled, "totalChance", totalChance);
         }
     }
 }

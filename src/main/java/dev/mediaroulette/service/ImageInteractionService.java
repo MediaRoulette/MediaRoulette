@@ -3,7 +3,9 @@ package dev.mediaroulette.service;
 import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.MediaContainerManager;
 import dev.mediaroulette.model.MessageData;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
+import dev.mediaroulette.domain.quest.QuestProgress;
+import dev.mediaroulette.domain.user.Preferences;
 import dev.mediaroulette.locale.LocaleManager;
 import dev.mediaroulette.utils.MaintenanceChecker;
 import dev.mediaroulette.plugins.images.ImageSource;
@@ -80,8 +82,10 @@ public class ImageInteractionService {
         event.deferEdit().queue();
 
         MessageData data = activeMessages.get(messageId);
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        QuestProgress userQuest = Main.getQuestProgressService().getQuestProgress(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
         data.updateLastInteractionTime();
 
@@ -100,8 +104,10 @@ public class ImageInteractionService {
             case "nsfw:continue", "safe:continue" -> handleContinue(event, data);
             case "favorite" -> handleFavorite(event, data);
             case "nsfw", "safe" -> {
-                QuestGenerator.onImageRated(user);
-                Main.getUserService().updateUser(user);
+                QuestGenerator.onImageRated(userQuest);
+                Main.getAccountService().updateAccount(userAccount);
+                Main.getQuestProgressService().updateQuestProgress(userQuest);
+                Main.getPreferencesService().updatePreferences(userPrefs);
                 disableAllButtons(event);
             }
             case "exit" -> disableAllButtons(event);
@@ -110,10 +116,12 @@ public class ImageInteractionService {
     }
 
     private void handleContinue(ButtonInteractionEvent event, MessageData data) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        QuestProgress userQuest = Main.getQuestProgressService().getQuestProgress(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
-        event.getHook().editOriginalComponents(createLoadingContainer(user))
+        event.getHook().editOriginalComponents(createLoadingContainer(userAccount))
                 .useComponentsV2()
                 .queue(success -> {
                     try {
@@ -123,9 +131,11 @@ public class ImageInteractionService {
                             return;
                         }
                         MediaContainerManager.editLoadingToImageContainerFromHook(event.getHook(), image, true);
-                        user.incrementImagesGenerated();
-                        QuestGenerator.onImageGenerated(user, data.getSubcommand());
-                        Main.getUserService().updateUser(user);
+                        userAccount.incrementImagesGenerated();
+                        QuestGenerator.onImageGenerated(userQuest, data.getSubcommand());
+                        Main.getAccountService().updateAccount(userAccount);
+                Main.getQuestProgressService().updateQuestProgress(userQuest);
+                Main.getPreferencesService().updatePreferences(userPrefs);
                     } catch (Exception e) {
                         showError(event, locale.get("error.title"), e.getMessage());
                     }
@@ -133,8 +143,10 @@ public class ImageInteractionService {
     }
 
     private void handleFavorite(ButtonInteractionEvent event, MessageData data) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        QuestProgress userQuest = Main.getQuestProgressService().getQuestProgress(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
         try {
             MediaContainerManager.ContainerData containerData = MediaContainerManager.extractContainerData(event.getMessage());
@@ -147,20 +159,22 @@ public class ImageInteractionService {
                 return;
             }
 
-            Main.getUserService().addFavorite(user.getUserId(), title, description, imageUrl, "image", containerData.accentColor);
-            QuestGenerator.onImageFavorited(user);
-            Main.getUserService().updateUser(user);
+            userPrefs.addFavorite(null, description, imageUrl, "image", containerData.accentColor, userAccount.isPremium()); // Using userPrefs instead of userService(userAccount.getUserId(), title, description, imageUrl, "image", containerData.accentColor);
+            QuestGenerator.onImageFavorited(userQuest);
+            Main.getAccountService().updateAccount(userAccount);
+                Main.getQuestProgressService().updateQuestProgress(userQuest);
+                Main.getPreferencesService().updatePreferences(userPrefs);
             disableButton(event, "favorite");
         } catch (Exception e) {
             showError(event, locale.get("error.title"), e.getMessage());
         }
     }
 
-    public Container createLoadingContainer(User user) {
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+    public Container createLoadingContainer(Account userAccount) {
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
         return Container.of(
                 Section.of(
-                        Thumbnail.fromUrl(Main.getBot().getShardManager().getUserById(user.getUserId()).getEffectiveAvatarUrl()),
+                        Thumbnail.fromUrl(Main.getBot().getShardManager().getUserById(userAccount.getUserId()).getEffectiveAvatarUrl()),
                         TextDisplay.of("## <a:loading:1350829863157891094> " + locale.get("info.generating_image")),
                         TextDisplay.of("**" + locale.get("info.please_wait") + "**"),
                         TextDisplay.of("*" + locale.get("info.may_take_seconds") + "*")

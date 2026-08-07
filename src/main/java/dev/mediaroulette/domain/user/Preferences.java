@@ -16,6 +16,11 @@ public class Preferences {
     private Map<String, ImageOptions> imageOptions;
     private Map<String, SourcePreference> sourcePreferences;
 
+    
+    private java.util.List<String> customSubreddits = new java.util.ArrayList<>();
+    private java.util.Map<String, java.util.List<String>> customQueries = new java.util.HashMap<>();
+    private static final int MAX_CUSTOM_SUBREDDITS = 20;
+    
     public Preferences() {}
 
     public Preferences(String userId) {
@@ -90,4 +95,44 @@ public class Preferences {
     public void setSourceSetting(String source, String key, Object value) {
         getSourcePreference(source).setSetting(key, value);
     }
-}
+
+    public java.util.List<String> getCustomSubreddits() {
+        return customSubreddits != null ? customSubreddits : new java.util.ArrayList<>();
+    }
+    
+    public void setCustomSubreddits(java.util.List<String> customSubreddits) {
+        this.customSubreddits = customSubreddits;
+    }
+    
+    public void addCustomSubreddit(String subreddit) {
+        if (customSubreddits == null) customSubreddits = new java.util.ArrayList<>();
+        customSubreddits.remove(subreddit);
+        customSubreddits.add(0, subreddit);
+        if (customSubreddits.size() > MAX_CUSTOM_SUBREDDITS) {
+            customSubreddits = customSubreddits.subList(0, MAX_CUSTOM_SUBREDDITS);
+        }
+    }
+    
+    public java.util.Map<String, java.util.List<String>> getCustomQueries() {
+        return customQueries != null ? customQueries : new java.util.HashMap<>();
+    }
+    
+    public void setCustomQueries(java.util.Map<String, java.util.List<String>> customQueries) {
+        this.customQueries = customQueries;
+    }
+    
+    public java.util.List<String> getCustomQueries(String service) {
+        if (customQueries == null) return new java.util.ArrayList<>();
+        return customQueries.getOrDefault(service, new java.util.ArrayList<>());
+    }
+    
+    public void addCustomQuery(String service, String query) {
+        if (customQueries == null) customQueries = new java.util.HashMap<>();
+        java.util.List<String> serviceQueries = customQueries.computeIfAbsent(service, k -> new java.util.ArrayList<>());
+        serviceQueries.remove(query);
+        serviceQueries.add(0, query);
+        if (serviceQueries.size() > MAX_CUSTOM_SUBREDDITS) {
+            customQueries.put(service, serviceQueries.subList(0, MAX_CUSTOM_SUBREDDITS));
+        }
+    }
+    }

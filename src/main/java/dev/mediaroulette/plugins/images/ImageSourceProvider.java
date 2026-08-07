@@ -1,6 +1,7 @@
 package dev.mediaroulette.plugins.images;
 
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
+import dev.mediaroulette.domain.user.Preferences;
 import dev.mediaroulette.domain.user.PreferenceSetting;
 import dev.mediaroulette.model.content.MediaResult;
 import net.dv8tion.jda.api.interactions.Interaction;
@@ -46,7 +47,7 @@ public interface ImageSourceProvider {
      * @return MediaResult containing the image data and metadata
      * @throws Exception if there's an error fetching the image
      */
-    MediaResult getRandomImage(Interaction interaction, User user, String query) throws Exception;
+    MediaResult getRandomImage(Interaction interaction, Account userAccount, Preferences userPrefs, String query) throws Exception;
     
     /**
      * Get a random image from this source (backward compatibility method)
@@ -56,8 +57,8 @@ public interface ImageSourceProvider {
      * @return Map<String, String> containing the image data for backward compatibility
      * @throws Exception if there's an error fetching the image
      */
-    default Map<String, String> getRandomImageAsMap(Interaction interaction, User user, String query) throws Exception {
-        MediaResult result = getRandomImage(interaction, user, query);
+    default Map<String, String> getRandomImageAsMap(Interaction interaction, Account userAccount, Preferences userPrefs, String query) throws Exception {
+        MediaResult result = getRandomImage(interaction, userAccount, userPrefs, query);
         return result != null ? result.toMap() : null;
     }
     

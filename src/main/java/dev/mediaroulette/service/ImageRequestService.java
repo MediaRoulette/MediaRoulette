@@ -2,7 +2,7 @@ package dev.mediaroulette.service;
 
 import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.utils.ErrorHandler;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
 import dev.mediaroulette.plugins.images.ImageSource;
 import dev.mediaroulette.plugins.images.ImageSourceProvider;
 import dev.mediaroulette.locale.LocaleManager;
@@ -44,7 +44,7 @@ public class ImageRequestService {
      * @param provider The image source provider (null for unknown/legacy sources)
      * @return ValidationResult indicating whether access is allowed and error details if not
      */
-    public ValidationResult validateChannelAccessWithResult(SlashCommandInteractionEvent event, User user, ImageSourceProvider provider) {
+    public ValidationResult validateChannelAccessWithResult(SlashCommandInteractionEvent event, Account userAccount, ImageSourceProvider provider) {
         // If provider is SFW, skip NSFW validation entirely
         if (provider != null && !provider.isNsfw()) {
             return ValidationResult.success();
@@ -56,13 +56,14 @@ public class ImageRequestService {
         boolean isText = type == ChannelType.TEXT;
         boolean isNsfwText = isText && event.getChannel().asTextChannel().isNSFW();
 
-        if (isPrivate && !user.isNsfw()) {
+        if (isPrivate && !userAccount.isNsfw()) {
             return ValidationResult.nsfwNotEnabledInDm();
         }
 
         if (isText) {
-            if (isNsfwText && !user.isNsfw()) {
-                user.setNsfw(true);
+            if (isNsfwText && !userAccount.isNsfw()) {
+                userAccount.setNsfw(true);
+                Main.getAccountService().updateAccount(userAccount);
                 return ValidationResult.success();
             }
 
@@ -83,10 +84,10 @@ public class ImageRequestService {
      * @deprecated Use {@link #validateChannelAccessWithResult} for more granular control
      */
     @Deprecated
-    public boolean validateChannelAccess(SlashCommandInteractionEvent event, User user, ImageSourceProvider provider) {
-        ValidationResult result = validateChannelAccessWithResult(event, user, provider);
+    public boolean validateChannelAccess(SlashCommandInteractionEvent event, Account userAccount, ImageSourceProvider provider) {
+        ValidationResult result = validateChannelAccessWithResult(event, userAccount, provider);
         if (!result.allowed()) {
-            showValidationError(event, user, result);
+            showValidationError(event, userAccount, result);
             return false;
         }
         return true;
@@ -95,8 +96,8 @@ public class ImageRequestService {
     /**
      * Display the appropriate error message for a denied validation result.
      */
-    public void showValidationError(SlashCommandInteractionEvent event, User user, ValidationResult result) {
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+    public void showValidationError(SlashCommandInteractionEvent event, Account userAccount, ValidationResult result) {
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
         
         String title = locale.get(result.errorTitleKey());
         String description;
@@ -115,46 +116,39 @@ public class ImageRequestService {
         if (query != null) {
             switch (subcommand) {
                 case "reddit" -> {
-                    Main.getUserService().addCustomSubreddit(userId, query);
-                    Main.getUserService().trackSourceUsage(userId, "reddit");
+                    dev.mediaroulette.domain.user.Preferences prefs = Main.getPreferencesService().getPreferences(userId);
+                    prefs.addCustomSubreddit(query);
+                    
                 }
                 case "google" -> {
-                    Main.getUserService().addCustomQuery(userId, "google", query);
-                    Main.getUserService().trackSourceUsage(userId, "google");
+                    dev.mediaroulette.domain.user.Preferences prefs = Main.getPreferencesService().getPreferences(userId);
+                    prefs.addCustomQuery("google", query);
+                    
                 }
                 case "tenor" -> {
-                    Main.getUserService().addCustomQuery(userId, "tenor", query);
-                    Main.getUserService().trackSourceUsage(userId, "tenor");
+                    dev.mediaroulette.domain.user.Preferences prefs = Main.getPreferencesService().getPreferences(userId);
+                    prefs.addCustomQuery("tenor", query);
+                    
                 }
                 case "4chan" -> {
-                    Main.getUserService().addCustomQuery(userId, "4chan", query);
-                    Main.getUserService().trackSourceUsage(userId, "4chan");
+                    dev.mediaroulette.domain.user.Preferences prefs = Main.getPreferencesService().getPreferences(userId);
+                    prefs.addCustomQuery("4chan", query);
+                    
                 }
                 case "urban" -> {
-                    Main.getUserService().addCustomQuery(userId, "urban", query);
-                    Main.getUserService().trackSourceUsage(userId, "urban-dictionary");
+                    dev.mediaroulette.domain.user.Preferences prefs = Main.getPreferencesService().getPreferences(userId);
+                    prefs.addCustomQuery("urban", query);
+                    
                 }
-            }
-        } else {
-            switch (subcommand) {
-                case "all" -> Main.getUserService().trackSourceUsage(userId, "all");
-                case "picsum" -> Main.getUserService().trackSourceUsage(userId, "picsum");
-                case "imgur" -> Main.getUserService().trackSourceUsage(userId, "imgur");
-                case "rulee34xxx" -> Main.getUserService().trackSourceUsage(userId, "rule34");
-                case "movie" -> Main.getUserService().trackSourceUsage(userId, "tmdb-movie");
-                case "tvshow" -> Main.getUserService().trackSourceUsage(userId, "tmdb-tv");
-                case "youtube" -> Main.getUserService().trackSourceUsage(userId, "youtube");
-                case "short" -> Main.getUserService().trackSourceUsage(userId, "youtube-shorts");
-                case "urban" -> Main.getUserService().trackSourceUsage(userId, "urban-dictionary");
             }
         }
     }
 
-    public void trackStats(String userId, String subcommand, User user) {
+    public void trackStats(String userId, String subcommand, Account userAccount) {
         if (Main.getStatsService() != null) {
-            Main.getStatsService().trackImageGenerated(userId, subcommand, user.isNsfw(), user.isPremium());
-            Main.getStatsService().trackCommandUsed(userId, "random", user.isPremium());
-            Main.getStatsService().trackUserActivity(userId, user.isPremium());
+            Main.getStatsService().trackImageGenerated(userId, subcommand, userAccount.isNsfw(), userAccount.isPremium());
+            Main.getStatsService().trackCommandUsed(userId, "random", userAccount.isPremium());
+            Main.getStatsService().trackUserActivity(userId, userAccount.isPremium());
         }
     }
 }

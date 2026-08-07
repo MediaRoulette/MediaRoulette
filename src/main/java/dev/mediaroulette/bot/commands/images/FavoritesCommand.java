@@ -4,9 +4,9 @@ import dev.mediaroulette.Main;
 import dev.mediaroulette.bot.commands.BaseCommand;
 import dev.mediaroulette.bot.utils.EmbedFactory;
 import dev.mediaroulette.bot.utils.CommandCooldown;
-import dev.mediaroulette.bot.utils.ErrorHandler;
 import dev.mediaroulette.domain.user.Favorite;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Preferences;
+import dev.mediaroulette.domain.user.Account;
 import dev.mediaroulette.locale.LocaleManager;
 import dev.mediaroulette.service.ImageRequestService;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
@@ -19,7 +19,6 @@ import net.dv8tion.jda.api.components.section.Section;
 import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.components.thumbnail.Thumbnail;
-import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -53,25 +52,26 @@ public class FavoritesCommand extends BaseCommand {
     }
 
     @Override
-    @CommandCooldown(value = 3, commands = {"favorites"})
+    @CommandCooldown(value = 3, commands = { "favorites" })
     public void handleCommand(SlashCommandInteractionEvent event) {
         if (!event.getName().equals("favorites"))
             return;
 
         event.deferReply().queue();
 
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
-        if (!ImageRequestService.getInstance().validateChannelAccess(event, user, null))
+        if (!ImageRequestService.getInstance().validateChannelAccess(event, userAccount, null))
             return;
 
-        if (user.getFavorites() == null || user.getFavorites().isEmpty()) {
+        if (userPrefs.getFavorites() == null || userPrefs.getFavorites().isEmpty()) {
             event.getHook().sendMessage(locale.get("warn.no_favorites_yet")).queue();
             return;
         }
 
-        sendFavoriteDetail(event.getHook(), user, 0, true);
+        sendFavoriteDetail(event.getHook(), userAccount, userPrefs, 0, true);
     }
 
     @Override
@@ -79,8 +79,9 @@ public class FavoritesCommand extends BaseCommand {
         if (!event.getComponentId().startsWith("favorite:"))
             return;
 
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
         String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
         if (!event.getUser().getId().equals(originalUserId)) {
@@ -93,7 +94,7 @@ public class FavoritesCommand extends BaseCommand {
 
         event.deferEdit().queue();
 
-        List<Favorite> favorites = user.getFavorites();
+        List<Favorite> favorites = userPrefs.getFavorites();
 
         switch (action) {
             case "prev":
@@ -102,7 +103,7 @@ public class FavoritesCommand extends BaseCommand {
                 int pageVal = Integer.parseInt(parts[2]);
                 int targetPage = Math.max(1, pageVal);
                 int startIndex = (targetPage - 1) * ITEMS_PER_PAGE;
-                sendFavoriteDetail(event.getHook(), user, startIndex, false);
+                sendFavoriteDetail(event.getHook(), userAccount, userPrefs, startIndex, false);
                 break;
             }
             case "delete": {
@@ -111,24 +112,23 @@ public class FavoritesCommand extends BaseCommand {
                     event.getHook().sendMessage(locale.get("error.invalid_favorite_delete")).setEphemeral(true).queue();
                     return;
                 }
-                user.removeFavorite(index);
-                Main.getUserService().updateUser(user);
+                userPrefs.removeFavorite(index);
+                Main.getPreferencesService().updatePreferences(userPrefs);
 
                 event.getHook().sendMessage(locale.get("success.favorite_deleted")).setEphemeral(true).queue();
 
-                favorites = user.getFavorites();
+                favorites = userPrefs.getFavorites();
 
                 if (!favorites.isEmpty()) {
                     int newIndex = Math.min(index, favorites.size() - 1);
-                    sendFavoriteDetail(event.getHook(), user, newIndex, false);
+                    sendFavoriteDetail(event.getHook(), userAccount, userPrefs, newIndex, false);
                 } else {
                     Container empty = Container.of(
                             Section.of(
                                     Thumbnail.fromUrl(event.getUser().getEffectiveAvatarUrl()),
                                     TextDisplay.of(locale.get("warn.no_favorites_title")),
-                                    TextDisplay.of(locale.get("warn.no_favorites_description"))
-                            )
-                    ).withAccentColor(Color.RED);
+                                    TextDisplay.of(locale.get("warn.no_favorites_description"))))
+                            .withAccentColor(Color.RED);
                     event.getHook().editOriginalComponents(empty)
                             .useComponentsV2()
                             .queue();
@@ -143,8 +143,9 @@ public class FavoritesCommand extends BaseCommand {
         if (!event.getComponentId().equals("favorite-select-menu"))
             return;
 
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+        Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
         String originalUserId = event.getMessage().getInteractionMetadata().getUser().getId();
         if (!event.getUser().getId().equals(originalUserId)) {
@@ -156,7 +157,7 @@ public class FavoritesCommand extends BaseCommand {
 
         int selectedIndex = Integer.parseInt(event.getValues().getFirst());
 
-        sendFavoriteDetail(event.getHook(), user, selectedIndex, false);
+        sendFavoriteDetail(event.getHook(), userAccount, userPrefs, selectedIndex, false);
     }
 
     // HTTP client for URL validation with short timeouts
@@ -168,20 +169,21 @@ public class FavoritesCommand extends BaseCommand {
 
     /**
      * Validates if a URL is still accessible by making a HEAD request.
+     * 
      * @return true if the URL is accessible (returns 2xx status), false otherwise
      */
     private boolean isUrlAccessible(String url) {
         if (url == null || url.isBlank()) {
             return false;
         }
-        
+
         try {
             Request request = new Request.Builder()
                     .url(url)
                     .head()
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .build();
-            
+
             try (Response response = urlCheckClient.newCall(request).execute()) {
                 return response.isSuccessful();
             }
@@ -191,9 +193,10 @@ public class FavoritesCommand extends BaseCommand {
         }
     }
 
-    private void sendFavoriteDetail(InteractionHook hook, User user, int index, boolean isNewMessage) {
-        List<Favorite> favorites = user.getFavorites();
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+    private void sendFavoriteDetail(InteractionHook hook, Account userAccount, Preferences userPrefs, int index,
+            boolean isNewMessage) {
+        List<Favorite> favorites = userPrefs.getFavorites();
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
         if (index < 0 || index >= favorites.size()) {
             hook.sendMessage(locale.get("error.invalid_favorite_selected")).setEphemeral(true).queue();
@@ -203,31 +206,31 @@ public class FavoritesCommand extends BaseCommand {
         Favorite favorite = favorites.get(index);
         String avatarUrl = hook.getInteraction().getUser().getEffectiveAvatarUrl();
         String imageUrl = favorite.getImage();
-        
+
         // Validate URL accessibility for external URLs
-        boolean hasDisplayableImage = imageUrl != null && !imageUrl.isBlank() && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
-        
+        boolean hasDisplayableImage = imageUrl != null && !imageUrl.isBlank()
+                && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
+
         if (hasDisplayableImage && !isUrlAccessible(imageUrl)) {
             // Media source was deleted - remove the favorite and notify user
-            user.removeFavorite(index);
-            Main.getUserService().updateUser(user);
-            
+            userPrefs.removeFavorite(index);
+            Main.getPreferencesService().updatePreferences(userPrefs);
+
             hook.sendMessage(locale.get("warn.favorite_source_deleted")).setEphemeral(true).queue();
-            
+
             // Refresh the container with remaining favorites
-            favorites = user.getFavorites();
+            favorites = userPrefs.getFavorites();
             if (!favorites.isEmpty()) {
                 int newIndex = Math.min(index, favorites.size() - 1);
-                sendFavoriteDetail(hook, user, newIndex, false);
+                sendFavoriteDetail(hook, userAccount, userPrefs, newIndex, false);
             } else {
                 // No favorites left - show empty state
                 Container empty = Container.of(
                         Section.of(
                                 Thumbnail.fromUrl(avatarUrl),
                                 TextDisplay.of(locale.get("warn.no_favorites_title")),
-                                TextDisplay.of(locale.get("warn.no_favorites_description"))
-                        )
-                ).withAccentColor(Color.RED);
+                                TextDisplay.of(locale.get("warn.no_favorites_description"))))
+                        .withAccentColor(Color.RED);
                 hook.editOriginalComponents(empty)
                         .useComponentsV2()
                         .queue();
@@ -240,12 +243,11 @@ public class FavoritesCommand extends BaseCommand {
                 Thumbnail.fromUrl(avatarUrl),
                 TextDisplay.of("## " + title),
                 TextDisplay.of("**" + favorite.getDescription() + "**"),
-                TextDisplay.of("*" + locale.get("favorites.count", index + 1, favorites.size()) + "*")
-        );
+                TextDisplay.of("*" + locale.get("favorites.count", index + 1, favorites.size()) + "*"));
 
         int currentPage = index / ITEMS_PER_PAGE;
 
-        List<ActionRow> paginatorComponents = buildPaginatorComponents(user, currentPage);
+        List<ActionRow> paginatorComponents = buildPaginatorComponents(userAccount, userPrefs, currentPage);
 
         Button deleteButton = Button.danger("favorite:delete:" + index, locale.get("ui.delete"))
                 .withEmoji(Emoji.fromUnicode("❌"));
@@ -254,21 +256,21 @@ public class FavoritesCommand extends BaseCommand {
         Color accent = favorite.getAccentColor() != null ? new Color(favorite.getAccentColor()) : Color.CYAN;
         Container container = hasDisplayableImage
                 ? Container.of(
-                    headerSection,
-                    Separator.createDivider(Separator.Spacing.SMALL),
-                    MediaGallery.of(createSafeMediaGalleryItem(imageUrl)),
-                    Separator.createDivider(Separator.Spacing.SMALL),
-                    paginatorComponents.get(0),
-                    paginatorComponents.size() > 1 ? paginatorComponents.get(1) : ActionRow.of(Button.secondary("favorite:none", " ").asDisabled()),
-                    deleteButtonRow
-                ).withAccentColor(accent)
+                        headerSection,
+                        Separator.createDivider(Separator.Spacing.SMALL),
+                        MediaGallery.of(createSafeMediaGalleryItem(imageUrl)),
+                        Separator.createDivider(Separator.Spacing.SMALL),
+                        paginatorComponents.get(0),
+                        paginatorComponents.size() > 1 ? paginatorComponents.get(1)
+                                : ActionRow.of(Button.secondary("favorite:none", " ").asDisabled()),
+                        deleteButtonRow).withAccentColor(accent)
                 : Container.of(
-                    headerSection,
-                    Separator.createDivider(Separator.Spacing.SMALL),
-                    paginatorComponents.get(0),
-                    paginatorComponents.size() > 1 ? paginatorComponents.get(1) : ActionRow.of(Button.secondary("favorite:none", " ").asDisabled()),
-                    deleteButtonRow
-                ).withAccentColor(accent);
+                        headerSection,
+                        Separator.createDivider(Separator.Spacing.SMALL),
+                        paginatorComponents.get(0),
+                        paginatorComponents.size() > 1 ? paginatorComponents.get(1)
+                                : ActionRow.of(Button.secondary("favorite:none", " ").asDisabled()),
+                        deleteButtonRow).withAccentColor(accent);
 
         if (isNewMessage) {
             hook.sendMessageComponents(container)
@@ -281,9 +283,9 @@ public class FavoritesCommand extends BaseCommand {
         }
     }
 
-    private List<ActionRow> buildPaginatorComponents(User user, int page) {
-        List<Favorite> favorites = user.getFavorites();
-        LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+    private List<ActionRow> buildPaginatorComponents(Account userAccount, Preferences userPrefs, int page) {
+        List<Favorite> favorites = userPrefs.getFavorites();
+        LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
 
         int totalPages = (int) Math.ceil((double) favorites.size() / ITEMS_PER_PAGE);
         page = Math.max(0, Math.min(page, totalPages - 1));
@@ -318,66 +320,77 @@ public class FavoritesCommand extends BaseCommand {
         actionRows.add(ActionRow.of(menuBuilder.build()));
 
         int displayPage = page + 1;
-        ActionRow pagination = EmbedFactory.createPaginationButtons("favorite", displayPage, Math.max(1, totalPages), 
+        ActionRow pagination = EmbedFactory.createPaginationButtons("favorite", displayPage, Math.max(1, totalPages),
                 null, locale.get("ui.previous"), locale.get("ui.next"), locale.get("ui.refresh"));
         actionRows.add(pagination);
 
         return actionRows;
     }
-    
+
     private MediaGalleryItem createSafeMediaGalleryItem(String url) {
         if (url == null || url.isBlank()) {
             return MediaGalleryItem.fromUrl("https://via.placeholder.com/400x300.png");
         }
-        
+
         String filename = extractFilenameFromUrl(url);
-        
+
         if (filename != null && !filename.isBlank() && filename.contains(".")) {
             return MediaGalleryItem.fromUrl(url);
         }
-        
+
         String extension = detectMediaExtension(url);
-        String safeUrl = url.contains("?") 
-            ? url + "&_fn=media." + extension 
-            : url + "?_fn=media." + extension;
-        
+        String safeUrl = url.contains("?")
+                ? url + "&_fn=media." + extension
+                : url + "?_fn=media." + extension;
+
         return MediaGalleryItem.fromUrl(safeUrl);
     }
-    
+
     private String extractFilenameFromUrl(String url) {
         try {
             int queryIndex = url.indexOf('?');
             int fragmentIndex = url.indexOf('#');
             int endIndex = url.length();
-            
-            if (queryIndex != -1) endIndex = Math.min(endIndex, queryIndex);
-            if (fragmentIndex != -1) endIndex = Math.min(endIndex, fragmentIndex);
-            
+
+            if (queryIndex != -1)
+                endIndex = Math.min(endIndex, queryIndex);
+            if (fragmentIndex != -1)
+                endIndex = Math.min(endIndex, fragmentIndex);
+
             String urlPath = url.substring(0, endIndex);
             int lastSlashIndex = urlPath.lastIndexOf('/');
-            
+
             if (lastSlashIndex != -1 && lastSlashIndex < urlPath.length() - 1) {
                 String filename = urlPath.substring(lastSlashIndex + 1);
                 if (filename.contains(".") && filename.length() > 1) {
                     return filename;
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return null;
     }
-    
+
     private String detectMediaExtension(String url) {
-        if (url == null) return "png";
+        if (url == null)
+            return "png";
         String lowerUrl = url.toLowerCase();
-        
-        if (lowerUrl.contains(".mp4") || lowerUrl.contains("video")) return "mp4";
-        if (lowerUrl.contains(".webm")) return "webm";
-        if (lowerUrl.contains(".gif")) return "gif";
-        if (lowerUrl.contains(".webp")) return "webp";
-        if (lowerUrl.contains(".jpg") || lowerUrl.contains(".jpeg")) return "jpg";
-        if (lowerUrl.contains(".png")) return "png";
-        if (lowerUrl.contains("redgifs") || lowerUrl.contains("gfycat")) return "mp4";
-        
+
+        if (lowerUrl.contains(".mp4") || lowerUrl.contains("video"))
+            return "mp4";
+        if (lowerUrl.contains(".webm"))
+            return "webm";
+        if (lowerUrl.contains(".gif"))
+            return "gif";
+        if (lowerUrl.contains(".webp"))
+            return "webp";
+        if (lowerUrl.contains(".jpg") || lowerUrl.contains(".jpeg"))
+            return "jpg";
+        if (lowerUrl.contains(".png"))
+            return "png";
+        if (lowerUrl.contains("redgifs") || lowerUrl.contains("gfycat"))
+            return "mp4";
+
         return "png";
     }
 }

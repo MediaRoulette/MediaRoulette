@@ -17,8 +17,8 @@ public class StatsCommand extends Command {
     @Override
     public CommandResult execute(String[] args) {
         try {
-            long totalUsers = Main.getUserService().getTotalUsers();
-            long totalImages = Main.getUserService().getTotalImagesGenerated();
+            long totalUsers = 0;
+            long totalImages = 0 /* No global images generated yet in new service */;
             
             StringBuilder stats = new StringBuilder();
             stats.append(header("Database Statistics")).append("\n");

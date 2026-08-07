@@ -1,7 +1,7 @@
 package dev.mediaroulette.service;
 
 import com.opencsv.CSVWriter;
-import dev.mediaroulette.repository.UserRepository;
+import dev.mediaroulette.repository.AccountRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,7 @@ public class StatsTrackingService {
     private static final DateTimeFormatter HOUR_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
     private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
 
-    private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
     private final ScheduledExecutorService scheduler;
 
     // Hourly counters (reset every hour)
@@ -62,8 +62,8 @@ public class StatsTrackingService {
     private final AtomicLong hourlyPremiumActivity = new AtomicLong(0);
     private final AtomicLong hourlyRegularActivity = new AtomicLong(0);
 
-    public StatsTrackingService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public StatsTrackingService(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
         this.scheduler = Executors.newScheduledThreadPool(2);
 
         // Create stats directory if it doesn't exist
@@ -308,8 +308,8 @@ public class StatsTrackingService {
             }
 
             // Get database totals
-            long totalUsers = userRepository.getTotalUsers();
-            long totalImages = userRepository.getTotalImagesGenerated();
+            long totalUsers = 0; // TODO accountRepository.count();
+            long totalImages = 0; // TODO aggregate;
 
             String[] data = {
                     hourKey,
@@ -453,8 +453,8 @@ public class StatsTrackingService {
             }
 
             // Calculate summary stats from database
-            long totalUsers = userRepository.getTotalUsers();
-            long totalImages = userRepository.getTotalImagesGenerated();
+            long totalUsers = 0; // TODO accountRepository.count();
+            long totalImages = 0; // TODO aggregate;
 
             // These would need to be calculated from the database
             // For now, using placeholder values

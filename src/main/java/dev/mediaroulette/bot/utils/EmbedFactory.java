@@ -1,6 +1,6 @@
 package dev.mediaroulette.bot.utils;
 
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -75,7 +75,7 @@ public class EmbedFactory {
 
     public static EmbedBuilder createUserEmbed(String title, String description,
                                                net.dv8tion.jda.api.entities.User discordUser,
-                                               User botUser) {
+                                               Account botUser) {
         EmbedBuilder embed = createBase()
                 .setTitle(title)
                 .setDescription(description)

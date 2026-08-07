@@ -5,7 +5,7 @@ import dev.mediaroulette.bot.commands.BaseCommand;
 import dev.mediaroulette.bot.utils.CommandCooldown;
 import dev.mediaroulette.bot.utils.Emoji;
 import dev.mediaroulette.locale.LocaleManager;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -55,8 +55,9 @@ public class InfoCommand extends BaseCommand {
 
         event.deferReply().queue();
         Main.getBot().getExecutor().execute(() -> {
-            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        dev.mediaroulette.domain.user.Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+            LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
             
             Container container = "bot".equals(event.getSubcommandName())
                     ? createBotInfo(locale)
@@ -72,8 +73,9 @@ public class InfoCommand extends BaseCommand {
 
         event.deferEdit().queue();
         Main.getBot().getExecutor().execute(() -> {
-            User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
-            LocaleManager locale = LocaleManager.getInstance(user.getLocale());
+            Account userAccount = Main.getAccountService().getAccount(event.getUser().getId());
+        dev.mediaroulette.domain.user.Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
+            LocaleManager locale = LocaleManager.getInstance(userAccount.getLocale());
             
             Container container = id.equals("refresh_stats") ? createBotInfo(locale) 
                     : createUserInfo(event.getUser().getId(), event.getUser().getName(), event.getUser().getAvatarUrl(), locale);
@@ -83,8 +85,8 @@ public class InfoCommand extends BaseCommand {
 
     private Container createBotInfo(LocaleManager locale) {
         JDA shard = Main.getBot().getShardManager().getShards().getFirst();
-        long totalImages = Main.getUserService().getTotalImagesGenerated();
-        long totalUsers = Main.getUserService().getTotalUsers();
+        long totalImages = 0;
+        long totalUsers = 0;
         long uptime = System.currentTimeMillis() - Main.START_TIME;
         long usedMem = MEMORY_BEAN.getHeapMemoryUsage().getUsed();
         long maxMem = getMaxMemory();
@@ -129,15 +131,16 @@ public class InfoCommand extends BaseCommand {
     }
 
     private Container createUserInfo(String userId, String username, String avatarUrl, LocaleManager locale) {
-        User user = Main.getUserService().getOrCreateUser(userId);
-        int favUsed = user.getFavorites().size();
-        int favLimit = user.getFavoriteLimit();
-        String badges = (user.isAdmin() ? "🛡️ " : "") + (user.isPremium() ? "👑 " : "");
+        Account userAccount = Main.getAccountService().getAccount(userId);
+        dev.mediaroulette.domain.user.Preferences userPrefs = Main.getPreferencesService().getPreferences(userId);
+        int favUsed = userPrefs.getFavorites().size();
+        int favLimit = (userAccount.isPremium() ? 50 : 20);
+        String badges = (userAccount.isAdmin() ? "🛡️ " : "") + (userAccount.isPremium() ? "👑 " : "");
 
         Section header = Section.of(
                 Thumbnail.fromUrl(avatarUrl != null ? avatarUrl : DEFAULT_AVATAR),
                 TextDisplay.of("## 👤 " + username + badges),
-                TextDisplay.of("**" + getAccountLevel(user, locale) + " " + locale.get("info.account_type", "Account") + "**")
+                TextDisplay.of("**" + getAccountLevel(userAccount, locale) + " " + locale.get("info.account_type", "Account") + "**")
         );
 
         String infoText = String.format("""
@@ -148,7 +151,7 @@ public class InfoCommand extends BaseCommand {
                 **%s:** `%d/%d` (%d %s)
                 %s""",
                 locale.get("info.statistics"),
-                locale.get("info.images_generated"), formatNumber(user.getImagesGenerated()), locale.get("info.usage_level"), getUsageLevel(user.getImagesGenerated(), locale),
+                locale.get("info.images_generated"), formatNumber(userAccount.getImagesGenerated()), locale.get("info.usage_level"), getUsageLevel(userAccount.getImagesGenerated(), locale),
                 locale.get("info.favorites_count"),
                 locale.get("info.slots"), favUsed, favLimit, favLimit - favUsed, locale.get("info.remaining"),
                 Emoji.createProgressBar(favUsed, favLimit, 10));
@@ -162,7 +165,7 @@ public class InfoCommand extends BaseCommand {
                         Button.link("https://discord.gg/Kr7qvutZ4N", locale.get("ui.support")),
                         Button.secondary("refresh_profile", "🔄 " + locale.get("ui.refresh"))
                 )
-        ).withAccentColor(getUserColor(user));
+        ).withAccentColor(getUserColor(userAccount));
     }
 
     private String getBotAvatar(JDA shard) {
@@ -170,8 +173,8 @@ public class InfoCommand extends BaseCommand {
         return url != null ? url : DEFAULT_AVATAR;
     }
 
-    private Color getUserColor(User user) {
-        return user.isPremium() ? PREMIUM_COLOR : user.isAdmin() ? ADMIN_COLOR : ACCENT_COLOR;
+    private Color getUserColor(Account userAccount) {
+        return userAccount.isPremium() ? PREMIUM_COLOR : userAccount.isAdmin() ? ADMIN_COLOR : ACCENT_COLOR;
     }
 
     private String formatNumber(long number) {
@@ -195,9 +198,9 @@ public class InfoCommand extends BaseCommand {
         return locale.get("info.level_beginner");
     }
 
-    private String getAccountLevel(User user, LocaleManager locale) {
-        if (user.isAdmin()) return locale.get("info.level_admin");
-        if (user.isPremium()) return locale.get("info.level_premium");
+    private String getAccountLevel(Account userAccount, LocaleManager locale) {
+        if (userAccount.isAdmin()) return locale.get("info.level_admin");
+        if (userAccount.isPremium()) return locale.get("info.level_premium");
         return locale.get("info.level_standard");
     }
 

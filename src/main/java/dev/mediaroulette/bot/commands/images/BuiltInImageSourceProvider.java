@@ -1,7 +1,8 @@
 package dev.mediaroulette.bot.commands.images;
 
 import dev.mediaroulette.content.provider.MediaProvider;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Account;
+import dev.mediaroulette.domain.user.Preferences;
 import dev.mediaroulette.model.content.MediaResult;
 import dev.mediaroulette.plugins.images.ImageSource;
 import dev.mediaroulette.plugins.images.ImageSourceProvider;
@@ -44,8 +45,8 @@ public class BuiltInImageSourceProvider implements ImageSourceProvider {
     }
     
     @Override
-    public MediaResult getRandomImage(Interaction interaction, User user, String query) throws Exception {
-        return mediaProvider.getRandomMedia(query, user.getUserId());
+    public MediaResult getRandomImage(Interaction interaction, Account userAccount, Preferences userPrefs, String query) throws Exception {
+        return mediaProvider.getRandomMedia(query, userAccount.getUserId());
     }
     
     @Override

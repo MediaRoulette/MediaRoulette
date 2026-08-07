@@ -2,7 +2,7 @@ package dev.mediaroulette.bot.utils;
 
 import dev.mediaroulette.Main;
 import dev.mediaroulette.content.provider.impl.images.BooruBoard;
-import dev.mediaroulette.model.User;
+import dev.mediaroulette.domain.user.Preferences;
 import dev.mediaroulette.config.LocalConfig;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -51,10 +51,10 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleSubredditAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
         
         // Get user's custom subreddits and filter by input
-        List<String> userSubreddits = user.getCustomSubreddits().stream()
+        List<String> userSubreddits = userPrefs.getCustomSubreddits().stream()
                 .filter(subreddit -> subreddit.toLowerCase().startsWith(currentInput))
                 .limit(25)
                 .toList();
@@ -68,10 +68,10 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleGoogleQueryAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
         
         // Get user's Google search history
-        List<String> googleQueries = user.getCustomQueries("google").stream()
+        List<String> googleQueries = userPrefs.getCustomQueries("google").stream()
                 .filter(query -> query.toLowerCase().startsWith(currentInput))
                 .limit(25)
                 .toList();
@@ -84,10 +84,10 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleTenorQueryAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
         
         // Get user's tenor search history
-        List<String> tenorQueries = user.getCustomQueries("tenor").stream()
+        List<String> tenorQueries = userPrefs.getCustomQueries("tenor").stream()
                 .filter(query -> query.toLowerCase().startsWith(currentInput))
                 .limit(25)
                 .toList();
@@ -100,10 +100,10 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
     
     private void handleFourChanBoardAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
         
         // Get user's 4chan board history
-        List<String> boards = user.getCustomQueries("4chan").stream()
+        List<String> boards = userPrefs.getCustomQueries("4chan").stream()
                 .filter(board -> board.toLowerCase().startsWith(currentInput))
                 .limit(25)
                 .toList();
@@ -116,10 +116,10 @@ public class AutoCompleteHandler extends ListenerAdapter {
     }
 
     private void handleUrbanAutocomplete(CommandAutoCompleteInteractionEvent event, String currentInput) {
-        User user = Main.getUserService().getOrCreateUser(event.getUser().getId());
+        Preferences userPrefs = Main.getPreferencesService().getPreferences(event.getUser().getId());
 
         // Get user's urban dictionary search history
-        List<String> urbanQueries = user.getCustomQueries("urban").stream()
+        List<String> urbanQueries = userPrefs.getCustomQueries("urban").stream()
                 .filter(query -> query.toLowerCase().startsWith(currentInput))
                 .limit(25)
                 .toList();
