@@ -1,6 +1,6 @@
-package me.hash.mediaroulette.content.provider.impl.images;
+package dev.mediaroulette.content.provider.impl.images;
 
-import me.hash.mediaroulette.model.content.MediaSource;
+import dev.mediaroulette.model.content.MediaSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.RepeatedTest;
 

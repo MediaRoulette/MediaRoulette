@@ -16,7 +16,7 @@ tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
     isZip64 = true
 
     manifest {
-        attributes["Main-Class"] = "me.hash.mediaroulette.Main"
+        attributes["Main-Class"] = "dev.mediaroulette.Main"
         attributes["Created-By"] = "Gradle Shadow Plugin"
     }
     
@@ -59,7 +59,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-core:2.21.1")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
 
-    implementation("com.bettercloud:vault-java-driver:5.1.0")
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
     // Testing
@@ -79,7 +78,7 @@ tasks.withType<JavaCompile> {
 }
 
 application {
-    mainClass.set("me.hash.mediaroulette.Main")
+    mainClass.set("dev.mediaroulette.Main")
 }
 
 publishing {
@@ -103,4 +102,12 @@ tasks.processResources {
     filesMatching("version.properties") {
         expand(props)
     }
+}
+
+tasks.startScripts {
+    dependsOn(tasks.shadowJar)
+}
+
+tasks.named("startShadowScripts") {
+    dependsOn(tasks.jar)
 }

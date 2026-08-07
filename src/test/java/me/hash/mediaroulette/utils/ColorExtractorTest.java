@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.utils;
+package dev.mediaroulette.utils;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

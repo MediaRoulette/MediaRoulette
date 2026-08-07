@@ -220,15 +220,8 @@ Before you begin, ensure you have:
    cd MediaRoulette
    ```
 
-2. **🔐 Configure secrets** (Choose one method)
+2. **🔐 Configure secrets**
 
-   **Option A: HashiCorp Vault (Recommended for Production)** 🔒
-   ```bash
-   # See VAULT_QUICKSTART.md for detailed setup
-   ./migrate-to-vault.sh
-   ```
-   
-   **Option B: Environment File (Simple Setup)** 📝
    ```bash
    # Copy the template
    cp src/main/resources/.env.template src/main/resources/.env
@@ -236,8 +229,6 @@ Before you begin, ensure you have:
    # Edit with your credentials
    nano src/main/resources/.env
    ```
-   
-   📚 **New!** [Vault Integration Guide](VAULT_QUICKSTART.md) - Secure secret management with HashiCorp Vault
 
 3. **🔨 Build the project**
    ```bash

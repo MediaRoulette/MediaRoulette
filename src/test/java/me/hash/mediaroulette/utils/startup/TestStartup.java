@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.utils.startup;
+package dev.mediaroulette.utils.startup;
 
 import org.junit.jupiter.api.Test;
 import java.io.InputStream;

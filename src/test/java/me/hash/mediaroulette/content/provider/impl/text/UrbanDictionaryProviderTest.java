@@ -1,8 +1,8 @@
-package me.hash.mediaroulette.content.provider.impl.text;
+package dev.mediaroulette.content.provider.impl.text;
 
-import me.hash.mediaroulette.content.http.HttpClientWrapper;
-import me.hash.mediaroulette.model.content.MediaResult;
-import me.hash.mediaroulette.model.content.MediaSource;
+import dev.mediaroulette.content.http.HttpClientWrapper;
+import dev.mediaroulette.model.content.MediaResult;
+import dev.mediaroulette.model.content.MediaSource;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;

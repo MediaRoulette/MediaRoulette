@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.utils.discord;
+package dev.mediaroulette.utils.discord;
 
 import org.junit.jupiter.api.Test;
 import java.time.Instant;

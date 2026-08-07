@@ -1,8 +1,8 @@
-package me.hash.mediaroulette.content.provider.impl.images;
+package dev.mediaroulette.content.provider.impl.images;
 
-import me.hash.mediaroulette.content.http.HttpClientWrapper;
-import me.hash.mediaroulette.model.content.MediaResult;
-import me.hash.mediaroulette.model.content.MediaSource;
+import dev.mediaroulette.content.http.HttpClientWrapper;
+import dev.mediaroulette.model.content.MediaResult;
+import dev.mediaroulette.model.content.MediaSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;

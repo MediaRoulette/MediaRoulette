@@ -1,4 +1,4 @@
-package me.hash.mediaroulette.utils.media.ffmpeg.resolvers;
+package dev.mediaroulette.utils.media.ffmpeg.resolvers;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

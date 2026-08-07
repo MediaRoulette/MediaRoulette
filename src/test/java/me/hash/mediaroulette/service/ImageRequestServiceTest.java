@@ -1,7 +1,7 @@
-package me.hash.mediaroulette.service;
+package dev.mediaroulette.service;
 
-import me.hash.mediaroulette.model.User;
-import me.hash.mediaroulette.plugins.images.ImageSourceProvider;
+import dev.mediaroulette.model.User;
+import dev.mediaroulette.plugins.images.ImageSourceProvider;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
